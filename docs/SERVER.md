@@ -1,0 +1,83 @@
+# HTTP server
+
+The server runs on macOS 14+ and exposes three endpoints on `127.0.0.1`:
+
+| Endpoint | Purpose | Reference |
+| --- | --- | --- |
+| `POST /graphql` | Queries, mutations, and introspection | [Read API](READ_API.md), [schema](reminders.graphql) |
+| `POST /mcp` | MCP discovery and tool calls | [MCP API](MCP.md), [tool catalog](mcp-tools.json) |
+| `GET /metrics` | Cached Prometheus data metrics | [Metrics](METRICS.md) |
+
+Reminder and list writes honor EventKit authorization and editability. See
+[WRITES.md](WRITES.md) for supported inputs and failures after a save.
+
+## Build and startup
+
+Build with Swift 6.4+ and the macOS SDK:
+
+```sh
+swift build -c release
+.build/release/reminders-swift --request-access
+```
+
+Omit `--request-access` after permission is granted. Startup options are the only
+configuration interface; environment-variable configuration is not supported.
+
+| Option | Default | Behavior |
+| --- | --- | --- |
+| `--port` | `8081` | Loopback listener port, 1–65535 |
+| `--metrics-interval-seconds` | `3600` | Delay after each metrics collection, 1–604800 seconds |
+| `--request-access` | Off | Explicitly request EventKit access at startup |
+| `--help`, `-h` | — | Show usage |
+
+The Nix package targets `aarch64-darwin`. Its pinned compiler is too old for the
+locked dependencies. The Swift build above is the working build path.
+
+## Permissions and execution
+
+EventKit and AppleScript run inside the server process. EventKit permission is
+requested only through the explicit startup option, not in response to a read.
+EventKit grants full reminder access rather than a read-only grant. Automation
+permission is separate and may be requested when an operation first sends Apple
+events to Reminders. Startup metrics collection uses EventKit only.
+
+Permission attribution and persistence depend on the executable's signing and
+launch context. The current build embeds usage descriptions but does not produce
+a signed application bundle or install a background service.
+
+Data-access calls are serialized on a worker queue, with EventKit and AppleScript
+work dispatched to the original main thread. HTTP handling remains asynchronous.
+Fetch callbacks have a 30-second wait timeout; running framework calls and
+permission dialogs do not have a guaranteed total request deadline. See
+[DATA_ACCESS.md](DATA_ACCESS.md) and [APPLESCRIPT.md](APPLESCRIPT.md).
+
+## HTTP behavior
+
+Hummingbird hosts HTTP/1.1, including concurrent requests, keep-alive, chunked
+request decoding, and graceful SIGINT/SIGTERM shutdown. The MCP SDK handles
+stateless protocol adaptation and tool dispatch; Hummingbird owns the listener.
+GraphQLSwift handles parsing, validation, execution, and introspection.
+Dependencies are pinned in `Package.resolved`.
+
+Host and supplied Origin headers must identify localhost or 127.0.0.1 with the
+listening port. Untrusted values return 403. JSON POSTs require
+`Content-Type: application/json`; other media types return 415. Request bodies
+are limited to 1 MiB, including chunked uploads; excess returns 413.
+
+There is no authentication or TLS. Keep the service local; network exposure
+requires an explicit access-control design. GraphQL subscriptions and MCP SSE
+streams are not implemented. MCP protocol details are in [MCP.md](MCP.md).
+
+## Limits
+
+Accounts are derived from accessible reminder lists. The default account is
+inferred from the default list. Inventory reads are not atomic database
+snapshots, and accessible records do not establish complete cloud synchronization.
+Identifiers may change after a full sync. Large inventories are unbounded in
+memory, and even list-only requests currently fetch the full inventory.
+
+SwiftPM builds one executable target. Project data-access code is statically
+linked; macOS frameworks and system Swift runtime libraries remain dynamic.
+The EventKit boundary uses a JSON projection decoded into typed records.
+GraphQL resolvers use dynamic `Map` values, while MCP inputs and schemas use
+validated `Value` objects. Not every API boundary is checked at compile time.

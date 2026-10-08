@@ -1,0 +1,203 @@
+{
+  "sdef": "/System/Applications/Reminders.app/Contents/Resources/Reminders.sdef",
+  "classes": [
+    {
+      "kind": "class-extension",
+      "name": "application",
+      "properties": [
+        {
+          "name": "default account",
+          "code": "dact",
+          "type": "account",
+          "access": "r",
+          "description": "The default account in the Reminders application"
+        },
+        {
+          "name": "default list",
+          "code": "dlis",
+          "type": "list",
+          "access": "r",
+          "description": "The default list in the Reminders application"
+        }
+      ],
+      "elements": [
+        {
+          "type": "account",
+          "access": "r"
+        },
+        {
+          "type": "list"
+        },
+        {
+          "type": "reminder"
+        }
+      ]
+    },
+    {
+      "kind": "class",
+      "name": "account",
+      "properties": [
+        {
+          "name": "id",
+          "code": "ID  ",
+          "type": "text",
+          "access": "r",
+          "description": "The unique identifier of the account"
+        },
+        {
+          "name": "name",
+          "code": "pnam",
+          "type": "text",
+          "access": "r",
+          "description": "The name of the account"
+        }
+      ],
+      "elements": [
+        {
+          "type": "list"
+        },
+        {
+          "type": "reminder"
+        }
+      ]
+    },
+    {
+      "kind": "class",
+      "name": "list",
+      "properties": [
+        {
+          "name": "id",
+          "code": "ID  ",
+          "type": "text",
+          "access": "r",
+          "description": "The unique identifier of the list"
+        },
+        {
+          "name": "name",
+          "code": "pnam",
+          "type": "text",
+          "description": "The name of the list"
+        },
+        {
+          "name": "container",
+          "code": "cntr",
+          "access": "r",
+          "description": "The container of the list",
+          "types": [
+            "account",
+            "list"
+          ]
+        },
+        {
+          "name": "color",
+          "code": "colr",
+          "type": "text",
+          "description": "The color of the list"
+        },
+        {
+          "name": "emblem",
+          "code": "iimg",
+          "type": "text",
+          "description": "The emblem icon name of the list"
+        }
+      ],
+      "elements": [
+        {
+          "type": "reminder"
+        }
+      ]
+    },
+    {
+      "kind": "class",
+      "name": "reminder",
+      "properties": [
+        {
+          "name": "name",
+          "code": "pnam",
+          "type": "text",
+          "description": "The name of the reminder"
+        },
+        {
+          "name": "id",
+          "code": "ID  ",
+          "type": "text",
+          "access": "r",
+          "description": "The unique identifier of the reminder"
+        },
+        {
+          "name": "container",
+          "code": "cntr",
+          "access": "r",
+          "description": "The container of the reminder",
+          "types": [
+            "list",
+            "reminder"
+          ]
+        },
+        {
+          "name": "creation date",
+          "code": "ascd",
+          "type": "date",
+          "access": "r",
+          "description": "The creation date of the reminder"
+        },
+        {
+          "name": "modification date",
+          "code": "asmo",
+          "type": "date",
+          "access": "r",
+          "description": "The modification date of the reminder"
+        },
+        {
+          "name": "body",
+          "code": "body",
+          "type": "text",
+          "description": "The notes attached to the reminder"
+        },
+        {
+          "name": "completed",
+          "code": "comb",
+          "type": "boolean",
+          "description": "Whether the reminder is completed"
+        },
+        {
+          "name": "completion date",
+          "code": "comd",
+          "type": "date",
+          "description": "The completion date of the reminder"
+        },
+        {
+          "name": "due date",
+          "code": "dued",
+          "type": "date",
+          "description": "The due date of the reminder; will set both date and time"
+        },
+        {
+          "name": "allday due date",
+          "code": "adue",
+          "type": "date",
+          "description": "The all-day due date of the reminder; will only set a date"
+        },
+        {
+          "name": "remind me date",
+          "code": "rmdt",
+          "type": "date",
+          "description": "The remind date of the reminder"
+        },
+        {
+          "name": "priority",
+          "code": "prio",
+          "type": "integer",
+          "description": "The priority of the reminder; 0: no priority, 1–4: high, 5: medium, 6–9: low"
+        },
+        {
+          "name": "flagged",
+          "code": "flgd",
+          "type": "boolean",
+          "description": "Whether the reminder is flagged"
+        }
+      ],
+      "elements": []
+    }
+  ]
+}

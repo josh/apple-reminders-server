@@ -1,0 +1,4787 @@
+{
+  "tools": [
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. WRITE_APPLIED includes the saved ID if subsequent automation or enrichment fails; do not retry creation blindly.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "emblem": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "accountId"
+        ],
+        "type": "object"
+      },
+      "name": "lists_create",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "list": {
+            "additionalProperties": false,
+            "properties": {
+              "allowsContentModifications": {
+                "type": "boolean"
+              },
+              "allowsListModifications": {
+                "type": "boolean"
+              },
+              "color": {
+                "type": "string"
+              },
+              "container": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "Account",
+                      "ReminderList"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              },
+              "emblem": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "isImmutable": {
+                "type": "boolean"
+              },
+              "isSubscribed": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "source": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "type"
+                ],
+                "type": "object"
+              },
+              "subscribed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "source",
+              "allowsContentModifications",
+              "isImmutable",
+              "isSubscribed"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "list"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. Emblem writes or response enrichment can fail after stored fields are saved. WRITE_APPLIED includes the saved ID; refetch before retrying.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "patch": {
+            "additionalProperties": false,
+            "properties": {
+              "color": {
+                "type": "string"
+              },
+              "emblem": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "patch"
+        ],
+        "type": "object"
+      },
+      "name": "lists_update",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "list": {
+            "additionalProperties": false,
+            "properties": {
+              "allowsContentModifications": {
+                "type": "boolean"
+              },
+              "allowsListModifications": {
+                "type": "boolean"
+              },
+              "color": {
+                "type": "string"
+              },
+              "container": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "Account",
+                      "ReminderList"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              },
+              "emblem": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "isImmutable": {
+                "type": "boolean"
+              },
+              "isSubscribed": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "source": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "type"
+                ],
+                "type": "object"
+              },
+              "subscribed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "source",
+              "allowsContentModifications",
+              "isImmutable",
+              "isSubscribed"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "list"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Delete a list. Nonempty lists require allowNonEmpty=true, which also deletes their reminders. The emptiness check does not lock out concurrent external edits.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "allowNonEmpty": {
+            "default": false,
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "lists_delete",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "deletedId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "deletedId"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Show a reminder in Reminders. Changes the application UI, not reminder data.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "reminders_show",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "reminder": {
+            "additionalProperties": false,
+            "properties": {
+              "alarms": {
+                "items": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "at": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": [
+                            "AbsoluteAlarm"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "at"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "RelativeAlarm"
+                          ],
+                          "type": "string"
+                        },
+                        "offsetSeconds": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "offsetSeconds"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "geofence": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "latitude": {
+                              "type": "number"
+                            },
+                            "longitude": {
+                              "type": "number"
+                            },
+                            "proximity": {
+                              "enum": [
+                                "ARRIVE",
+                                "DEPART"
+                              ],
+                              "type": "string"
+                            },
+                            "radiusMeters": {
+                              "type": "number"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "latitude",
+                            "longitude",
+                            "radiusMeters",
+                            "proximity"
+                          ],
+                          "type": "object"
+                        },
+                        "kind": {
+                          "enum": [
+                            "LocationAlarm"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "geofence"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "allDayDueDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "allDayStartDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "body": {
+                "type": "string"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "completionDate": {
+                "type": "string"
+              },
+              "container": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "ReminderList",
+                      "Reminder"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              },
+              "creationDate": {
+                "type": "string"
+              },
+              "dueDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dueDateComponents": {
+                "additionalProperties": false,
+                "properties": {
+                  "calendar": {
+                    "type": "string"
+                  },
+                  "day": {
+                    "type": "integer"
+                  },
+                  "era": {
+                    "type": "integer"
+                  },
+                  "hour": {
+                    "type": "integer"
+                  },
+                  "isLeapMonth": {
+                    "type": "boolean"
+                  },
+                  "minute": {
+                    "type": "integer"
+                  },
+                  "month": {
+                    "type": "integer"
+                  },
+                  "nanosecond": {
+                    "type": "integer"
+                  },
+                  "quarter": {
+                    "type": "integer"
+                  },
+                  "second": {
+                    "type": "integer"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  },
+                  "weekOfMonth": {
+                    "type": "integer"
+                  },
+                  "weekOfYear": {
+                    "type": "integer"
+                  },
+                  "weekday": {
+                    "type": "integer"
+                  },
+                  "weekdayOrdinal": {
+                    "type": "integer"
+                  },
+                  "year": {
+                    "type": "integer"
+                  },
+                  "yearForWeekOfYear": {
+                    "type": "integer"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "dueDay": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dueStatus": {
+                "enum": [
+                  "overdue",
+                  "today",
+                  "future",
+                  "unscheduled",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "externalId": {
+                "type": "string"
+              },
+              "flagged": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "listId": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "modificationDate": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "integer"
+              },
+              "rawAlarms": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "absoluteDate": {
+                      "type": "string"
+                    },
+                    "proximity": {
+                      "enum": [
+                        "none",
+                        "enter",
+                        "leave",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "relativeOffset": {
+                      "type": "number"
+                    },
+                    "structuredLocation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "latitude": {
+                          "type": "number"
+                        },
+                        "longitude": {
+                          "type": "number"
+                        },
+                        "radius": {
+                          "type": "number"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "radius"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "relativeOffset",
+                    "proximity"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "recurrence": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "daysOfMonth": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "daysOfWeek": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "day": {
+                              "enum": [
+                                "MONDAY",
+                                "TUESDAY",
+                                "WEDNESDAY",
+                                "THURSDAY",
+                                "FRIDAY",
+                                "SATURDAY",
+                                "SUNDAY"
+                              ],
+                              "type": "string"
+                            },
+                            "ordinal": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "day"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "daysOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "end": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "count": {
+                            "type": "integer"
+                          },
+                          "until": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [],
+                        "type": "object"
+                      },
+                      "frequency": {
+                        "enum": [
+                          "DAILY",
+                          "WEEKLY",
+                          "MONTHLY",
+                          "YEARLY"
+                        ],
+                        "type": "string"
+                      },
+                      "interval": {
+                        "type": "integer"
+                      },
+                      "monthsOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "setPositions": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "weeksOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "frequency",
+                      "interval"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "recurrenceRules": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "calendarIdentifier": {
+                      "type": "string"
+                    },
+                    "daysOfTheMonth": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "daysOfTheWeek": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dayOfTheWeek": {
+                            "type": "integer"
+                          },
+                          "weekNumber": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "dayOfTheWeek",
+                          "weekNumber"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "daysOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "end": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "endDate": {
+                          "type": "string"
+                        },
+                        "occurrenceCount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "occurrenceCount"
+                      ],
+                      "type": "object"
+                    },
+                    "firstDayOfTheWeek": {
+                      "type": "integer"
+                    },
+                    "frequency": {
+                      "enum": [
+                        "daily",
+                        "weekly",
+                        "monthly",
+                        "yearly",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "interval": {
+                      "type": "integer"
+                    },
+                    "monthsOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "setPositions": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "weeksOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "frequency",
+                    "calendarIdentifier",
+                    "interval",
+                    "firstDayOfTheWeek",
+                    "daysOfTheWeek",
+                    "daysOfTheMonth",
+                    "daysOfTheYear",
+                    "weeksOfTheYear",
+                    "monthsOfTheYear",
+                    "setPositions"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "remindMeDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "startDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "startDateComponents": {
+                "additionalProperties": false,
+                "properties": {
+                  "calendar": {
+                    "type": "string"
+                  },
+                  "day": {
+                    "type": "integer"
+                  },
+                  "era": {
+                    "type": "integer"
+                  },
+                  "hour": {
+                    "type": "integer"
+                  },
+                  "isLeapMonth": {
+                    "type": "boolean"
+                  },
+                  "minute": {
+                    "type": "integer"
+                  },
+                  "month": {
+                    "type": "integer"
+                  },
+                  "nanosecond": {
+                    "type": "integer"
+                  },
+                  "quarter": {
+                    "type": "integer"
+                  },
+                  "second": {
+                    "type": "integer"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  },
+                  "weekOfMonth": {
+                    "type": "integer"
+                  },
+                  "weekOfYear": {
+                    "type": "integer"
+                  },
+                  "weekday": {
+                    "type": "integer"
+                  },
+                  "weekdayOrdinal": {
+                    "type": "integer"
+                  },
+                  "year": {
+                    "type": "integer"
+                  },
+                  "yearForWeekOfYear": {
+                    "type": "integer"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "timeZone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "container",
+              "remindMeDate",
+              "rawAlarms",
+              "recurrence",
+              "dueDate",
+              "allDayDueDate",
+              "startDate",
+              "allDayStartDate",
+              "timeZone",
+              "id",
+              "completed",
+              "priority",
+              "dueDay",
+              "flagged",
+              "dueStatus",
+              "alarms",
+              "recurrenceRules"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "reminder"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Show a list in Reminders. Changes the application UI, not list data.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "lists_show",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "list": {
+            "additionalProperties": false,
+            "properties": {
+              "allowsContentModifications": {
+                "type": "boolean"
+              },
+              "allowsListModifications": {
+                "type": "boolean"
+              },
+              "color": {
+                "type": "string"
+              },
+              "container": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "Account",
+                      "ReminderList"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              },
+              "emblem": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "isImmutable": {
+                "type": "boolean"
+              },
+              "isSubscribed": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "source": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "type"
+                ],
+                "type": "object"
+              },
+              "subscribed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "source",
+              "allowsContentModifications",
+              "isImmutable",
+              "isSubscribed"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "list"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but later automation or response enrichment failed; refetch using the reported ID.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "alarms": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "absoluteDate": {
+                  "type": "string"
+                },
+                "geofence": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "latitude": {
+                      "maximum": 90,
+                      "minimum": -90,
+                      "type": "number"
+                    },
+                    "longitude": {
+                      "maximum": 180,
+                      "minimum": -180,
+                      "type": "number"
+                    },
+                    "proximity": {
+                      "enum": [
+                        "ARRIVE",
+                        "DEPART"
+                      ],
+                      "type": "string"
+                    },
+                    "radiusMeters": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "latitude",
+                    "longitude",
+                    "radiusMeters",
+                    "proximity"
+                  ],
+                  "type": "object"
+                },
+                "relativeOffsetSeconds": {
+                  "type": "number"
+                }
+              },
+              "required": [],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "allDayDueDate": {
+            "type": "string"
+          },
+          "allDayStartDate": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "dueDate": {
+            "type": "string"
+          },
+          "flagged": {
+            "type": "boolean"
+          },
+          "listId": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "maximum": 9,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "recurrence": {
+            "additionalProperties": false,
+            "properties": {
+              "daysOfMonth": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "daysOfWeek": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "day": {
+                      "enum": [
+                        "MONDAY",
+                        "TUESDAY",
+                        "WEDNESDAY",
+                        "THURSDAY",
+                        "FRIDAY",
+                        "SATURDAY",
+                        "SUNDAY"
+                      ],
+                      "type": "string"
+                    },
+                    "ordinal": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "day"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "daysOfYear": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "end": {
+                "additionalProperties": false,
+                "properties": {
+                  "count": {
+                    "type": "integer"
+                  },
+                  "until": {
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "frequency": {
+                "enum": [
+                  "DAILY",
+                  "WEEKLY",
+                  "MONTHLY",
+                  "YEARLY"
+                ],
+                "type": "string"
+              },
+              "interval": {
+                "type": "integer"
+              },
+              "monthsOfYear": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "setPositions": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "weeksOfYear": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "frequency",
+              "interval"
+            ],
+            "type": "object"
+          },
+          "remindMeDate": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "reminders_create",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "reminder": {
+            "additionalProperties": false,
+            "properties": {
+              "alarms": {
+                "items": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "at": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": [
+                            "AbsoluteAlarm"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "at"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "RelativeAlarm"
+                          ],
+                          "type": "string"
+                        },
+                        "offsetSeconds": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "offsetSeconds"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "geofence": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "latitude": {
+                              "type": "number"
+                            },
+                            "longitude": {
+                              "type": "number"
+                            },
+                            "proximity": {
+                              "enum": [
+                                "ARRIVE",
+                                "DEPART"
+                              ],
+                              "type": "string"
+                            },
+                            "radiusMeters": {
+                              "type": "number"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "latitude",
+                            "longitude",
+                            "radiusMeters",
+                            "proximity"
+                          ],
+                          "type": "object"
+                        },
+                        "kind": {
+                          "enum": [
+                            "LocationAlarm"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "geofence"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "allDayDueDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "allDayStartDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "body": {
+                "type": "string"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "completionDate": {
+                "type": "string"
+              },
+              "container": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "ReminderList",
+                      "Reminder"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              },
+              "creationDate": {
+                "type": "string"
+              },
+              "dueDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dueDateComponents": {
+                "additionalProperties": false,
+                "properties": {
+                  "calendar": {
+                    "type": "string"
+                  },
+                  "day": {
+                    "type": "integer"
+                  },
+                  "era": {
+                    "type": "integer"
+                  },
+                  "hour": {
+                    "type": "integer"
+                  },
+                  "isLeapMonth": {
+                    "type": "boolean"
+                  },
+                  "minute": {
+                    "type": "integer"
+                  },
+                  "month": {
+                    "type": "integer"
+                  },
+                  "nanosecond": {
+                    "type": "integer"
+                  },
+                  "quarter": {
+                    "type": "integer"
+                  },
+                  "second": {
+                    "type": "integer"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  },
+                  "weekOfMonth": {
+                    "type": "integer"
+                  },
+                  "weekOfYear": {
+                    "type": "integer"
+                  },
+                  "weekday": {
+                    "type": "integer"
+                  },
+                  "weekdayOrdinal": {
+                    "type": "integer"
+                  },
+                  "year": {
+                    "type": "integer"
+                  },
+                  "yearForWeekOfYear": {
+                    "type": "integer"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "dueDay": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dueStatus": {
+                "enum": [
+                  "overdue",
+                  "today",
+                  "future",
+                  "unscheduled",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "externalId": {
+                "type": "string"
+              },
+              "flagged": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "listId": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "modificationDate": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "integer"
+              },
+              "rawAlarms": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "absoluteDate": {
+                      "type": "string"
+                    },
+                    "proximity": {
+                      "enum": [
+                        "none",
+                        "enter",
+                        "leave",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "relativeOffset": {
+                      "type": "number"
+                    },
+                    "structuredLocation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "latitude": {
+                          "type": "number"
+                        },
+                        "longitude": {
+                          "type": "number"
+                        },
+                        "radius": {
+                          "type": "number"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "radius"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "relativeOffset",
+                    "proximity"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "recurrence": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "daysOfMonth": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "daysOfWeek": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "day": {
+                              "enum": [
+                                "MONDAY",
+                                "TUESDAY",
+                                "WEDNESDAY",
+                                "THURSDAY",
+                                "FRIDAY",
+                                "SATURDAY",
+                                "SUNDAY"
+                              ],
+                              "type": "string"
+                            },
+                            "ordinal": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "day"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "daysOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "end": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "count": {
+                            "type": "integer"
+                          },
+                          "until": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [],
+                        "type": "object"
+                      },
+                      "frequency": {
+                        "enum": [
+                          "DAILY",
+                          "WEEKLY",
+                          "MONTHLY",
+                          "YEARLY"
+                        ],
+                        "type": "string"
+                      },
+                      "interval": {
+                        "type": "integer"
+                      },
+                      "monthsOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "setPositions": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "weeksOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "frequency",
+                      "interval"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "recurrenceRules": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "calendarIdentifier": {
+                      "type": "string"
+                    },
+                    "daysOfTheMonth": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "daysOfTheWeek": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dayOfTheWeek": {
+                            "type": "integer"
+                          },
+                          "weekNumber": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "dayOfTheWeek",
+                          "weekNumber"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "daysOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "end": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "endDate": {
+                          "type": "string"
+                        },
+                        "occurrenceCount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "occurrenceCount"
+                      ],
+                      "type": "object"
+                    },
+                    "firstDayOfTheWeek": {
+                      "type": "integer"
+                    },
+                    "frequency": {
+                      "enum": [
+                        "daily",
+                        "weekly",
+                        "monthly",
+                        "yearly",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "interval": {
+                      "type": "integer"
+                    },
+                    "monthsOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "setPositions": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "weeksOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "frequency",
+                    "calendarIdentifier",
+                    "interval",
+                    "firstDayOfTheWeek",
+                    "daysOfTheWeek",
+                    "daysOfTheMonth",
+                    "daysOfTheYear",
+                    "weeksOfTheYear",
+                    "monthsOfTheYear",
+                    "setPositions"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "remindMeDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "startDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "startDateComponents": {
+                "additionalProperties": false,
+                "properties": {
+                  "calendar": {
+                    "type": "string"
+                  },
+                  "day": {
+                    "type": "integer"
+                  },
+                  "era": {
+                    "type": "integer"
+                  },
+                  "hour": {
+                    "type": "integer"
+                  },
+                  "isLeapMonth": {
+                    "type": "boolean"
+                  },
+                  "minute": {
+                    "type": "integer"
+                  },
+                  "month": {
+                    "type": "integer"
+                  },
+                  "nanosecond": {
+                    "type": "integer"
+                  },
+                  "quarter": {
+                    "type": "integer"
+                  },
+                  "second": {
+                    "type": "integer"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  },
+                  "weekOfMonth": {
+                    "type": "integer"
+                  },
+                  "weekOfYear": {
+                    "type": "integer"
+                  },
+                  "weekday": {
+                    "type": "integer"
+                  },
+                  "weekdayOrdinal": {
+                    "type": "integer"
+                  },
+                  "year": {
+                    "type": "integer"
+                  },
+                  "yearForWeekOfYear": {
+                    "type": "integer"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "timeZone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "container",
+              "remindMeDate",
+              "rawAlarms",
+              "recurrence",
+              "dueDate",
+              "allDayDueDate",
+              "startDate",
+              "allDayStartDate",
+              "timeZone",
+              "id",
+              "completed",
+              "priority",
+              "dueDay",
+              "flagged",
+              "dueStatus",
+              "alarms",
+              "recurrenceRules"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "reminder"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. A WRITE_APPLIED error means the save succeeded but later automation or response enrichment failed; refetch before retrying.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "patch": {
+            "additionalProperties": false,
+            "properties": {
+              "alarms": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "absoluteDate": {
+                      "type": "string"
+                    },
+                    "geofence": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "latitude": {
+                          "maximum": 90,
+                          "minimum": -90,
+                          "type": "number"
+                        },
+                        "longitude": {
+                          "maximum": 180,
+                          "minimum": -180,
+                          "type": "number"
+                        },
+                        "proximity": {
+                          "enum": [
+                            "ARRIVE",
+                            "DEPART"
+                          ],
+                          "type": "string"
+                        },
+                        "radiusMeters": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "latitude",
+                        "longitude",
+                        "radiusMeters",
+                        "proximity"
+                      ],
+                      "type": "object"
+                    },
+                    "relativeOffsetSeconds": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "allDayDueDate": {
+                "type": "string"
+              },
+              "allDayStartDate": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "clearFields": {
+                "items": {
+                  "enum": [
+                    "LOCATION",
+                    "URL",
+                    "DUE_DATE",
+                    "ALL_DAY_DUE_DATE",
+                    "COMPLETION_DATE",
+                    "RECURRENCE",
+                    "TIME_ZONE",
+                    "START_DATE",
+                    "ALL_DAY_START_DATE"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "completionDate": {
+                "type": "string"
+              },
+              "dueDate": {
+                "type": "string"
+              },
+              "flagged": {
+                "type": "boolean"
+              },
+              "location": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "priority": {
+                "maximum": 9,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "recurrence": {
+                "additionalProperties": false,
+                "properties": {
+                  "daysOfMonth": {
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "daysOfWeek": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "day": {
+                          "enum": [
+                            "MONDAY",
+                            "TUESDAY",
+                            "WEDNESDAY",
+                            "THURSDAY",
+                            "FRIDAY",
+                            "SATURDAY",
+                            "SUNDAY"
+                          ],
+                          "type": "string"
+                        },
+                        "ordinal": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "day"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "daysOfYear": {
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "end": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "count": {
+                        "type": "integer"
+                      },
+                      "until": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [],
+                    "type": "object"
+                  },
+                  "frequency": {
+                    "enum": [
+                      "DAILY",
+                      "WEEKLY",
+                      "MONTHLY",
+                      "YEARLY"
+                    ],
+                    "type": "string"
+                  },
+                  "interval": {
+                    "type": "integer"
+                  },
+                  "monthsOfYear": {
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "setPositions": {
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  },
+                  "weeksOfYear": {
+                    "items": {
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "frequency",
+                  "interval"
+                ],
+                "type": "object"
+              },
+              "remindMeDate": {
+                "type": "string"
+              },
+              "startDate": {
+                "type": "string"
+              },
+              "timeZone": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "patch"
+        ],
+        "type": "object"
+      },
+      "name": "reminders_update",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "reminder": {
+            "additionalProperties": false,
+            "properties": {
+              "alarms": {
+                "items": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "at": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": [
+                            "AbsoluteAlarm"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "at"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "RelativeAlarm"
+                          ],
+                          "type": "string"
+                        },
+                        "offsetSeconds": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "offsetSeconds"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "geofence": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "latitude": {
+                              "type": "number"
+                            },
+                            "longitude": {
+                              "type": "number"
+                            },
+                            "proximity": {
+                              "enum": [
+                                "ARRIVE",
+                                "DEPART"
+                              ],
+                              "type": "string"
+                            },
+                            "radiusMeters": {
+                              "type": "number"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "latitude",
+                            "longitude",
+                            "radiusMeters",
+                            "proximity"
+                          ],
+                          "type": "object"
+                        },
+                        "kind": {
+                          "enum": [
+                            "LocationAlarm"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "geofence"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "allDayDueDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "allDayStartDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "body": {
+                "type": "string"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "completionDate": {
+                "type": "string"
+              },
+              "container": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "ReminderList",
+                      "Reminder"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              },
+              "creationDate": {
+                "type": "string"
+              },
+              "dueDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dueDateComponents": {
+                "additionalProperties": false,
+                "properties": {
+                  "calendar": {
+                    "type": "string"
+                  },
+                  "day": {
+                    "type": "integer"
+                  },
+                  "era": {
+                    "type": "integer"
+                  },
+                  "hour": {
+                    "type": "integer"
+                  },
+                  "isLeapMonth": {
+                    "type": "boolean"
+                  },
+                  "minute": {
+                    "type": "integer"
+                  },
+                  "month": {
+                    "type": "integer"
+                  },
+                  "nanosecond": {
+                    "type": "integer"
+                  },
+                  "quarter": {
+                    "type": "integer"
+                  },
+                  "second": {
+                    "type": "integer"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  },
+                  "weekOfMonth": {
+                    "type": "integer"
+                  },
+                  "weekOfYear": {
+                    "type": "integer"
+                  },
+                  "weekday": {
+                    "type": "integer"
+                  },
+                  "weekdayOrdinal": {
+                    "type": "integer"
+                  },
+                  "year": {
+                    "type": "integer"
+                  },
+                  "yearForWeekOfYear": {
+                    "type": "integer"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "dueDay": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dueStatus": {
+                "enum": [
+                  "overdue",
+                  "today",
+                  "future",
+                  "unscheduled",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "externalId": {
+                "type": "string"
+              },
+              "flagged": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "listId": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "modificationDate": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "integer"
+              },
+              "rawAlarms": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "absoluteDate": {
+                      "type": "string"
+                    },
+                    "proximity": {
+                      "enum": [
+                        "none",
+                        "enter",
+                        "leave",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "relativeOffset": {
+                      "type": "number"
+                    },
+                    "structuredLocation": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "latitude": {
+                          "type": "number"
+                        },
+                        "longitude": {
+                          "type": "number"
+                        },
+                        "radius": {
+                          "type": "number"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "radius"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "relativeOffset",
+                    "proximity"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "recurrence": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "daysOfMonth": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "daysOfWeek": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "day": {
+                              "enum": [
+                                "MONDAY",
+                                "TUESDAY",
+                                "WEDNESDAY",
+                                "THURSDAY",
+                                "FRIDAY",
+                                "SATURDAY",
+                                "SUNDAY"
+                              ],
+                              "type": "string"
+                            },
+                            "ordinal": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "day"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "daysOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "end": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "count": {
+                            "type": "integer"
+                          },
+                          "until": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [],
+                        "type": "object"
+                      },
+                      "frequency": {
+                        "enum": [
+                          "DAILY",
+                          "WEEKLY",
+                          "MONTHLY",
+                          "YEARLY"
+                        ],
+                        "type": "string"
+                      },
+                      "interval": {
+                        "type": "integer"
+                      },
+                      "monthsOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "setPositions": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "weeksOfYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "frequency",
+                      "interval"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "recurrenceRules": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "calendarIdentifier": {
+                      "type": "string"
+                    },
+                    "daysOfTheMonth": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "daysOfTheWeek": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dayOfTheWeek": {
+                            "type": "integer"
+                          },
+                          "weekNumber": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "dayOfTheWeek",
+                          "weekNumber"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "daysOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "end": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "endDate": {
+                          "type": "string"
+                        },
+                        "occurrenceCount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "occurrenceCount"
+                      ],
+                      "type": "object"
+                    },
+                    "firstDayOfTheWeek": {
+                      "type": "integer"
+                    },
+                    "frequency": {
+                      "enum": [
+                        "daily",
+                        "weekly",
+                        "monthly",
+                        "yearly",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "interval": {
+                      "type": "integer"
+                    },
+                    "monthsOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "setPositions": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    "weeksOfTheYear": {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "frequency",
+                    "calendarIdentifier",
+                    "interval",
+                    "firstDayOfTheWeek",
+                    "daysOfTheWeek",
+                    "daysOfTheMonth",
+                    "daysOfTheYear",
+                    "weeksOfTheYear",
+                    "monthsOfTheYear",
+                    "setPositions"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "remindMeDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "startDate": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "startDateComponents": {
+                "additionalProperties": false,
+                "properties": {
+                  "calendar": {
+                    "type": "string"
+                  },
+                  "day": {
+                    "type": "integer"
+                  },
+                  "era": {
+                    "type": "integer"
+                  },
+                  "hour": {
+                    "type": "integer"
+                  },
+                  "isLeapMonth": {
+                    "type": "boolean"
+                  },
+                  "minute": {
+                    "type": "integer"
+                  },
+                  "month": {
+                    "type": "integer"
+                  },
+                  "nanosecond": {
+                    "type": "integer"
+                  },
+                  "quarter": {
+                    "type": "integer"
+                  },
+                  "second": {
+                    "type": "integer"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  },
+                  "weekOfMonth": {
+                    "type": "integer"
+                  },
+                  "weekOfYear": {
+                    "type": "integer"
+                  },
+                  "weekday": {
+                    "type": "integer"
+                  },
+                  "weekdayOrdinal": {
+                    "type": "integer"
+                  },
+                  "year": {
+                    "type": "integer"
+                  },
+                  "yearForWeekOfYear": {
+                    "type": "integer"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "timeZone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "container",
+              "remindMeDate",
+              "rawAlarms",
+              "recurrence",
+              "dueDate",
+              "allDayDueDate",
+              "startDate",
+              "allDayStartDate",
+              "timeZone",
+              "id",
+              "completed",
+              "priority",
+              "dueDay",
+              "flagged",
+              "dueStatus",
+              "alarms",
+              "recurrenceRules"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "reminder"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Delete one reminder. Missing IDs return a NOT_FOUND tool error. Refetch before retrying after uncertain failures.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "reminders_delete",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "deletedId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "deletedId"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read an account by identifier; returns null when it has no accessible reminder lists or is absent.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "accounts_get",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "account"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read accounts with accessible reminder lists, ordered by identifier.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "accounts_list",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read a list with its icon and container reference; absent identifiers return null. Reminders automation metadata is required for a complete result.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "lists_get",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "list": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "allowsContentModifications": {
+                    "type": "boolean"
+                  },
+                  "allowsListModifications": {
+                    "type": "boolean"
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "container": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": [
+                          "Account",
+                          "ReminderList"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id"
+                    ],
+                    "type": "object"
+                  },
+                  "emblem": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "isImmutable": {
+                    "type": "boolean"
+                  },
+                  "isSubscribed": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "type"
+                    ],
+                    "type": "object"
+                  },
+                  "subscribed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "source",
+                  "allowsContentModifications",
+                  "isImmutable",
+                  "isSubscribed"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "list"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read the accessible default list and its account; unavailable defaults return null.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "defaults_get",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "list": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "allowsContentModifications": {
+                    "type": "boolean"
+                  },
+                  "allowsListModifications": {
+                    "type": "boolean"
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "container": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": [
+                          "Account",
+                          "ReminderList"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id"
+                    ],
+                    "type": "object"
+                  },
+                  "emblem": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "isImmutable": {
+                    "type": "boolean"
+                  },
+                  "isSubscribed": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "type"
+                    ],
+                    "type": "object"
+                  },
+                  "subscribed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "source",
+                  "allowsContentModifications",
+                  "isImmutable",
+                  "isSubscribed"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "list",
+          "account"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Count all reminders per accessible list, optionally restricted to listId. Counts overlap and include completed items except overdue.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "listId": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "lists_summary",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "completed": {
+                  "type": "integer"
+                },
+                "incomplete": {
+                  "type": "integer"
+                },
+                "listId": {
+                  "type": "string"
+                },
+                "overdue": {
+                  "type": "integer"
+                },
+                "recurring": {
+                  "type": "integer"
+                },
+                "scheduled": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "withAlarms": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "total",
+                "completed",
+                "incomplete",
+                "overdue",
+                "scheduled",
+                "recurring",
+                "withAlarms",
+                "listId"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read lists filtered by name, account IDs, editability, and subscription. Use filter for criteria or the legacy flat inputs, never both. orderBy.direction selects name ordering; do not combine it with sort. Filters intersect. Pagination uses limit and an opaque cursor tied to unchanged criteria. Sort defaults to id_asc; name_asc and name_desc compare names case-insensitively with ID ascending ties.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "accountIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowsContentModifications": {
+            "type": "boolean"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "filter": {
+            "additionalProperties": false,
+            "properties": {
+              "accountIds": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "allowsContentModifications": {
+                "type": "boolean"
+              },
+              "query": {
+                "type": "string"
+              },
+              "subscribed": {
+                "type": "boolean"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "limit": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "orderBy": {
+            "additionalProperties": false,
+            "properties": {
+              "direction": {
+                "enum": [
+                  "ASC",
+                  "DESC"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "query": {
+            "type": "string"
+          },
+          "sort": {
+            "enum": [
+              "id_asc",
+              "name_asc",
+              "name_desc"
+            ],
+            "type": "string"
+          },
+          "subscribed": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "lists_list",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "allowsContentModifications": {
+                  "type": "boolean"
+                },
+                "allowsListModifications": {
+                  "type": "boolean"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "container": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "Account",
+                        "ReminderList"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "type": "object"
+                },
+                "emblem": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                },
+                "isImmutable": {
+                  "type": "boolean"
+                },
+                "isSubscribed": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "source": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "type"
+                  ],
+                  "type": "object"
+                },
+                "subscribed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "source",
+                "allowsContentModifications",
+                "isImmutable",
+                "isSubscribed"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": "string"
+          },
+          "totalCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "totalCount"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read reminders filtered by account/list IDs, completion, flags, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter or as legacy flat inputs, never both. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Legacy dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties; it takes precedence over sort. Sort defaults to id_asc; priorities use numeric order; absent creation dates sort last, with identifier ascending to break ties. Cursor is opaque, expires after 10 minutes, and requires identical criteria and limit. Optional unavailable values are omitted. Dates retain EventKit components; omitted hours mean date-only and omitted zones mean floating.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "accountIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "cursor": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "dueBefore": {
+            "type": "string"
+          },
+          "dueFrom": {
+            "type": "string"
+          },
+          "dueOnOrAfter": {
+            "type": "string"
+          },
+          "dueStatus": {
+            "enum": [
+              "overdue",
+              "today",
+              "future",
+              "unscheduled",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "filter": {
+            "additionalProperties": false,
+            "properties": {
+              "accountIds": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "dueBefore": {
+                "type": "string"
+              },
+              "dueFrom": {
+                "type": "string"
+              },
+              "dueOnOrAfter": {
+                "type": "string"
+              },
+              "dueStatus": {
+                "enum": [
+                  "overdue",
+                  "today",
+                  "future",
+                  "unscheduled",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "flagged": {
+                "type": "boolean"
+              },
+              "hasDueDate": {
+                "type": "boolean"
+              },
+              "listId": {
+                "type": "string"
+              },
+              "listIds": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "priorities": {
+                "items": {
+                  "maximum": 9,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "flagged": {
+            "type": "boolean"
+          },
+          "hasDueDate": {
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 50,
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "listId": {
+            "type": "string"
+          },
+          "listIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "orderBy": {
+            "additionalProperties": false,
+            "properties": {
+              "direction": {
+                "enum": [
+                  "ASC",
+                  "DESC"
+                ],
+                "type": "string"
+              },
+              "field": {
+                "enum": [
+                  "NAME",
+                  "DUE_DATE",
+                  "PRIORITY",
+                  "CREATION_DATE",
+                  "MODIFICATION_DATE",
+                  "COMPLETION_DATE"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "field"
+            ],
+            "type": "object"
+          },
+          "priorities": {
+            "items": {
+              "maximum": 9,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "query": {
+            "type": "string"
+          },
+          "sort": {
+            "enum": [
+              "id_asc",
+              "priority_asc",
+              "priority_desc",
+              "created_asc",
+              "created_desc"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "reminders_search",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "alarms": {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "at": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": [
+                              "AbsoluteAlarm"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "at"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "RelativeAlarm"
+                            ],
+                            "type": "string"
+                          },
+                          "offsetSeconds": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "offsetSeconds"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "geofence": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "latitude": {
+                                "type": "number"
+                              },
+                              "longitude": {
+                                "type": "number"
+                              },
+                              "proximity": {
+                                "enum": [
+                                  "ARRIVE",
+                                  "DEPART"
+                                ],
+                                "type": "string"
+                              },
+                              "radiusMeters": {
+                                "type": "number"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "latitude",
+                              "longitude",
+                              "radiusMeters",
+                              "proximity"
+                            ],
+                            "type": "object"
+                          },
+                          "kind": {
+                            "enum": [
+                              "LocationAlarm"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "geofence"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
+                "allDayDueDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "allDayStartDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "body": {
+                  "type": "string"
+                },
+                "completed": {
+                  "type": "boolean"
+                },
+                "completionDate": {
+                  "type": "string"
+                },
+                "container": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "ReminderList",
+                        "Reminder"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "type": "object"
+                },
+                "creationDate": {
+                  "type": "string"
+                },
+                "dueDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "dueDateComponents": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "calendar": {
+                      "type": "string"
+                    },
+                    "day": {
+                      "type": "integer"
+                    },
+                    "era": {
+                      "type": "integer"
+                    },
+                    "hour": {
+                      "type": "integer"
+                    },
+                    "isLeapMonth": {
+                      "type": "boolean"
+                    },
+                    "minute": {
+                      "type": "integer"
+                    },
+                    "month": {
+                      "type": "integer"
+                    },
+                    "nanosecond": {
+                      "type": "integer"
+                    },
+                    "quarter": {
+                      "type": "integer"
+                    },
+                    "second": {
+                      "type": "integer"
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "weekOfMonth": {
+                      "type": "integer"
+                    },
+                    "weekOfYear": {
+                      "type": "integer"
+                    },
+                    "weekday": {
+                      "type": "integer"
+                    },
+                    "weekdayOrdinal": {
+                      "type": "integer"
+                    },
+                    "year": {
+                      "type": "integer"
+                    },
+                    "yearForWeekOfYear": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [],
+                  "type": "object"
+                },
+                "dueDay": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "dueStatus": {
+                  "enum": [
+                    "overdue",
+                    "today",
+                    "future",
+                    "unscheduled",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                "externalId": {
+                  "type": "string"
+                },
+                "flagged": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                },
+                "listId": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "string"
+                },
+                "modificationDate": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "integer"
+                },
+                "rawAlarms": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "absoluteDate": {
+                        "type": "string"
+                      },
+                      "proximity": {
+                        "enum": [
+                          "none",
+                          "enter",
+                          "leave",
+                          "unknown"
+                        ],
+                        "type": "string"
+                      },
+                      "relativeOffset": {
+                        "type": "number"
+                      },
+                      "structuredLocation": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "latitude": {
+                            "type": "number"
+                          },
+                          "longitude": {
+                            "type": "number"
+                          },
+                          "radius": {
+                            "type": "number"
+                          },
+                          "title": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "radius"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "relativeOffset",
+                      "proximity"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "recurrence": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "daysOfMonth": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "daysOfWeek": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "day": {
+                                "enum": [
+                                  "MONDAY",
+                                  "TUESDAY",
+                                  "WEDNESDAY",
+                                  "THURSDAY",
+                                  "FRIDAY",
+                                  "SATURDAY",
+                                  "SUNDAY"
+                                ],
+                                "type": "string"
+                              },
+                              "ordinal": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "day"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "daysOfYear": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "end": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "count": {
+                              "type": "integer"
+                            },
+                            "until": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [],
+                          "type": "object"
+                        },
+                        "frequency": {
+                          "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY",
+                            "YEARLY"
+                          ],
+                          "type": "string"
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "monthsOfYear": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "setPositions": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "weeksOfYear": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "frequency",
+                        "interval"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "recurrenceRules": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "calendarIdentifier": {
+                        "type": "string"
+                      },
+                      "daysOfTheMonth": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "daysOfTheWeek": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "dayOfTheWeek": {
+                              "type": "integer"
+                            },
+                            "weekNumber": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "dayOfTheWeek",
+                            "weekNumber"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "daysOfTheYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "end": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "endDate": {
+                            "type": "string"
+                          },
+                          "occurrenceCount": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "occurrenceCount"
+                        ],
+                        "type": "object"
+                      },
+                      "firstDayOfTheWeek": {
+                        "type": "integer"
+                      },
+                      "frequency": {
+                        "enum": [
+                          "daily",
+                          "weekly",
+                          "monthly",
+                          "yearly",
+                          "unknown"
+                        ],
+                        "type": "string"
+                      },
+                      "interval": {
+                        "type": "integer"
+                      },
+                      "monthsOfTheYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "setPositions": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "weeksOfTheYear": {
+                        "items": {
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "frequency",
+                      "calendarIdentifier",
+                      "interval",
+                      "firstDayOfTheWeek",
+                      "daysOfTheWeek",
+                      "daysOfTheMonth",
+                      "daysOfTheYear",
+                      "weeksOfTheYear",
+                      "monthsOfTheYear",
+                      "setPositions"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "remindMeDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "startDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "startDateComponents": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "calendar": {
+                      "type": "string"
+                    },
+                    "day": {
+                      "type": "integer"
+                    },
+                    "era": {
+                      "type": "integer"
+                    },
+                    "hour": {
+                      "type": "integer"
+                    },
+                    "isLeapMonth": {
+                      "type": "boolean"
+                    },
+                    "minute": {
+                      "type": "integer"
+                    },
+                    "month": {
+                      "type": "integer"
+                    },
+                    "nanosecond": {
+                      "type": "integer"
+                    },
+                    "quarter": {
+                      "type": "integer"
+                    },
+                    "second": {
+                      "type": "integer"
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "weekOfMonth": {
+                      "type": "integer"
+                    },
+                    "weekOfYear": {
+                      "type": "integer"
+                    },
+                    "weekday": {
+                      "type": "integer"
+                    },
+                    "weekdayOrdinal": {
+                      "type": "integer"
+                    },
+                    "year": {
+                      "type": "integer"
+                    },
+                    "yearForWeekOfYear": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [],
+                  "type": "object"
+                },
+                "timeZone": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "container",
+                "remindMeDate",
+                "rawAlarms",
+                "recurrence",
+                "dueDate",
+                "allDayDueDate",
+                "startDate",
+                "allDayStartDate",
+                "timeZone",
+                "id",
+                "completed",
+                "priority",
+                "dueDay",
+                "flagged",
+                "dueStatus",
+                "alarms",
+                "recurrenceRules"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": "string"
+          },
+          "totalCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "totalCount"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Read one reminder with component and projected dates, Reminders flags, container reference, alert date, alarms and recurrence; returns null when absent. Metadata read failures fail the call.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "reminders_get",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "reminder": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "alarms": {
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "at": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": [
+                                "AbsoluteAlarm"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "at"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "RelativeAlarm"
+                              ],
+                              "type": "string"
+                            },
+                            "offsetSeconds": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "offsetSeconds"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "geofence": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "latitude": {
+                                  "type": "number"
+                                },
+                                "longitude": {
+                                  "type": "number"
+                                },
+                                "proximity": {
+                                  "enum": [
+                                    "ARRIVE",
+                                    "DEPART"
+                                  ],
+                                  "type": "string"
+                                },
+                                "radiusMeters": {
+                                  "type": "number"
+                                },
+                                "title": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "latitude",
+                                "longitude",
+                                "radiusMeters",
+                                "proximity"
+                              ],
+                              "type": "object"
+                            },
+                            "kind": {
+                              "enum": [
+                                "LocationAlarm"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "geofence"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "allDayDueDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "allDayStartDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "body": {
+                    "type": "string"
+                  },
+                  "completed": {
+                    "type": "boolean"
+                  },
+                  "completionDate": {
+                    "type": "string"
+                  },
+                  "container": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": [
+                          "ReminderList",
+                          "Reminder"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id"
+                    ],
+                    "type": "object"
+                  },
+                  "creationDate": {
+                    "type": "string"
+                  },
+                  "dueDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "dueDateComponents": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "calendar": {
+                        "type": "string"
+                      },
+                      "day": {
+                        "type": "integer"
+                      },
+                      "era": {
+                        "type": "integer"
+                      },
+                      "hour": {
+                        "type": "integer"
+                      },
+                      "isLeapMonth": {
+                        "type": "boolean"
+                      },
+                      "minute": {
+                        "type": "integer"
+                      },
+                      "month": {
+                        "type": "integer"
+                      },
+                      "nanosecond": {
+                        "type": "integer"
+                      },
+                      "quarter": {
+                        "type": "integer"
+                      },
+                      "second": {
+                        "type": "integer"
+                      },
+                      "timeZone": {
+                        "type": "string"
+                      },
+                      "weekOfMonth": {
+                        "type": "integer"
+                      },
+                      "weekOfYear": {
+                        "type": "integer"
+                      },
+                      "weekday": {
+                        "type": "integer"
+                      },
+                      "weekdayOrdinal": {
+                        "type": "integer"
+                      },
+                      "year": {
+                        "type": "integer"
+                      },
+                      "yearForWeekOfYear": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [],
+                    "type": "object"
+                  },
+                  "dueDay": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "dueStatus": {
+                    "enum": [
+                      "overdue",
+                      "today",
+                      "future",
+                      "unscheduled",
+                      "unknown"
+                    ],
+                    "type": "string"
+                  },
+                  "externalId": {
+                    "type": "string"
+                  },
+                  "flagged": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "listId": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "modificationDate": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "integer"
+                  },
+                  "rawAlarms": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "absoluteDate": {
+                          "type": "string"
+                        },
+                        "proximity": {
+                          "enum": [
+                            "none",
+                            "enter",
+                            "leave",
+                            "unknown"
+                          ],
+                          "type": "string"
+                        },
+                        "relativeOffset": {
+                          "type": "number"
+                        },
+                        "structuredLocation": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "latitude": {
+                              "type": "number"
+                            },
+                            "longitude": {
+                              "type": "number"
+                            },
+                            "radius": {
+                              "type": "number"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "radius"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "relativeOffset",
+                        "proximity"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "recurrence": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "daysOfMonth": {
+                            "items": {
+                              "type": "integer"
+                            },
+                            "type": "array"
+                          },
+                          "daysOfWeek": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "day": {
+                                  "enum": [
+                                    "MONDAY",
+                                    "TUESDAY",
+                                    "WEDNESDAY",
+                                    "THURSDAY",
+                                    "FRIDAY",
+                                    "SATURDAY",
+                                    "SUNDAY"
+                                  ],
+                                  "type": "string"
+                                },
+                                "ordinal": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "day"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          },
+                          "daysOfYear": {
+                            "items": {
+                              "type": "integer"
+                            },
+                            "type": "array"
+                          },
+                          "end": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "type": "integer"
+                              },
+                              "until": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [],
+                            "type": "object"
+                          },
+                          "frequency": {
+                            "enum": [
+                              "DAILY",
+                              "WEEKLY",
+                              "MONTHLY",
+                              "YEARLY"
+                            ],
+                            "type": "string"
+                          },
+                          "interval": {
+                            "type": "integer"
+                          },
+                          "monthsOfYear": {
+                            "items": {
+                              "type": "integer"
+                            },
+                            "type": "array"
+                          },
+                          "setPositions": {
+                            "items": {
+                              "type": "integer"
+                            },
+                            "type": "array"
+                          },
+                          "weeksOfYear": {
+                            "items": {
+                              "type": "integer"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "frequency",
+                          "interval"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "recurrenceRules": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "calendarIdentifier": {
+                          "type": "string"
+                        },
+                        "daysOfTheMonth": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "daysOfTheWeek": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "dayOfTheWeek": {
+                                "type": "integer"
+                              },
+                              "weekNumber": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "dayOfTheWeek",
+                              "weekNumber"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "daysOfTheYear": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "end": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "endDate": {
+                              "type": "string"
+                            },
+                            "occurrenceCount": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "occurrenceCount"
+                          ],
+                          "type": "object"
+                        },
+                        "firstDayOfTheWeek": {
+                          "type": "integer"
+                        },
+                        "frequency": {
+                          "enum": [
+                            "daily",
+                            "weekly",
+                            "monthly",
+                            "yearly",
+                            "unknown"
+                          ],
+                          "type": "string"
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "monthsOfTheYear": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "setPositions": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        },
+                        "weeksOfTheYear": {
+                          "items": {
+                            "type": "integer"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "frequency",
+                        "calendarIdentifier",
+                        "interval",
+                        "firstDayOfTheWeek",
+                        "daysOfTheWeek",
+                        "daysOfTheMonth",
+                        "daysOfTheYear",
+                        "weeksOfTheYear",
+                        "monthsOfTheYear",
+                        "setPositions"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "remindMeDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "startDate": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "startDateComponents": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "calendar": {
+                        "type": "string"
+                      },
+                      "day": {
+                        "type": "integer"
+                      },
+                      "era": {
+                        "type": "integer"
+                      },
+                      "hour": {
+                        "type": "integer"
+                      },
+                      "isLeapMonth": {
+                        "type": "boolean"
+                      },
+                      "minute": {
+                        "type": "integer"
+                      },
+                      "month": {
+                        "type": "integer"
+                      },
+                      "nanosecond": {
+                        "type": "integer"
+                      },
+                      "quarter": {
+                        "type": "integer"
+                      },
+                      "second": {
+                        "type": "integer"
+                      },
+                      "timeZone": {
+                        "type": "string"
+                      },
+                      "weekOfMonth": {
+                        "type": "integer"
+                      },
+                      "weekOfYear": {
+                        "type": "integer"
+                      },
+                      "weekday": {
+                        "type": "integer"
+                      },
+                      "weekdayOrdinal": {
+                        "type": "integer"
+                      },
+                      "year": {
+                        "type": "integer"
+                      },
+                      "yearForWeekOfYear": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [],
+                    "type": "object"
+                  },
+                  "timeZone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "container",
+                  "remindMeDate",
+                  "rawAlarms",
+                  "recurrence",
+                  "dueDate",
+                  "allDayDueDate",
+                  "startDate",
+                  "allDayStartDate",
+                  "timeZone",
+                  "id",
+                  "completed",
+                  "priority",
+                  "dueDay",
+                  "flagged",
+                  "dueStatus",
+                  "alarms",
+                  "recurrenceRules"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reminder"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}
