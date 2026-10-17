@@ -34,9 +34,8 @@ struct MCPReminder: Encodable {
 
 func mcpReminders(_ records: [ReminderRecord]) async throws -> [MCPReminder] {
   guard !records.isEmpty else { return [] }
-  let containers: [String: ContainerReference] = try await readRemindersData(
-    "script-reminder-containers")
-  let dates: [String: String?] = try await readRemindersData("script-alerts")
+  let containers: [String: ContainerReference] = try await readProperty(.reminderContainers)
+  let dates: [String: String?] = try await readProperty(.alerts)
   return try records.map {
     try MCPReminder(
       record: $0, container: scriptLookup(containers, id: $0.id),
@@ -66,9 +65,8 @@ func mcpLists(_ records: [ListRecord]) async throws -> [MCPList] {
     return uuid.uuidString
   }
   for attempt in 0..<16 {
-    let containers: [String: ContainerReference] = try await readRemindersData(
-      "script-list-containers")
-    let emblems: [String: String?] = try await readRemindersData("script-emblems")
+    let containers: [String: ContainerReference] = try await readProperty(.listContainers)
+    let emblems: [String: String?] = try await readProperty(.emblems)
     // A present null emblem is valid; only missing inventory entries are transient.
     if ids.allSatisfy({ containers.index(forKey: $0) != nil && emblems.index(forKey: $0) != nil }) {
       return try records.map {

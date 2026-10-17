@@ -85,15 +85,7 @@ func makeMutationType(
   let createList = try GraphQLInputObjectType(name: "CreateListInput", fields: createListFields)
   @Sendable func runList(_ request: ListMutation, context: (any Sendable)?) async throws -> Map {
     do {
-      let value: Map
-      switch request {
-      case .delete:
-        let result: DeletedReminder = try await mutateList(request)
-        value = try graphMap(result)
-      default:
-        let result: ListRecord = try await mutateList(request)
-        value = try graphMap(result)
-      }
+      let value = try graphMap(await mutateList(request))
       await invalidate(context)
       return value
     } catch {
@@ -103,15 +95,7 @@ func makeMutationType(
   }
   @Sendable func run(_ request: ReminderMutation, context: (any Sendable)?) async throws -> Map {
     do {
-      let value: Map
-      switch request {
-      case .delete:
-        let result: DeletedReminder = try await mutateReminder(request)
-        value = try graphMap(result)
-      default:
-        let result: ReminderRecord = try await mutateReminder(request)
-        value = try graphMap(result)
-      }
+      let value = try graphMap(await mutateReminder(request))
       await invalidate(context)
       return value
     } catch {
@@ -168,7 +152,7 @@ func makeMutationType(
         description: "Show a reminder in the Reminders UI without changing its data.",
         args: ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
-          let value: ReminderRecord = try await showRemindersObject(
+          let value = try await showRemindersObject(
             args["id"].stringValue(), isList: false)
           await invalidate(context)
           return try graphMap(value)
@@ -177,7 +161,7 @@ func makeMutationType(
         type: list, description: "Show a list in the Reminders UI without changing its data.",
         args: ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
-          let value: ListRecord = try await showRemindersObject(
+          let value = try await showRemindersObject(
             args["id"].stringValue(), isList: true)
           await invalidate(context)
           return try graphMap(value)

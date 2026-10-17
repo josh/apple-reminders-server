@@ -1,55 +1,69 @@
 import Foundation
 
-struct Authorization: Decodable, Sendable { let authorization: String }
-// Backend calls block while EventKit and AppleScript work is scheduled on main. Keep
-// these calls serialized on a worker queue, never a NIO event loop.
+// One queue and main-thread guard protect every EventKit/AppleScript operation.
+// Framework objects stay on main; only Sendable records cross the continuation.
 private let remindersQueue = DispatchQueue(label: "reminders.store")
-func readRemindersData<T: Decodable & Sendable>(_ command: String) async throws -> T {
+func withReminders<T: Sendable>(
+  _ operation: @escaping @Sendable () throws -> T
+) async throws -> T {
   try await withCheckedThrowingContinuation { continuation in
     remindersQueue.async {
-      continuation.resume(
-        with: Result {
-          try JSONDecoder().decode(T.self, from: remindersRead(command))
-        })
+      continuation.resume(with: Result { try performRemindersOperation(operation) })
     }
   }
 }
-func readLists() async throws -> ListsSnapshot { try await readRemindersData("lists") }
 func readInventory(includeFlags: Bool = false) async throws -> Inventory {
-  try await readRemindersData(includeFlags ? "snapshot" : "snapshot_plain")
+  try await withReminders { try fetchInventory(includeFlags: includeFlags) }
 }
-func readReminders(includeFlags: Bool = true) async throws -> [ReminderRecord] {
-  let result: RemindersSnapshot = try await readRemindersData(
-    includeFlags ? "reminders" : "reminders-base")
-  return result.reminders
+func readReminders() async throws -> [ReminderRecord] {
+  try await readInventory(includeFlags: true).reminders
 }
-
-func mutateReminder<T: Decodable & Sendable>(_ request: ReminderMutation) async throws -> T {
-  try await withCheckedThrowingContinuation { continuation in
-    remindersQueue.async {
-      continuation.resume(
-        with: Result { try JSONDecoder().decode(T.self, from: remindersMutate(request)) })
-    }
+func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async throws -> [String:
+  Value]
+{
+  try await withReminders {
+    try requireAccess()
+    return try readScriptProperty(property)
   }
 }
+func mutateReminder(_ request: ReminderMutation) async throws -> MutationResult<ReminderRecord> {
+  try await withReminders { try executeMutation(request) }
+}
+func mutateList(_ request: ListMutation) async throws -> MutationResult<ListRecord> {
+  try await withReminders { try remindersMutateList(request) }
+}
+func showRemindersObject(_ id: String, isList: Bool) async throws -> ShownObject {
+  try await withReminders { try remindersShow(id: id, isList: isList) }
+}
+
 struct DeletedReminder: Codable, Sendable { let deletedId: String }
-
-func showRemindersObject<T: Decodable & Sendable>(_ id: String, isList: Bool) async throws -> T {
-  try await withCheckedThrowingContinuation { continuation in
-    remindersQueue.async {
-      continuation.resume(
-        with: Result {
-          try JSONDecoder().decode(T.self, from: remindersShow(id: id, isList: isList))
-        })
+enum MutationResult<Record: Encodable & Sendable>: Encodable, Sendable {
+  case saved(Record)
+  case deleted(DeletedReminder)
+  func savedRecord() throws -> Record {
+    guard case .saved(let record) = self else {
+      throw ServerError.message("Expected a saved record")
+    }
+    return record
+  }
+  func deletion() throws -> DeletedReminder {
+    guard case .deleted(let result) = self else { throw ServerError.message("Expected a deletion") }
+    return result
+  }
+  func encode(to encoder: Encoder) throws {
+    switch self {
+    case .saved(let record): try record.encode(to: encoder)
+    case .deleted(let result): try result.encode(to: encoder)
     }
   }
 }
-
-func mutateList<T: Decodable & Sendable>(_ request: ListMutation) async throws -> T {
-  try await withCheckedThrowingContinuation { continuation in
-    remindersQueue.async {
-      continuation.resume(
-        with: Result { try JSONDecoder().decode(T.self, from: remindersMutateList(request)) })
+enum ShownObject: Encodable, Sendable {
+  case reminder(ReminderRecord)
+  case list(ListRecord)
+  func encode(to encoder: Encoder) throws {
+    switch self {
+    case .reminder(let record): try record.encode(to: encoder)
+    case .list(let record): try record.encode(to: encoder)
     }
   }
 }

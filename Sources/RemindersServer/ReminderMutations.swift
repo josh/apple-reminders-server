@@ -43,7 +43,7 @@ enum ReminderMutation: Sendable {
 }
 
 // Mutations honor EventKit authorization and the destination list capabilities.
-func executeMutation(_ request: ReminderMutation) throws -> [String: Any] {
+func executeMutation(_ request: ReminderMutation) throws -> MutationResult<ReminderRecord> {
   try requireAccess()
   let store = EKEventStore()
   let item: EKReminder
@@ -53,52 +53,52 @@ func executeMutation(_ request: ReminderMutation) throws -> [String: Any] {
     let list =
       listID.flatMap { store.calendar(withIdentifier: $0) }
       ?? (listID == nil ? store.defaultCalendarForNewReminders() : nil)
-    guard let list else { throw RemindersError("NOT_FOUND: reminder list is unavailable") }
+    guard let list else { throw ServerError.message("NOT_FOUND: reminder list is unavailable") }
     guard list.allowedEntityTypes.contains(.reminder) else {
-      throw RemindersError("INVALID_ARGUMENT: destination is not a reminder list")
+      throw ServerError.message("INVALID_ARGUMENT: destination is not a reminder list")
     }
     guard list.allowsContentModifications else {
-      throw RemindersError("READ_ONLY: destination list is not editable")
+      throw ServerError.message("READ_ONLY: destination list is not editable")
     }
     guard let name = patch.name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    else { throw RemindersError("INVALID_ARGUMENT: name must not be blank") }
+    else { throw ServerError.message("INVALID_ARGUMENT: name must not be blank") }
     item = EKReminder(eventStore: store)
     item.calendar = list
     changes = patch
   case .update(let id, let patch):
     guard let existing = store.calendarItem(withIdentifier: id) as? EKReminder else {
-      throw RemindersError("NOT_FOUND: reminder is unavailable")
+      throw ServerError.message("NOT_FOUND: reminder is unavailable")
     }
     item = existing
     changes = patch
   case .delete(let id):
     guard let existing = store.calendarItem(withIdentifier: id) as? EKReminder else {
-      throw RemindersError("NOT_FOUND: reminder is unavailable")
+      throw ServerError.message("NOT_FOUND: reminder is unavailable")
     }
     item = existing
     changes = nil
   }
   guard let list = item.calendar, list.allowsContentModifications else {
-    throw RemindersError("READ_ONLY: reminder list is not editable")
+    throw ServerError.message("READ_ONLY: reminder list is not editable")
   }
   guard let patch = changes else {
     let id = item.calendarItemIdentifier
     do { try store.remove(item, commit: true) } catch {
-      throw RemindersError(
+      throw ServerError.message(
         "WRITE_FAILED: EventKit delete failed (code \((error as NSError).code)); refetch before retrying"
       )
     }
-    return ["deletedId": id]
+    return .deleted(DeletedReminder(deletedId: id))
   }
   if let name = patch.name {
     guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      throw RemindersError("INVALID_ARGUMENT: name must not be blank")
+      throw ServerError.message("INVALID_ARGUMENT: name must not be blank")
     }
     item.title = name
   }
   if let priority = patch.priority {
     guard (0...9).contains(priority) else {
-      throw RemindersError("INVALID_ARGUMENT: priority must be 0...9")
+      throw ServerError.message("INVALID_ARGUMENT: priority must be 0...9")
     }
     item.priority = priority
   }
@@ -120,7 +120,7 @@ func executeMutation(_ request: ReminderMutation) throws -> [String: Any] {
   if let start = patch.start { item.startDateComponents = start }
   if patch.timeZone != nil || patch.clear.contains(.timeZone) {
     guard item.startDateComponents != nil || item.dueDateComponents != nil else {
-      throw RemindersError("INVALID_ARGUMENT: timeZone requires a resulting start or due date")
+      throw ServerError.message("INVALID_ARGUMENT: timeZone requires a resulting start or due date")
     }
     let target = patch.timeZone ?? .current
     item.startDateComponents = try changingZone(
@@ -151,23 +151,23 @@ func executeMutation(_ request: ReminderMutation) throws -> [String: Any] {
       $0.absoluteDate == nil && $0.proximity == .none && $0.structuredLocation == nil
     })
   {
-    throw RemindersError(
+    throw ServerError.message(
       "INVALID_ARGUMENT: relative alarms require a start date on the resulting reminder")
   }
   if let start = item.startDateComponents, let due = item.dueDateComponents {
     guard let startDate = mutationDate(start), let dueDate = mutationDate(due) else {
-      throw RemindersError(
+      throw ServerError.message(
         "UNSUPPORTED_OPERATION: cannot validate the existing start/due date combination")
     }
     guard startDate <= dueDate else {
-      throw RemindersError("INVALID_ARGUMENT: start date must not be later than due date")
+      throw ServerError.message("INVALID_ARGUMENT: start date must not be later than due date")
     }
   }
   let automation = patch.flagged != nil || patch.remindMeDate != nil
   // Compile before committing: syntax failures must not leave an avoidable partial write.
   let script = automation ? try makeReminderWriteScript() : nil
   do { try store.save(item, commit: true) } catch {
-    throw RemindersError(
+    throw ServerError.message(
       "WRITE_FAILED: EventKit save failed (code \((error as NSError).code)); refetch before retrying"
     )
   }
@@ -179,16 +179,20 @@ func executeMutation(_ request: ReminderMutation) throws -> [String: Any] {
         alert: patch.remindMeDate)
       store.reset()
       guard let refreshed = store.calendarItem(withIdentifier: id) as? EKReminder else {
-        throw RemindersError("saved reminder is not available for refetch")
+        throw ServerError.message("saved reminder is not available for refetch")
       }
-      return reminderJSON(refreshed, now: Date(), flagged: patch.flagged)
+      return .saved(try ReminderRecord(refreshed, now: Date(), flagged: patch.flagged))
     } catch {
-      throw RemindersError(
+      throw ServerError.message(
         "WRITE_APPLIED: EventKit saved reminder \(id), but automation or refetch failed: \(error). Automation may have partially applied; refetch this ID before retrying. No rollback was attempted"
       )
     }
   }
-  return reminderJSON(item, now: Date(), flagged: nil)
+  do { return .saved(try ReminderRecord(item, now: Date(), flagged: nil)) } catch {
+    throw ServerError.message(
+      "WRITE_APPLIED: EventKit saved reminder \(item.calendarItemIdentifier), but response projection failed: \(error). Refetch this ID before retrying"
+    )
+  }
 }
 
 private func mutationDate(_ value: DateComponents) -> Date? {
@@ -206,12 +210,6 @@ private func mutationDate(_ value: DateComponents) -> Date? {
   return date
 }
 
-func remindersMutate(_ request: ReminderMutation) throws -> Data {
-  try performRemindersOperation {
-    try JSONSerialization.data(withJSONObject: executeMutation(request), options: [.sortedKeys])
-  }
-}
-
 // Timed dates retain their instant; date-only values retain their calendar day.
 // Clearing the zone converts timed values to local wall time before making them floating.
 private func changingZone(_ value: DateComponents?, to zone: TimeZone, floating: Bool) throws
@@ -219,11 +217,11 @@ private func changingZone(_ value: DateComponents?, to zone: TimeZone, floating:
 {
   guard var value else { return nil }
   guard value.calendar?.identifier == nil || value.calendar?.identifier == .gregorian else {
-    throw RemindersError(
+    throw ServerError.message(
       "UNSUPPORTED_OPERATION: time-zone writes require Gregorian date components")
   }
   guard let instant = mutationDate(value) else {
-    throw RemindersError(
+    throw ServerError.message(
       "UNSUPPORTED_OPERATION: incomplete date or clock-transition gap in time-zone change")
   }
   var calendar = Calendar(identifier: .gregorian)

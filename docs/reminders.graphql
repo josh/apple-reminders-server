@@ -19,7 +19,7 @@ type Account {
   "The name of the account."
   name: String
   "Reminders in this account, including completed items."
-  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter, sort: ReminderSort! = ID_ASC): ReminderPage
+  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter): ReminderPage
 }
 
 input CreateListInput {
@@ -242,7 +242,7 @@ type Query {
   "Find a reminder by its unique identifier."
   reminder(id: ID!): Reminder
   "Reminders available in the application, including completed items."
-  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter, sort: ReminderSort! = ID_ASC): ReminderPage
+  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter): ReminderPage
 }
 
 type RecurrenceDay {
@@ -355,7 +355,7 @@ type Reminder {
   "The name of the reminder."
   name: String
   "The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low."
-  priority: ReminderPriority
+  priority: Int
   rawAlarms: [EventKitAlarm!]!
   "A single repeating schedule; null when no recurrence is configured. Multiple rules produce a field error."
   recurrence: ReminderRecurrence
@@ -446,7 +446,7 @@ type ReminderList {
   "The name of the list."
   name: String
   "Reminders in this list, including completed items."
-  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter, sort: ReminderSort! = ID_ASC): ReminderPage
+  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter): ReminderPage
   "Whether the list is a subscription."
   subscribed: Boolean
   summary: ListSummary
@@ -505,8 +505,6 @@ input ReminderPatch {
   url: String
 }
 
-scalar ReminderPriority
-
 type ReminderRecurrence {
   "Days 1..31 or -31..-1 counting backward from the end of the month."
   daysOfMonth: [Int!]
@@ -540,14 +538,6 @@ type ReminderRecurrenceEnd {
   count: Int
   "Inclusive end timestamp; mutually exclusive with count."
   until: DateTime
-}
-
-enum ReminderSort {
-  ID_ASC
-  PRIORITY_ASC
-  PRIORITY_DESC
-  CREATED_ASC
-  CREATED_DESC
 }
 
 enum ReminderSortField {

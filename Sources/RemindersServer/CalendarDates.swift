@@ -50,10 +50,13 @@ func projectDate(_ value: ComponentDate?) throws -> CalendarDateProjection? {
   return CalendarDateProjection(
     instant: instant, day: dayString, timed: timed, timeZone: value.timeZone)
 }
-func timestamp(_ date: Date) -> String {
+func timestampFormatter() -> ISO8601DateFormatter {
   let formatter = ISO8601DateFormatter()
   formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-  return formatter.string(from: date)
+  return formatter
+}
+func timestamp(_ date: Date) -> String {
+  timestampFormatter().string(from: date)
 }
 func parseTimestamp(_ value: String) throws -> Date {
   let pattern =

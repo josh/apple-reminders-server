@@ -7,59 +7,42 @@ does not import HTTP, GraphQL, MCP, or Prometheus libraries.
 
 ## Boundary
 
-The host calls `remindersRead(_:listID:)`, which returns Swift `Data` or throws a
-Swift error. No C ABI, manually freed buffers, or project dylib is required. The
-JSON projection remains a runtime boundary; the HTTP layer decodes and validates
-it into typed records. Data-access responses are decoded and validated at this boundary.
+`RemindersClient.swift` exposes typed asynchronous reads, mutations, and navigation.
+A shared `withReminders` wrapper serializes operations and transfers only Sendable
+value records out of the main-thread framework code. `EventKitRecords.swift`
+constructs those records directly from EventKit objects. JSON encoding belongs to
+the HTTP API layer; there is no internal JSON command protocol.
 
-String commands support reads, status, and explicit startup authorization.
-A separate typed `remindersMutate` entrypoint supports EventKit reminder
-create/update/delete; see [WRITES.md](WRITES.md). There is no client-supplied script source. Plain reads never invoke flag
-scripting; enriched reads always do.
-[Lazy GraphQL field resolution](APPLESCRIPT.md) still controls when flags are needed.
+`readInventory(includeFlags:)` returns lists, reminders, and the accessible default
+list ID. Plain inventories use EventKit alone. Flag enrichment uses a fixed
+AppleScript read and validates identifiers against the fetched reminders.
+[Lazy GraphQL field resolution](APPLESCRIPT.md) controls when flags are needed.
 
-### Commands and JSON projection
+`readProperty` accepts typed descriptors for list emblems, alert dates, and list or
+reminder containers. Each descriptor supplies a fixed read-only script expression
+and a typed decoder. Before/after identifier checks detect collection changes.
+An absent object is distinct from a present object whose property is null.
+Client-supplied script source is never executed.
 
-| Command | Successful response | Flag scripting |
-| --- | --- | --- |
-| `status` | `{authorization: string}` | Never |
-| `authorize` | `{authorization: string}` after explicit permission request | Never |
-| `lists` | `{lists: [...], defaultListId: string or null}` | Never |
-| `defaults` | `{defaultListId: string or null}` | Never |
-| `reminders-base` | `{reminders: [...]}` | Never |
-| `reminders` | `{reminders: [...]}` | Always |
-| `snapshot_plain` | `{lists: [...], reminders: [...], defaultListId: string or null}` | Never |
-| `script-emblems` | Object keyed by normalized list ID; icon string or null | Never |
-| `script-alerts` | Object keyed by normalized reminder ID; timestamp or null | Never |
-| `script-list-containers` | Object keyed by list ID; `{kind, id}` references | Never |
-| `script-reminder-containers` | Object keyed by reminder ID; `{kind, id}` references | Never |
-| `snapshot` | `{lists: [...], reminders: [...], defaultListId: string or null}` | Always |
+List records include identity, name, color, source, and modification/subscription
+capabilities. Reminder records include identity, list membership, text,
+completion, priority, timestamps, flags, component dates, location, URL, alarms,
+and recurrence rules. Optional values remain optional Swift values until API
+encoding. Ordinary dates use ISO 8601 strings; component records retain absent
+components, calendar, time zone, and leap-month metadata.
 
-The `script-*` commands always use automation, independently of flag reads. They
-are fixed read-only scripts, with before/after identifier validation.
-
-List records contain `color` (sRGB `#RRGGBBAA` or null), `id`, `title`, `source` (`id`, `title`, integer `type`),
-`allowsContentModifications`, `immutable`, and `subscribed`. Reminder records
-contain `id`, `externalId`, `listId`, `title`, `notes`, `completed`, nullable
-`flagged`, `priority`, `completionDate`, `creationDate`, `lastModifiedDate`,
-`startDateComponents`, `dueDateComponents`, `location`, `url`, `alarms`,
-`recurrenceRules`, `dueDay`, and `dueStatus`. Optional values are explicit JSON null. Ordinary dates are ISO 8601
-strings; component objects retain absent components, calendar, timeZone, floating,
-allDay, and isLeapMonth metadata. The host maps these wire names to its public API.
-
-`dueStatus` is one of `unscheduled`, `overdue`, `today`, `future`, or null when the
-components cannot be classified. It uses one observation time for a snapshot;
-the API and metrics handlers consume it for metrics and expose it for API filtering. GraphQL uses
-uppercase enum values; MCP uses lowercase strings, with `unknown` for missing value.
-Classification is independent of completion: use `completed: false` as well when
-requesting outstanding overdue work. EventKit reads validate
-reminder/list ownership and reject duplicate reminder IDs or unmatched flags.
+`dueStatus` is `unscheduled`, `overdue`, `today`, `future`, or `unknown` when the
+components cannot be classified. Classification uses one observation time per
+inventory and is independent of completion. Use `completed: false` as well when
+requesting outstanding overdue work. GraphQL exposes uppercase enum values;
+MCP exposes lowercase strings. Reads validate reminder/list ownership and reject
+duplicate reminder IDs, invalid priorities, or unmatched flags.
 
 `dueDay` is nullable canonical Gregorian `YYYY-MM-DD` in the server reporting
 zone, sharing deadline-resolution rules with `dueStatus`. All-day dates retain
 their calendar day; floating timed dates use the server zone; zoned timed dates
 are converted to it. Invalid/non-roundtripping or unsupported components return
-null. Snapshot/list `defaultListId` is restricted to the returned accessible lists.
+null. Inventory `defaultListId` is restricted to the returned accessible lists.
 See [READ_API.md](READ_API.md) for date search and per-request inventory semantics.
 
 ## Alarm and recurrence projection
@@ -116,11 +99,11 @@ is produced by these development builds.
 
 ## Additional write entrypoints
 
-`remindersMutate` applies reminder changes, including typed recurrence and zone
+`mutateReminder` applies reminder changes, including typed recurrence and zone
 values. Flags and alert dates use fixed AppleScript handlers after the EventKit
-save. `remindersMutateList` handles list creation, edits and deletion;
-`remindersShow` performs UI navigation without saving. All three use the same
-serialized in-process serialization guard. Partial writes are reported with the saved
+save. `mutateList` handles list creation, edits and deletion;
+`showRemindersObject` performs UI navigation without saving. All three use the same
+serialized in-process execution guard. Partial writes are reported with the saved
 identifier, not rolled back. Bounded
 synchronization retries cover delayed scripting visibility; list colors must
 be opaque. See [WRITES.md](WRITES.md).

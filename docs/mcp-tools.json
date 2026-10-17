@@ -3168,20 +3168,12 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Read lists filtered by name, account IDs, editability, and subscription. Use filter for criteria or the legacy flat inputs, never both. orderBy.direction selects name ordering; do not combine it with sort. Filters intersect. Pagination uses limit and an opaque cursor tied to unchanged criteria. Sort defaults to id_asc; name_asc and name_desc compare names case-insensitively with ID ascending ties.",
+      "description": "Read lists filtered by name, account IDs, editability, and subscription. Use filter for search criteria. orderBy.direction selects name ordering; omission uses identifier order. Filters intersect. Pagination uses limit and an opaque cursor tied to unchanged criteria. Name ordering is case-insensitive with ID ascending ties.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "accountIds": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "allowsContentModifications": {
-            "type": "boolean"
-          },
           "cursor": {
+            "minLength": 1,
             "type": "string"
           },
           "filter": {
@@ -3225,20 +3217,6 @@
             },
             "required": [],
             "type": "object"
-          },
-          "query": {
-            "type": "string"
-          },
-          "sort": {
-            "enum": [
-              "id_asc",
-              "name_asc",
-              "name_desc"
-            ],
-            "type": "string"
-          },
-          "subscribed": {
-            "type": "boolean"
           }
         },
         "required": [],
@@ -3356,40 +3334,12 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Read reminders filtered by account/list IDs, completion, flags, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter or as legacy flat inputs, never both. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Legacy dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties; it takes precedence over sort. Sort defaults to id_asc; priorities use numeric order; absent creation dates sort last, with identifier ascending to break ties. Cursor is opaque, expires after 10 minutes, and requires identical criteria and limit. Optional unavailable values are omitted. Dates retain EventKit components; omitted hours mean date-only and omitted zones mean floating.",
+      "description": "Read reminders filtered by account/list IDs, completion, flags, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is opaque, expires after 10 minutes, and requires identical criteria and limit. Optional unavailable values are omitted. Dates retain EventKit components; omitted hours mean date-only and omitted zones mean floating.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "accountIds": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "completed": {
-            "type": "boolean"
-          },
           "cursor": {
             "minLength": 1,
-            "type": "string"
-          },
-          "dueBefore": {
-            "type": "string"
-          },
-          "dueFrom": {
-            "type": "string"
-          },
-          "dueOnOrAfter": {
-            "type": "string"
-          },
-          "dueStatus": {
-            "enum": [
-              "overdue",
-              "today",
-              "future",
-              "unscheduled",
-              "unknown"
-            ],
             "type": "string"
           },
           "filter": {
@@ -3429,9 +3379,6 @@
               "hasDueDate": {
                 "type": "boolean"
               },
-              "listId": {
-                "type": "string"
-              },
               "listIds": {
                 "items": {
                   "type": "string"
@@ -3453,26 +3400,11 @@
             "required": [],
             "type": "object"
           },
-          "flagged": {
-            "type": "boolean"
-          },
-          "hasDueDate": {
-            "type": "boolean"
-          },
           "limit": {
             "default": 50,
             "maximum": 100,
             "minimum": 1,
             "type": "integer"
-          },
-          "listId": {
-            "type": "string"
-          },
-          "listIds": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
           },
           "orderBy": {
             "additionalProperties": false,
@@ -3500,27 +3432,6 @@
               "field"
             ],
             "type": "object"
-          },
-          "priorities": {
-            "items": {
-              "maximum": 9,
-              "minimum": 0,
-              "type": "integer"
-            },
-            "type": "array"
-          },
-          "query": {
-            "type": "string"
-          },
-          "sort": {
-            "enum": [
-              "id_asc",
-              "priority_asc",
-              "priority_desc",
-              "created_asc",
-              "created_desc"
-            ],
-            "type": "string"
           }
         },
         "required": [],

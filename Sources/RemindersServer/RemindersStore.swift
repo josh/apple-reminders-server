@@ -2,12 +2,6 @@ import CoreGraphics
 import EventKit
 import Foundation
 
-struct RemindersError: Error, CustomStringConvertible {
-  let description: String
-  init(_ message: String) { description = message }
-}
-func nullable<T>(_ value: T?) -> Any { value.map { $0 as Any } ?? NSNull() }
-
 // The data-access entrypoint serializes all EventKit and AppleScript work on main.
 // The callback handoff is locked because EventKit may complete on another queue.
 final class Pending<Value> {
@@ -30,7 +24,7 @@ final class Pending<Value> {
       RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01))
     }
     if let value = current() { return value }
-    throw RemindersError("EventKit operation timed out after 30 seconds")
+    throw ServerError.message("EventKit operation timed out after 30 seconds")
   }
 }
 func statusName() -> String {
@@ -45,48 +39,12 @@ func statusName() -> String {
 }
 func requireAccess() throws {
   guard EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else {
-    throw RemindersError(
+    throw ServerError.message(
       "Reminders access is \(statusName()); explicitly request access at startup or grant it in System Settings"
     )
   }
 }
-func components(_ value: DateComponents?) -> Any {
-  guard let value else { return NSNull() }
-  return [
-    "calendar": nullable(value.calendar.map { String(describing: $0.identifier) }),
-    "timeZone": nullable(value.timeZone?.identifier),
-    "floating": value.timeZone == nil,
-    "allDay": [value.hour, value.minute, value.second, value.nanosecond].allSatisfy { $0 == nil },
-    "isLeapMonth": value.isLeapMonth ?? false,
-    "era": nullable(value.era), "year": nullable(value.year), "month": nullable(value.month),
-    "day": nullable(value.day),
-    "hour": nullable(value.hour), "minute": nullable(value.minute),
-    "second": nullable(value.second), "nanosecond": nullable(value.nanosecond),
-    "weekday": nullable(value.weekday), "weekdayOrdinal": nullable(value.weekdayOrdinal),
-    "quarter": nullable(value.quarter),
-    "weekOfMonth": nullable(value.weekOfMonth), "weekOfYear": nullable(value.weekOfYear),
-    "yearForWeekOfYear": nullable(value.yearForWeekOfYear),
-  ] as [String: Any]
-}
-func listJSON(_ list: EKCalendar) -> [String: Any] {
-  let color = list.cgColor?.converted(
-    to: CGColorSpace(name: CGColorSpace.sRGB)!, intent: .defaultIntent, options: nil)
-  let hex = color?.components.flatMap { values -> String? in
-    guard values.count == 4 else { return nil }
-    return "#"
-      + values.map { String(format: "%02X", Int((min(1, max(0, $0)) * 255).rounded())) }.joined()
-  }
-  return [
-    "color": nullable(hex), "id": list.calendarIdentifier, "title": list.title,
-    "source": [
-      "id": list.source.sourceIdentifier, "title": list.source.title,
-      "type": list.source.sourceType.rawValue,
-    ],
-    "allowsContentModifications": list.allowsContentModifications, "immutable": list.isImmutable,
-    "subscribed": list.isSubscribed,
-  ]
-}
-// Classification is shared by all metrics hosts, preserving floating/date-only
+// Classification preserves floating/date-only
 // semantics. Unsupported or non-roundtripping components are unknown, not zero.
 private func resolvedDueDate(_ components: DateComponents, reporting: Calendar) -> (
   date: Date, timed: Bool
@@ -144,129 +102,32 @@ func dueDay(_ components: DateComponents?) -> String? {
   else { return nil }
   return String(format: "%04d-%02d-%02d", year, month, day)
 }
-// Raw read-only recurrence rules are preserved; no future instances are generated.
-func recurrenceJSON(_ rule: EKRecurrenceRule, stamp: (Date?) -> Any) -> [String: Any] {
-  let frequency: String
-  switch rule.frequency {
-  case .daily: frequency = "daily"
-  case .weekly: frequency = "weekly"
-  case .monthly: frequency = "monthly"
-  case .yearly: frequency = "yearly"
-  @unknown default: frequency = "unknown"
-  }
-  func integers(_ values: [NSNumber]?) -> [Int] { (values ?? []).map { $0.intValue } }
-  let end: Any =
-    rule.recurrenceEnd.map {
-      ["endDate": stamp($0.endDate), "occurrenceCount": $0.occurrenceCount] as [String: Any]
-    } ?? NSNull()
-  return [
-    "frequency": frequency, "calendarIdentifier": rule.calendarIdentifier,
-    "interval": rule.interval, "firstDayOfTheWeek": rule.firstDayOfTheWeek,
-    "daysOfTheWeek": (rule.daysOfTheWeek ?? []).map {
-      ["dayOfTheWeek": $0.dayOfTheWeek.rawValue, "weekNumber": $0.weekNumber]
-    },
-    "daysOfTheMonth": integers(rule.daysOfTheMonth), "daysOfTheYear": integers(rule.daysOfTheYear),
-    "weeksOfTheYear": integers(rule.weeksOfTheYear),
-    "monthsOfTheYear": integers(rule.monthsOfTheYear),
-    "setPositions": integers(rule.setPositions), "end": end,
-  ]
-}
-func alarmJSON(_ alarm: EKAlarm, stamp: (Date?) -> Any) -> [String: Any] {
-  let proximity: String
-  switch alarm.proximity {
-  case .none: proximity = "none"
-  case .enter: proximity = "enter"
-  case .leave: proximity = "leave"
-  @unknown default: proximity = "unknown"
-  }
-  let location: Any =
-    alarm.structuredLocation.map {
-      [
-        "title": nullable($0.title), "latitude": nullable($0.geoLocation?.coordinate.latitude),
-        "longitude": nullable($0.geoLocation?.coordinate.longitude), "radius": $0.radius,
-      ] as [String: Any]
-    } ?? NSNull()
-  return [
-    "absoluteDate": stamp(alarm.absoluteDate), "relativeOffset": alarm.relativeOffset,
-    "proximity": proximity, "structuredLocation": location,
-  ]
-}
-func reminderJSON(_ item: EKReminder, now: Date, flagged: Bool?) -> [String: Any] {
-  let formatter = ISO8601DateFormatter()
-  formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-  func stamp(_ date: Date?) -> Any { nullable(date.map { formatter.string(from: $0) }) }
-  return [
-    "id": item.calendarItemIdentifier, "externalId": nullable(item.calendarItemExternalIdentifier),
-    "listId": nullable(item.calendar?.calendarIdentifier), "title": nullable(item.title),
-    "notes": nullable(item.notes),
-    "completed": item.isCompleted, "flagged": nullable(flagged), "priority": item.priority,
-    "completionDate": stamp(item.completionDate), "creationDate": stamp(item.creationDate),
-    "lastModifiedDate": stamp(item.lastModifiedDate),
-    "startDateComponents": components(item.startDateComponents),
-    "dueDateComponents": components(item.dueDateComponents),
-    "location": nullable(item.location), "url": nullable(item.url?.absoluteString),
-    "dueStatus": nullable(dueStatus(item.dueDateComponents, now: now)),
-    "dueDay": nullable(dueDay(item.dueDateComponents)),
-    "alarms": (item.alarms ?? []).map { alarmJSON($0, stamp: stamp) },
-    "recurrenceRules": (item.recurrenceRules ?? []).map { recurrenceJSON($0, stamp: stamp) },
-  ]
-}
-func execute(command: String, listID: String?) throws -> [String: Any] {
-  if command.hasPrefix("script-") {
-    try requireAccess()
-    return try readScriptProperty(command)
-  }
-  guard
-    [
-      "status", "authorize", "lists", "defaults", "reminders", "reminders-base", "snapshot",
-      "snapshot_plain",
-    ].contains(command)
-  else { throw RemindersError("Unknown Reminders command") }
-  if command == "status" { return ["authorization": statusName()] }
+func authorizeReminders() throws {
   let store = EKEventStore()
-  if command == "authorize" {
-    let pending = Pending<Result<Bool, Error>>()
-    store.requestFullAccessToReminders { granted, error in
-      pending.resolve(
-        error.map {
-          .failure(RemindersError("EventKit authorization failed (code \(($0 as NSError).code))"))
-        } ?? .success(granted))
-    }
-    guard try pending.wait().get() else { throw RemindersError("Reminders access was not granted") }
-    try requireAccess()
-    return ["authorization": statusName()]
+  let pending = Pending<Result<Bool, Error>>()
+  store.requestFullAccessToReminders { granted, error in
+    pending.resolve(
+      error.map {
+        .failure(
+          ServerError.message("EventKit authorization failed (code \(($0 as NSError).code))"))
+      } ?? .success(granted))
+  }
+  guard try pending.wait().get() else {
+    throw ServerError.message("Reminders access was not granted")
   }
   try requireAccess()
-  var calendars = store.calendars(for: .reminder).sorted {
+}
+
+func fetchInventory(includeFlags: Bool) throws -> Inventory {
+  try requireAccess()
+  let store = EKEventStore()
+  let calendars = store.calendars(for: .reminder).sorted {
     $0.calendarIdentifier < $1.calendarIdentifier
   }
-  if command == "defaults" {
-    let id = store.defaultCalendarForNewReminders()?.calendarIdentifier
-    try requireAccess()
-    return ["defaultListId": nullable(id)]
-  }
-  if let listID {
-    guard let list = calendars.first(where: { $0.calendarIdentifier == listID }) else {
-      throw RemindersError("No accessible reminder list matches the requested ID")
-    }
-    calendars = [list]
-  }
-  let lists = calendars.map(listJSON)
-  let defaultListID: String?
-  if ["lists", "snapshot", "snapshot_plain"].contains(command),
-    let id = store.defaultCalendarForNewReminders()?.calendarIdentifier,
-    calendars.contains(where: { $0.calendarIdentifier == id })
-  {
-    defaultListID = id
-  } else {
-    defaultListID = nil
-  }
-  if command == "lists" {
-    try requireAccess()
-    return ["lists": lists, "defaultListId": nullable(defaultListID)]
-  }
-  let enriched = ["reminders", "snapshot"].contains(command)
-  let flags = enriched ? try readScriptFlagsOnMainThread() : nil
+  let lists = calendars.map(ListRecord.init)
+  let defaultID = store.defaultCalendarForNewReminders()?.calendarIdentifier
+  let defaultListID = lists.contains(where: { $0.id == defaultID }) ? defaultID : nil
+  let flags = includeFlags ? try readScriptFlagsOnMainThread() : nil
   var fetched: [EKReminder] = []
   if !calendars.isEmpty {
     let pending = Pending<Result<[EKReminder], Error>>()
@@ -274,7 +135,8 @@ func execute(command: String, listID: String?) throws -> [String: Any] {
       items in
       pending.resolve(
         items.map { .success($0) }
-          ?? .failure(RemindersError("EventKit returned an indeterminate nil reminder inventory")))
+          ?? .failure(
+            ServerError.message("EventKit returned an indeterminate nil reminder inventory")))
     }
     do { fetched = try pending.wait().get() } catch {
       store.cancelFetchRequest(handle)
@@ -284,31 +146,29 @@ func execute(command: String, listID: String?) throws -> [String: Any] {
   try requireAccess()
   let now = Date()
   var seen = Set<String>()
-  var reminders: [[String: Any]] = []
+  var reminders: [ReminderRecord] = []
   for item in fetched.sorted(by: { $0.calendarItemIdentifier < $1.calendarItemIdentifier }) {
     guard seen.insert(item.calendarItemIdentifier).inserted else {
-      throw RemindersError("EventKit returned duplicate reminder identifiers")
+      throw ServerError.message("EventKit returned duplicate reminder identifiers")
     }
     guard let list = item.calendar,
       calendars.contains(where: { $0.calendarIdentifier == list.calendarIdentifier })
-    else { throw RemindersError("Reminder list inventory changed during collection") }
+    else { throw ServerError.message("Reminder list inventory changed during collection") }
     let flagged: Bool?
     if let flags {
       guard let key = UUID(uuidString: item.calendarItemIdentifier)?.uuidString,
         let value = flags[key]
       else {
-        throw RemindersError("EventKit reminder has no unambiguous AppleScript flag match; retry")
+        throw ServerError.message(
+          "EventKit reminder has no unambiguous AppleScript flag match; retry")
       }
       flagged = value
     } else {
       flagged = nil
     }
-    reminders.append(reminderJSON(item, now: now, flagged: flagged))
+    reminders.append(try ReminderRecord(item, now: now, flagged: flagged))
   }
-  if command == "snapshot" || command == "snapshot_plain" {
-    return ["lists": lists, "reminders": reminders, "defaultListId": nullable(defaultListID)]
-  }
-  return ["reminders": reminders]
+  return Inventory(lists: lists, reminders: reminders, defaultListId: defaultListID)
 }
 
 // Protected by main-thread confinement. Nested calls can occur while an Apple
@@ -318,7 +178,7 @@ private var busy = false
 func performRemindersOperation<T>(_ operation: @escaping () throws -> T) throws -> T {
   let work = {
     guard !busy else {
-      throw RemindersError("Reminders store is busy with a reentrant request; retry")
+      throw ServerError.message("Reminders store is busy with a reentrant request; retry")
     }
     busy = true
     defer { busy = false }
@@ -326,12 +186,6 @@ func performRemindersOperation<T>(_ operation: @escaping () throws -> T) throws 
   }
   if Thread.isMainThread { return try work() }
   return try DispatchQueue.main.sync(execute: work)
-}
-func remindersRead(_ command: String, listID: String? = nil) throws -> Data {
-  try performRemindersOperation {
-    try JSONSerialization.data(
-      withJSONObject: execute(command: command, listID: listID), options: [.sortedKeys])
-  }
 }
 func remindersRunMainLoop() {
   guard Thread.isMainThread else { return }

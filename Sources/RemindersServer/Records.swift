@@ -28,29 +28,10 @@ struct ListRecord: Codable, Sendable {
   let color: String?
   let source: SourceRecord
   let allowsContentModifications: Bool, isImmutable: Bool, isSubscribed: Bool
-  enum StoreKeys: String, CodingKey {
-    case id, title, source, allowsContentModifications, immutable, subscribed, color
-  }
-  init(from decoder: Decoder) throws {
-    let values = try decoder.container(keyedBy: StoreKeys.self)
-    color = try values.decodeIfPresent(String.self, forKey: .color)
-    id = try values.decode(String.self, forKey: .id)
-    name = try values.decode(String.self, forKey: .title)
-    source = try values.decode(SourceRecord.self, forKey: .source)
-    allowsContentModifications = try values.decode(Bool.self, forKey: .allowsContentModifications)
-    isImmutable = try values.decode(Bool.self, forKey: .immutable)
-    isSubscribed = try values.decode(Bool.self, forKey: .subscribed)
-  }
 }
+
 enum DueStatus: String, Codable, Sendable, CaseIterable {
   case overdue, today, future, unscheduled, unknown
-}
-enum ReminderSort: String, Codable, Sendable, CaseIterable {
-  case idAsc = "id_asc"
-  case priorityAsc = "priority_asc"
-  case priorityDesc = "priority_desc"
-  case createdAsc = "created_asc"
-  case createdDesc = "created_desc"
 }
 struct StructuredLocation: Codable, Sendable {
   let title: String?
@@ -86,22 +67,6 @@ struct RecurrenceRecord: Codable, Sendable {
   let monthsOfTheYear: [Int]
   let setPositions: [Int]
   let end: RecurrenceEnd?
-}
-func sortedReminders(_ items: [ReminderRecord], by order: ReminderSort) -> [ReminderRecord] {
-  items.sorted { a, b in
-    switch order {
-    case .idAsc: break
-    case .priorityAsc: if a.priority != b.priority { return a.priority < b.priority }
-    case .priorityDesc: if a.priority != b.priority { return a.priority > b.priority }
-    case .createdAsc, .createdDesc:
-      if a.creationDate != b.creationDate {
-        guard let x = a.creationDate else { return false }
-        guard let y = b.creationDate else { return true }
-        return order == .createdAsc ? x < y : x > y
-      }
-    }
-    return a.id < b.id
-  }
 }
 struct ReminderRecord: Codable, Sendable {
   let id: String, externalId: String?, listId: String?, name: String?, body: String?
@@ -141,52 +106,15 @@ struct ReminderRecord: Codable, Sendable {
     try values.encodeIfPresent(startDateComponents, forKey: .startDateComponents)
     try values.encodeIfPresent(dueDateComponents, forKey: .dueDateComponents)
   }
-  enum StoreKeys: String, CodingKey {
-    case id, externalId, listId, title, notes, completed, flagged, priority, completionDate,
-      creationDate, lastModifiedDate, location, url, startDateComponents, dueDateComponents, dueDay,
-      dueStatus, alarms, recurrenceRules
-  }
-  init(from decoder: Decoder) throws {
-    let values = try decoder.container(keyedBy: StoreKeys.self)
-    id = try values.decode(String.self, forKey: .id)
-    listId = try values.decode(String.self, forKey: .listId)
-    externalId = try values.decodeIfPresent(String.self, forKey: .externalId)
-    name = try values.decodeIfPresent(String.self, forKey: .title)
-    body = try values.decodeIfPresent(String.self, forKey: .notes)
-    completed = try values.decode(Bool.self, forKey: .completed)
-    priority = try values.decode(Int.self, forKey: .priority)
-    flagged = try values.decodeIfPresent(Bool.self, forKey: .flagged)
-    completionDate = try values.decodeIfPresent(String.self, forKey: .completionDate)
-    creationDate = try values.decodeIfPresent(String.self, forKey: .creationDate)
-    modificationDate = try values.decodeIfPresent(String.self, forKey: .lastModifiedDate)
-    location = try values.decodeIfPresent(String.self, forKey: .location)
-    url = try values.decodeIfPresent(String.self, forKey: .url)
-    startDateComponents = try values.decodeIfPresent(
-      ComponentDate.self, forKey: .startDateComponents)
-    dueDateComponents = try values.decodeIfPresent(ComponentDate.self, forKey: .dueDateComponents)
-    dueDay = try values.decodeIfPresent(String.self, forKey: .dueDay)
-    dueStatus = try values.decodeIfPresent(DueStatus.self, forKey: .dueStatus) ?? .unknown
-    alarms = try values.decode([AlarmRecord].self, forKey: .alarms)
-    recurrenceRules = try values.decode([RecurrenceRecord].self, forKey: .recurrenceRules)
-    guard !id.isEmpty, listId?.isEmpty == false, (0...9).contains(priority) else {
-      throw ServerError.message("Invalid EventKit reminder identifiers or priority")
-    }
-  }
 }
-struct ListsSnapshot: Codable, Sendable {
-  let lists: [ListRecord]
-  let defaultListId: String?
-}
-struct RemindersSnapshot: Codable, Sendable { let reminders: [ReminderRecord] }
 
 struct Inventory: Codable, Sendable {
   let lists: [ListRecord]
   let reminders: [ReminderRecord]
   let defaultListId: String?
-  var orderedLists: [ListRecord] { lists.sorted { $0.id < $1.id } }
   var accounts: [AccountRecord] {
     var seen = Set<String>()
-    return orderedLists.compactMap {
+    return lists.compactMap {
       seen.insert($0.source.id).inserted
         ? AccountRecord(id: $0.source.id, name: $0.source.title) : nil
     }.sorted { $0.id < $1.id }

@@ -54,7 +54,7 @@ Task.detached {
         index += 1
       }
       if requestAccess {
-        let _: Authorization = try await readRemindersData("authorize")
+        try await withReminders { try authorizeReminders() }
       }
       try await serve(port: port, metricsInterval: metricsInterval)
     }

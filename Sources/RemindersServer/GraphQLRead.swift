@@ -22,7 +22,7 @@ func listSearchPage(_ data: Inventory, args: Map, accountID: String? = nil) thro
   let accounts = try? filter["accountIds"].arrayValue().map { try $0.stringValue() }
   let editable = try? filter["allowsContentModifications"].boolValue()
   let subscribed = try? filter["subscribed"].boolValue()
-  var items = data.orderedLists.filter {
+  var items = data.lists.filter {
     (accountID == nil || $0.source.id == accountID)
       && (accounts == nil || accounts!.contains($0.source.id))
       && (query == nil || $0.name.lowercased().contains(query!))
@@ -42,8 +42,7 @@ func listSearchPage(_ data: Inventory, args: Map, accountID: String? = nil) thro
 
 func orderedReminders(_ items: [ReminderRecord], args: Map) throws -> [ReminderRecord] {
   guard args["orderBy"] != .null && args["orderBy"] != .undefined else {
-    return sortedReminders(
-      items, by: ReminderSort(rawValue: try args["sort"].stringValue().lowercased())!)
+    return items
   }
   let field = try args["orderBy"]["field"].stringValue()
   let descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"

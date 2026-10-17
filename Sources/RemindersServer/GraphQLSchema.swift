@@ -119,9 +119,11 @@ actor GraphQLContext {
     properties.removeAll()
   }
   private var properties: [String: Task<[String: Map], Error>] = [:]
-  func property(_ command: String, id: String) async throws -> Map {
+  func property<Value: Encodable>(_ property: ScriptProperty<Value>, id: String) async throws -> Map
+  {
+    let command = property.expression
     if properties[command] == nil {
-      properties[command] = Task { try await readRemindersData(command) }
+      properties[command] = Task { try await readProperty(property).mapValues { try graphMap($0) } }
     }
     let values = try await properties[command]!.value
     guard let key = UUID(uuidString: id)?.uuidString, let value = values[key] else {
@@ -138,7 +140,7 @@ actor GraphQLContext {
   func flags() async throws -> [String: Bool] {
     if lookup == nil {
       lookup = Task {
-        let reminders = try await readReminders(includeFlags: true)
+        let reminders = try await readReminders()
         var flags: [String: Bool] = [:]
         for item in reminders {
           guard let value = item.flagged else {
@@ -166,7 +168,7 @@ func makeSchema() throws -> GraphQLSchema {
   let list = try GraphQLObjectType(
     name: "ReminderList",
     fields: [
-      "id": field(GraphQLNonNull(GraphQLID)), "name": field(GraphQLString, key: "name"),
+      "id": field(GraphQLNonNull(GraphQLID)), "name": field(GraphQLString),
       "allowsContentModifications": field(GraphQLBoolean),
       "allowsListModifications": GraphQLField(
         type: GraphQLBoolean,
@@ -182,7 +184,7 @@ func makeSchema() throws -> GraphQLSchema {
             return nil
           }
           return try await mapValue(
-            context.property("script-emblems", id: source["id"].stringValue()))
+            context.property(.emblems, id: source["id"].stringValue()))
         }),
     ])
   let dateTime = try GraphQLScalarType(
@@ -203,12 +205,7 @@ func makeSchema() throws -> GraphQLSchema {
   let localDate = try GraphQLScalarType(
     name: "LocalDate", description: "Calendar date in YYYY-MM-DD form, without a time or offset.")
   let url = try GraphQLScalarType(name: "URL", description: "Absolute URL serialized as a string.")
-  let priority = try GraphQLScalarType(
-    name: "ReminderPriority",
-    serialize: { value in
-      if let value = value as? Map { return value }
-      return try Map(any: value)
-    })
+  let priority = GraphQLInt
   let components = try GraphQLObjectType(
     name: "DateComponents",
     fields: GraphQLFieldMap(
@@ -228,7 +225,6 @@ func makeSchema() throws -> GraphQLSchema {
         }))
   }
   let dueStatus = try enumeration("DueStatus", DueStatus.allCases.map(\.rawValue))
-  let sort = try enumeration("ReminderSort", ReminderSort.allCases.map(\.rawValue))
   let direction = try enumeration("SortDirection", ["ASC", "DESC"])
   let orderField = try enumeration(
     "ReminderSortField",
@@ -340,12 +336,12 @@ func makeSchema() throws -> GraphQLSchema {
   let reminder = try GraphQLObjectType(
     name: "Reminder",
     fields: [
-      "id": field(GraphQLNonNull(GraphQLID)), "name": field(GraphQLString, key: "name"),
-      "body": field(GraphQLString, key: "body"),
-      "completed": field(GraphQLBoolean, key: "completed"),
+      "id": field(GraphQLNonNull(GraphQLID)), "name": field(GraphQLString),
+      "body": field(GraphQLString),
+      "completed": field(GraphQLBoolean),
       "priority": field(priority), "creationDate": field(dateTime),
       "completionDate": field(dateTime),
-      "modificationDate": field(dateTime, key: "modificationDate"),
+      "modificationDate": field(dateTime),
       "location": field(GraphQLString),
       "dueDay": field(GraphQLString), "listId": field(GraphQLID), "url": field(url),
       "startDateComponents": field(components), "dueDateComponents": field(components),
@@ -384,7 +380,7 @@ func makeSchema() throws -> GraphQLSchema {
             return nil
           }
           return try await mapValue(
-            context.property("script-alerts", id: source["id"].stringValue()))
+            context.property(.alerts, id: source["id"].stringValue()))
         }),
       "dueDate": calendarField(dateTime, key: "dueDateComponents", timed: true),
       "startDate": calendarField(dateTime, key: "startDateComponents", timed: true),
@@ -429,7 +425,6 @@ func makeSchema() throws -> GraphQLSchema {
   var reminderArgs = pageArgs
   reminderArgs["orderBy"] = GraphQLArgument(type: reminderOrder)
   reminderArgs["filter"] = GraphQLArgument(type: filter)
-  reminderArgs["sort"] = GraphQLArgument(type: GraphQLNonNull(sort), defaultValue: "ID_ASC")
   let idArg: GraphQLArgumentConfigMap = ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))]
   let listPage = try pageType("ListPage", list)
   let reminderPage = try pageType("ReminderPage", reminder)
@@ -447,14 +442,16 @@ func makeSchema() throws -> GraphQLSchema {
     name: "ListContainer", resolveType: resolveContainerType, types: [account, list])
   let reminderContainer = try GraphQLUnionType(
     name: "ReminderContainer", resolveType: resolveContainerType, types: [list, reminder])
-  func containerField(_ type: GraphQLUnionType, command: String) -> GraphQLField {
+  func containerField(_ type: GraphQLUnionType, property: ScriptProperty<ContainerReference>)
+    -> GraphQLField
+  {
     GraphQLField(
       type: type,
       resolve: { source, _, context, _ in
         guard let source = source as? Map, let context = context as? GraphQLContext else {
           return nil
         }
-        let reference = try await context.property(command, id: source["id"].stringValue())
+        let reference = try await context.property(property, id: source["id"].stringValue())
         let id = try reference["id"].stringValue()
         let kind = try reference["kind"].stringValue()
         let data = try await context.inventory()
@@ -499,7 +496,7 @@ func makeSchema() throws -> GraphQLSchema {
     })
   account.fields = { accountFields }
   var listFields = try list.fields()
-  listFields["container"] = containerField(listContainer, command: "script-list-containers")
+  listFields["container"] = containerField(listContainer, property: .listContainers)
   listFields["account"] = GraphQLField(
     type: account,
     resolve: { source, _, context, _ in
@@ -523,7 +520,7 @@ func makeSchema() throws -> GraphQLSchema {
   list.fields = { listFields }
   var reminderFields = try reminder.fields()
   reminderFields["container"] = containerField(
-    reminderContainer, command: "script-reminder-containers")
+    reminderContainer, property: .reminderContainers)
   reminderFields["list"] = GraphQLField(
     type: list,
     resolve: { source, _, context, _ in

@@ -12,14 +12,11 @@ private struct Search: Codable, Equatable, Sendable {
   var hasDueDate: Bool?
   var allowsContentModifications: Bool?
   var subscribed: Bool?
-  var listOrder: String = "id_asc"
-  var listId: String?
   var completed: Bool?
   var query: String?
   var limit: Int = 50
   var priorities: [Int]?
   var dueStatus: DueStatus?
-  var sort: ReminderSort = .idAsc
   var dueOnOrAfter: String?
   var dueBefore: String?
 }
@@ -112,7 +109,7 @@ private func enumeration(_ values: [String]) -> Value {
   .object(["type": "string", "enum": .array(values.map(Value.string))])
 }
 private let reminderFilterKeys: Set<String> = [
-  "accountIds", "listIds", "listId", "query", "completed", "flagged", "priorities", "hasDueDate",
+  "accountIds", "listIds", "query", "completed", "flagged", "priorities", "hasDueDate",
   "dueFrom", "dueBefore", "dueOnOrAfter", "dueStatus",
 ]
 private let listFilterKeys: Set<String> = [
@@ -247,31 +244,31 @@ private func toolsCatalog() -> [Tool] {
         "NAME", "DUE_DATE", "PRIORITY", "CREATION_DATE", "MODIFICATION_DATE", "COMPLETION_DATE",
       ]), "direction": enumeration(["ASC", "DESC"]),
     ], required: ["field"])
-  var searchProperties: [String: Value] = [
-    "orderBy": order, "dueFrom": primitive("string"), "accountIds": array(primitive("string")),
-    "listIds": array(primitive("string")), "flagged": primitive("boolean"),
-    "hasDueDate": primitive("boolean"), "dueOnOrAfter": primitive("string"),
-    "dueBefore": primitive("string"),
-    "priorities": array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
-    "dueStatus": enumeration(DueStatus.allCases.map(\.rawValue)),
-    "sort": enumeration(ReminderSort.allCases.map(\.rawValue)), "listId": primitive("string"),
-    "completed": primitive("boolean"), "query": primitive("string"),
+  let pagination: [String: Value] = [
     "limit": .object(["type": "integer", "minimum": 1, "maximum": 100, "default": 50]),
     "cursor": .object(["type": "string", "minLength": 1]),
   ]
-  searchProperties["filter"] = schema(
-    searchProperties.filter { reminderFilterKeys.contains($0.key) })
-  let search = schema(searchProperties)
-  var listProperties: [String: Value] = [
-    "query": primitive("string"), "accountIds": array(primitive("string")),
-    "allowsContentModifications": primitive("boolean"), "subscribed": primitive("boolean"),
-    "sort": enumeration(["id_asc", "name_asc", "name_desc"]),
-    "limit": .object(["type": "integer", "minimum": 1, "maximum": 100, "default": 50]),
-    "cursor": primitive("string"),
-  ]
-  listProperties["filter"] = schema(listProperties.filter { listFilterKeys.contains($0.key) })
-  listProperties["orderBy"] = schema(["direction": enumeration(["ASC", "DESC"])])
-  let listSearch = schema(listProperties)
+  let search = schema(
+    pagination.merging([
+      "orderBy": order,
+      "filter": schema([
+        "dueFrom": primitive("string"), "accountIds": array(primitive("string")),
+        "listIds": array(primitive("string")), "flagged": primitive("boolean"),
+        "hasDueDate": primitive("boolean"), "dueOnOrAfter": primitive("string"),
+        "dueBefore": primitive("string"),
+        "priorities": array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
+        "dueStatus": enumeration(DueStatus.allCases.map(\.rawValue)),
+        "completed": primitive("boolean"), "query": primitive("string"),
+      ]),
+    ]) { _, new in new })
+  let listSearch = schema(
+    pagination.merging([
+      "filter": schema([
+        "query": primitive("string"), "accountIds": array(primitive("string")),
+        "allowsContentModifications": primitive("boolean"), "subscribed": primitive("boolean"),
+      ]),
+      "orderBy": schema(["direction": enumeration(["ASC", "DESC"])]),
+    ]) { _, new in new })
   let account = schema(
     ["id": primitive("string"), "name": primitive("string")], required: ["id", "name"])
   let counts = [
@@ -408,7 +405,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "lists_list",
       description:
-        "Read lists filtered by name, account IDs, editability, and subscription. Use filter for criteria or the legacy flat inputs, never both. orderBy.direction selects name ordering; do not combine it with sort. Filters intersect. Pagination uses limit and an opaque cursor tied to unchanged criteria. Sort defaults to id_asc; name_asc and name_desc compare names case-insensitively with ID ascending ties.",
+        "Read lists filtered by name, account IDs, editability, and subscription. Use filter for search criteria. orderBy.direction selects name ordering; omission uses identifier order. Filters intersect. Pagination uses limit and an opaque cursor tied to unchanged criteria. Name ordering is case-insensitive with ID ascending ties.",
       inputSchema: listSearch, annotations: annotations,
       outputSchema: schema(
         [
@@ -418,7 +415,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "reminders_search",
       description:
-        "Read reminders filtered by account/list IDs, completion, flags, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter or as legacy flat inputs, never both. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Legacy dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties; it takes precedence over sort. Sort defaults to id_asc; priorities use numeric order; absent creation dates sort last, with identifier ascending to break ties. Cursor is opaque, expires after 10 minutes, and requires identical criteria and limit. Optional unavailable values are omitted. Dates retain EventKit components; omitted hours mean date-only and omitted zones mean floating.",
+        "Read reminders filtered by account/list IDs, completion, flags, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is opaque, expires after 10 minutes, and requires identical criteria and limit. Optional unavailable values are omitted. Dates retain EventKit components; omitted hours mean date-only and omitted zones mean floating.",
       inputSchema: search, annotations: annotations,
       outputSchema: schema(
         [
@@ -442,54 +439,35 @@ private func result<T: Encodable>(_ value: T) throws -> CallTool.Result {
     structuredContent: try JSONDecoder().decode(Value.self, from: bytes), isError: false)
 }
 private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Result {
-  var args = params.arguments ?? [:]
-  if ["reminders_search", "lists_list"].contains(params.name),
-    let value = args.removeValue(forKey: "filter")
-  {
-    let allowed = params.name == "reminders_search" ? reminderFilterKeys : listFilterKeys
-    guard case .object(let filter) = value, Set(filter.keys).isSubset(of: allowed),
-      Set(args.keys).isDisjoint(with: allowed)
-    else {
-      throw ServerError.message(
-        "INVALID_ARGUMENT: use a filter object or flat filter arguments, not both; unknown filters are rejected"
-      )
+  let args = params.arguments ?? [:]
+  func filters(_ allowed: Set<String>) throws -> [String: Value] {
+    guard let value = args["filter"] else { return [:] }
+    guard case .object(let filter) = value, Set(filter.keys).isSubset(of: allowed) else {
+      throw ServerError.message("INVALID_ARGUMENT: filter must be an object with known fields")
     }
-    args.merge(filter) { _, new in new }
-  }
-  if params.name == "lists_list", let rawOrder = args.removeValue(forKey: "orderBy") {
-    guard args["sort"] == nil else {
-      throw ServerError.message("INVALID_ARGUMENT: use orderBy or sort, not both")
-    }
-    let order = try mutationInput(rawOrder)
-    try order.rejectNulls()
-    try order.checkKeys(["direction"])
-    let direction = order["direction"] == .undefined ? "ASC" : try order["direction"].stringValue()
-    guard ["ASC", "DESC"].contains(direction) else {
-      throw ServerError.message("INVALID_ARGUMENT: invalid list order direction")
-    }
-    args["sort"] = .string(direction == "DESC" ? "name_desc" : "name_asc")
+    return filter
   }
   func keys(_ allowed: Set<String>) throws {
     guard Set(args.keys).isSubset(of: allowed) else {
       throw ServerError.message("INVALID_ARGUMENT: Unknown argument")
     }
   }
-  func string(_ key: String) throws -> String? {
-    guard let value = args[key] else { return nil }
+  func string(_ key: String, from values: [String: Value]? = nil) throws -> String? {
+    guard let value = (values ?? args)[key] else { return nil }
     guard let text = value.stringValue else {
       throw ServerError.message("INVALID_ARGUMENT: \(key) must be a string")
     }
     return text
   }
-  func bool(_ key: String) throws -> Bool? {
-    guard let value = args[key] else { return nil }
+  func bool(_ key: String, from values: [String: Value]? = nil) throws -> Bool? {
+    guard let value = (values ?? args)[key] else { return nil }
     guard case .bool(let result) = value else {
       throw ServerError.message("INVALID_ARGUMENT: \(key) must be boolean")
     }
     return result
   }
-  func ids(_ key: String) throws -> [String]? {
-    guard let value = args[key] else { return nil }
+  func ids(_ key: String, from values: [String: Value]? = nil) throws -> [String]? {
+    guard let value = (values ?? args)[key] else { return nil }
     guard case .array(let values) = value else {
       throw ServerError.message("INVALID_ARGUMENT: \(key) must be an array")
     }
@@ -525,7 +503,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       try input.rejectNulls()
       request = .update(id: id, changes: try reminderChanges(input, creating: false))
     }
-    let saved: ReminderRecord = try await mutateReminder(request)
+    let saved = try await mutateReminder(request).savedRecord()
     do {
       guard let refreshed = try await readReminders().first(where: { $0.id == saved.id }) else {
         throw ServerError.message("saved reminder is not yet visible")
@@ -553,7 +531,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       try input.rejectNulls()
       request = .update(id: id, changes: try listChanges(input, creating: false))
     }
-    let saved: ListRecord = try await mutateList(request)
+    let saved = try await mutateList(request).savedRecord()
     do { return try result(ListOutput(list: await mcpLists([saved]).first)) } catch {
       throw ServerError.message(
         "WRITE_APPLIED: list \(saved.id) was saved, but response enrichment failed: \(error). Refetch before retrying"
@@ -564,15 +542,18 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.message("INVALID_ARGUMENT: id required")
     }
-    let deleted: DeletedReminder = try await mutateList(
-      .delete(id: id, allowNonEmpty: try bool("allowNonEmpty") ?? false))
+    let deleted = try await mutateList(
+      .delete(id: id, allowNonEmpty: try bool("allowNonEmpty") ?? false)
+    ).deletion()
     return try result(deleted)
   case "reminders_show":
     try keys(["id"])
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.message("INVALID_ARGUMENT: id required")
     }
-    let shown: ReminderRecord = try await showRemindersObject(id, isList: false)
+    guard case .reminder(let shown) = try await showRemindersObject(id, isList: false) else {
+      throw ServerError.message("Expected a reminder")
+    }
     do {
       guard let refreshed = try await readReminders().first(where: { $0.id == shown.id }) else {
         throw ServerError.message("shown reminder is unavailable")
@@ -587,7 +568,9 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.message("INVALID_ARGUMENT: id required")
     }
-    let shown: ListRecord = try await showRemindersObject(id, isList: true)
+    guard case .list(let shown) = try await showRemindersObject(id, isList: true) else {
+      throw ServerError.message("Expected a list")
+    }
     do { return try result(ListOutput(list: await mcpLists([shown]).first)) } catch {
       throw ServerError.message(
         "SHOW_APPLIED: list \(id) was shown, but response enrichment failed: \(error)")
@@ -597,7 +580,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.message("INVALID_ARGUMENT: id required")
     }
-    let deleted: DeletedReminder = try await mutateReminder(.delete(id: id))
+    let deleted = try await mutateReminder(.delete(id: id)).deletion()
     return try result(deleted)
   case "accounts_get":
     try keys(["id"])
@@ -606,33 +589,40 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     return try result(AccountOutput(account: await readInventory().accounts.first { $0.id == id }))
   case "lists_list":
-    try keys([
-      "query", "accountIds", "allowsContentModifications", "subscribed", "sort", "limit", "cursor",
-    ])
+    try keys(["filter", "orderBy", "limit", "cursor"])
+    let filter = try filters(listFilterKeys)
     var search = Search()
     search.resource = "lists"
-    search.query = try string("query")
-    search.accountIds = try ids("accountIds")
-    search.allowsContentModifications = try bool("allowsContentModifications")
-    search.subscribed = try bool("subscribed")
+    search.query = try string("query", from: filter)
+    search.accountIds = try ids("accountIds", from: filter)
+    search.allowsContentModifications = try bool("allowsContentModifications", from: filter)
+    search.subscribed = try bool("subscribed", from: filter)
     search.limit = try limit()
-    search.listOrder = try string("sort") ?? "id_asc"
-    guard ["id_asc", "name_asc", "name_desc"].contains(search.listOrder) else {
-      throw ServerError.message("INVALID_ARGUMENT: invalid list sort")
+    if let rawOrder = args["orderBy"] {
+      let order = try mutationInput(rawOrder)
+      try order.rejectNulls()
+      try order.checkKeys(["direction"])
+      let direction =
+        order["direction"] == .undefined ? "ASC" : try order["direction"].stringValue()
+      guard ["ASC", "DESC"].contains(direction) else {
+        throw ServerError.message("INVALID_ARGUMENT: invalid list order direction")
+      }
+      search.orderField = "NAME"
+      search.descending = direction == "DESC"
     }
     let offset = try await cursors.offset(token: string("cursor"), search: search)
-    var lists = try await readInventory().orderedLists.filter {
+    var lists = try await readInventory().lists.filter {
       (search.query == nil || $0.name.lowercased().contains(search.query!.lowercased()))
         && (search.accountIds == nil || search.accountIds!.contains($0.source.id))
         && (search.subscribed == nil || search.subscribed == $0.isSubscribed)
         && (search.allowsContentModifications == nil
           || search.allowsContentModifications == $0.allowsContentModifications)
     }
-    if search.listOrder != "id_asc" {
+    if search.orderField != nil {
       lists.sort { a, b in
         let x = a.name.lowercased()
         let y = b.name.lowercased()
-        return x == y ? a.id < b.id : search.listOrder == "name_desc" ? x > y : x < y
+        return x == y ? a.id < b.id : search.descending ? x > y : x < y
       }
     }
     let start = min(offset, lists.count)
@@ -666,7 +656,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     let data = try await readInventory()
     return try result(
       SummaryOutput(
-        items: data.orderedLists.filter { id == nil || $0.id == id }.map {
+        items: data.lists.filter { id == nil || $0.id == id }.map {
           summarize(data, listId: $0.id)
         }))
   case "reminders_get":
@@ -677,18 +667,17 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     let records = try await readInventory(includeFlags: true).reminders.filter { $0.id == id }
     return try await result(GetOutput(reminder: mcpReminders(records).first))
   case "reminders_search":
-    try keys([
-      "orderBy", "dueFrom", "accountIds", "listIds", "flagged", "hasDueDate", "listId", "completed",
-      "query", "limit", "cursor", "priorities", "dueStatus", "sort", "dueOnOrAfter", "dueBefore",
-    ])
+    try keys(["filter", "orderBy", "limit", "cursor"])
+    let filter = try filters(reminderFilterKeys)
     var search = Search(
-      listId: try string("listId"), query: try string("query"),
-      dueOnOrAfter: try string("dueOnOrAfter"), dueBefore: try string("dueBefore"))
-    search.accountIds = try ids("accountIds")
-    search.listIds = try ids("listIds")
-    search.flagged = try bool("flagged")
-    search.hasDueDate = try bool("hasDueDate")
-    search.dueFrom = try string("dueFrom")
+      query: try string("query", from: filter),
+      dueOnOrAfter: try string("dueOnOrAfter", from: filter),
+      dueBefore: try string("dueBefore", from: filter))
+    search.accountIds = try ids("accountIds", from: filter)
+    search.listIds = try ids("listIds", from: filter)
+    search.flagged = try bool("flagged", from: filter)
+    search.hasDueDate = try bool("hasDueDate", from: filter)
+    search.dueFrom = try string("dueFrom", from: filter)
     let timestampUpper = search.dueBefore.flatMap { $0.contains("T") ? $0 : nil }
     let dayUpper = search.dueBefore.flatMap { $0.contains("T") ? nil : $0 }
     guard !(search.dueFrom != nil && (search.dueOnOrAfter != nil || dayUpper != nil)),
@@ -719,7 +708,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.orderField = field
       search.descending = direction == "DESC"
     }
-    if let value = args["completed"] {
+    if let value = filter["completed"] {
       guard case .bool(let flag) = value else {
         throw ServerError.message("INVALID_ARGUMENT: completed must be boolean")
       }
@@ -731,7 +720,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       }
       search.limit = limit
     }
-    if let value = args["priorities"] {
+    if let value = filter["priorities"] {
       guard case .array(let values) = value else {
         throw ServerError.message("INVALID_ARGUMENT: priorities must be an integer array")
       }
@@ -742,17 +731,11 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
         return number
       }
     }
-    if let value = try string("dueStatus") {
+    if let value = try string("dueStatus", from: filter) {
       guard let status = DueStatus(rawValue: value) else {
         throw ServerError.message("INVALID_ARGUMENT: invalid dueStatus")
       }
       search.dueStatus = status
-    }
-    if let value = try string("sort") {
-      guard let order = ReminderSort(rawValue: value) else {
-        throw ServerError.message("INVALID_ARGUMENT: invalid sort")
-      }
-      search.sort = order
     }
     let offset = try await cursors.offset(token: string("cursor"), search: search)
     let data = try await readInventory(includeFlags: true)
@@ -772,7 +755,6 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
         && matchesDays($0.dueDay, search.dueOnOrAfter, dayUpper)
         && (search.priorities == nil || search.priorities!.contains($0.priority))
         && (search.dueStatus == nil || $0.dueStatus == search.dueStatus)
-        && (search.listId == nil || $0.listId == search.listId)
         && (search.completed == nil || $0.completed == search.completed)
         && (search.query == nil || search.query!.isEmpty
           || (($0.name ?? "").lowercased().contains(search.query!.lowercased())
@@ -781,7 +763,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     let items =
       try search.orderField.map {
         try orderReminders(fetched, field: $0, descending: search.descending)
-      } ?? sortedReminders(fetched, by: search.sort)
+      } ?? fetched
     let start = min(offset, items.count)
     let end = min(start + search.limit, items.count)
     var token: String?
@@ -795,6 +777,9 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   default: throw MCPError.invalidParams("Unknown tool")
   }
 }
+private let tools = toolsCatalog()
+private let toolNames = Set(tools.map(\.name))
+
 func handleMCP(method: String, headers: [String: String], body: Data) async throws
   -> ServiceResponse
 {
@@ -806,10 +791,10 @@ func handleMCP(method: String, headers: [String: String], body: Data) async thro
   do {
     await server.withMethodHandler(ListTools.self) { params in
       guard params.cursor == nil else { throw MCPError.invalidParams("Tool catalog has no cursor") }
-      return .init(tools: toolsCatalog())
+      return .init(tools: tools)
     }
     await server.withMethodHandler(CallTool.self) { params in
-      guard toolsCatalog().contains(where: { $0.name == params.name }) else {
+      guard toolNames.contains(params.name) else {
         throw MCPError.invalidParams("Unknown tool")
       }
       do { return try await callTool(params) } catch {

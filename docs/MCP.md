@@ -20,8 +20,8 @@ Sixteen tools are advertised with input and output JSON Schemas:
 - `lists_get({id})` returns a list or null.
 - `defaults_get({})` returns `{list, account}`, each nullable.
 - `lists_summary({listId?})` returns all seven per-list summary counts; unknown IDs yield no items.
-- `lists_list({filter?, orderBy?, query?, accountIds?, allowsContentModifications?, subscribed?, sort?, limit?, cursor?})` returns `{items, totalCount, nextCursor?}`. Query searches names case-insensitively. Sort supports `id_asc` (default), `name_asc`, and `name_desc`, with ID ascending ties. Limit defaults to 50 (1–100). Empty account IDs match nothing. Following a cursor requires unchanged criteria, sort, and limit.
-- `reminders_search({filter?, orderBy?, dueFrom?, accountIds?, listIds?, flagged?, hasDueDate?, listId?, completed?, query?, priorities?, dueStatus?, dueOnOrAfter?, dueBefore?, sort?, limit?, cursor?})` returns `{items, totalCount, nextCursor?}`. Limit defaults to 50, with bounds 1–100. Query matches a case-insensitive name-or-notes substring; empty means no text restriction. Account IDs, list IDs, flat listId, flags, deadline presence, and other filters intersect; empty ID arrays match nothing. Priorities are integer values 0–9; an empty array matches nothing. Due status uses lowercase names (`overdue`, `today`, `future`, `unscheduled`, `unknown`). Sort is `id_asc` (default), `priority_asc`, `priority_desc`, `created_asc`, or `created_desc`, with missing dates last and identifier ascending ties.
+- `lists_list({filter?, orderBy?, limit?, cursor?})` returns `{items, totalCount, nextCursor?}`. Filter fields are `query`, `accountIds`, `allowsContentModifications`, and `subscribed`. Query searches names case-insensitively. Empty account IDs match nothing. Limit defaults to 50 (1–100).
+- `reminders_search({filter?, orderBy?, limit?, cursor?})` returns `{items, totalCount, nextCursor?}`. Filter fields are `dueFrom`, `accountIds`, `listIds`, `flagged`, `hasDueDate`, `completed`, `query`, `priorities`, `dueStatus`, `dueOnOrAfter`, and `dueBefore`. Query matches a case-insensitive name-or-notes substring; empty means no text restriction. Filters intersect; empty ID or priority arrays match nothing. Priorities are integers 0–9. Due status uses lowercase names (`overdue`, `today`, `future`, `unscheduled`, `unknown`). Limit defaults to 50 (1–100).
 - `reminders_get({id})` returns `{reminder}`, with null for an absent identifier.
 - `reminders_create`, `reminders_update`, and `reminders_delete` implement reminder writes; see [WRITES.md](WRITES.md).
 - `reminders_show({id})` and `lists_show({id})` navigate the Reminders UI and return the enriched object. Discovery marks them non-read-only, nondestructive and idempotent.
@@ -42,17 +42,20 @@ include `emblem`, `container`, `allowsListModifications`, and `subscribed`, plus
 stored fields. Metadata/projection failures fail the tool call;
 unknown values are not replaced with successful empty results.
 
-Search criteria can be supplied in `filter` or through the flat flat inputs;
-mixing the two is rejected. Reminder `orderBy: {field, direction?}` supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE,
-and COMPLETION_DATE with ASC/DESC ordering, takes precedence over flat
-`sort`, and participates in cursor identity. List `orderBy: {direction?}` orders
-by name; combining it with `sort` is rejected. `dueFrom` and timestamp `dueBefore`
-bound deadline instants; flat day bounds remain supported separately. All-day
-deadlines use midnight in their source time zone. Bounds cannot mix modes.
+Search criteria belong in `filter`. Reminder `orderBy: {field, direction?}`
+supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, and
+COMPLETION_DATE with ASC/DESC ordering. List `orderBy: {direction?}` orders by
+name. Direction defaults to ASC. Nulls sort last in both directions and ties use
+ID ascending. Without `orderBy`, results use ID ascending. Cursors require
+unchanged filters, ordering, and limit.
+
+`dueFrom` and timestamp `dueBefore` bound deadline instants inclusively and
+exclusively, respectively. All-day deadlines use midnight in their source time
+zone. `dueOnOrAfter` and date-only `dueBefore` bound reporting days. Bounds cannot
+mix modes.
 
 Accounts are derived from accessible lists; the default account is inferred from the
-default list. Raw stored fields and flat search aliases remain available, and
-some absent optional fields are omitted. Reminder writes include recurrence, time zones, flags and alert-date setting. Alert-date clearing and date-only start writes remain unsupported. List CRUD is implemented. No tags, sections, or
+default list. Raw stored fields remain available; some absent optional fields are omitted. Reminder writes include recurrence, time zones, flags and alert-date setting. Alert-date clearing and date-only start writes remain unsupported. List CRUD is implemented. No tags, sections, or
 attachments are exposed.
 
 

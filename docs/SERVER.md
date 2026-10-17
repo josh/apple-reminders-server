@@ -78,6 +78,6 @@ memory, and even list-only requests currently fetch the full inventory.
 
 SwiftPM builds one executable target. Project data-access code is statically
 linked; macOS frameworks and system Swift runtime libraries remain dynamic.
-The EventKit boundary uses a JSON projection decoded into typed records.
+The EventKit boundary constructs typed Sendable records directly from framework objects.
 GraphQL resolvers use dynamic `Map` values, while MCP inputs and schemas use
 validated `Value` objects. Not every API boundary is checked at compile time.

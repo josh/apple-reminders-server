@@ -14,7 +14,7 @@ Live introspection is authoritative for the running version:
 - Reminder fields include identity, name/body, completion, priority, timestamps,
   and location. List fields include identity, name, subscription, and content
   modification capability, list editability, and sRGB color (`#RRGGBBAA`).
-- `reminders(filter: {listIds, completed, nameContains, priorities, dueStatus, dueOnOrAfter, dueBefore}, sort, limit, offset)` filters by list IDs, completion, and case-insensitive title substring before pagination. Empty title searches match all items. The default order is identifier ascending. `ReminderSort` also supports `PRIORITY_ASC`, `PRIORITY_DESC`, `CREATED_ASC`, and `CREATED_DESC`; missing creation dates come last in either direction, with identifier ascending breaking ties. Priority sorting uses numeric values (including zero), and an empty priority filter matches nothing. Priorities must be 0–9. `DueStatus` is `OVERDUE`, `TODAY`, `FUTURE`, `UNSCHEDULED`, or `UNKNOWN`.
+- `reminders(filter: {listIds, completed, nameContains, priorities, dueStatus, dueOnOrAfter, dueBefore}, orderBy, limit, offset)` filters by list IDs, completion, and case-insensitive title substring before pagination. Empty title searches match all items. The default order is identifier ascending. Priority ordering uses numeric values (including zero), and an empty priority filter matches nothing. Priorities must be 0–9. `DueStatus` is `OVERDUE`, `TODAY`, `FUTURE`, `UNSCHEDULED`, or `UNKNOWN`.
 - Reminder `listId`, `url`, `startDateComponents`, and `dueDateComponents` are exposed. Component dates preserve calendar/time zone and each optional EventKit component, including floating/date-only values.
 - `rawAlarms` preserves absolute date, relative offset, proximity and structured location. `alarms` uses the `AbsoluteAlarm | RelativeAlarm | LocationAlarm` union. `recurrenceRules` preserves frequency, calendar identifier, interval, weekday/ordinal and numeric calendar selectors, plus an optional recurrence end. Rules are read as stored; future occurrences are not expanded.
 - Relationships expose account lists/reminders, list account/reminders/summary, and reminder list. Nested search intersects the parent's scope with explicit filters; lists default to identifier order. Summaries count the entire list independently of search pagination.
@@ -64,8 +64,7 @@ MCP reminder tools enrich flags; metrics use EventKit only.
   `NAME`, `DUE_DATE`, `PRIORITY`, `CREATION_DATE`, `MODIFICATION_DATE`, and
   `COMPLETION_DATE`. Direction defaults to `ASC`. Names compare case-insensitively,
   dates chronologically, and priorities numerically. Nulls sort last in both
-  directions; ties use ID ascending. `orderBy` takes precedence over alternative
-  `sort`; with neither supplied the server keeps ID ordering.
+  directions; ties use ID ascending. Without `orderBy`, the server keeps ID ordering.
 
 ## Automation metadata and alarms
 
