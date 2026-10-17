@@ -174,7 +174,6 @@ func fetchInventory(includeFlags: Bool) throws -> Inventory {
 // Protected by main-thread confinement. Nested calls can occur while an Apple
 // event or EventKit callback pumps the run loop; fail instead of overlapping state.
 private var busy = false
-// Swift-only entrypoint: data and errors use Swift ownership throughout.
 func performRemindersOperation<T>(_ operation: @escaping () throws -> T) throws -> T {
   let work = {
     guard !busy else {

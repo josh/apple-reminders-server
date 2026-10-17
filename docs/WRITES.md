@@ -1,19 +1,9 @@
 # Mutation API
 
-The server supports GraphQL `createReminder`, `updateReminder`, and
-`deleteReminder`, plus MCP `reminders_create`, `reminders_update`, and
-`reminders_delete`, in any editable list accessible through EventKit. No write-enable
-switch or product-level list allowlist is required. No mutation moves reminders.
-List create/update/delete is supported. GraphQL `showReminder`/`showList` and MCP
-`reminders_show`/`lists_show` navigate the Reminders UI without saving data.
-The service remains loopback-only with the existing Host/Origin checks; it has no authentication. Metrics remain read-only.
-
-Server configuration uses explicit startup options only. Environment-variable
-configuration is prohibited, including permission-request and feature toggles.
-Use `--request-access` to request EventKit permission at startup.
-
-When validating writes, use explicitly authorized disposable data, pass list IDs
-explicitly, and verify cleanup. The server does not enforce a test-list allowlist.
+GraphQL and MCP support reminder/list creation, updates, deletion, and UI
+navigation. Writes require native authorization and editable lists. Reminder
+moves are unsupported. See the [GraphQL schema](reminders.graphql) and
+[MCP catalog](mcp-tools.json) for input and output shapes.
 
 ## Supported inputs
 
@@ -37,9 +27,7 @@ no whitespace. `completed: true` sets the completion date through EventKit;
 `TIME_ZONE`. Date alternatives clear the same stored
 start or due value. Duplicate entries, clearing both alternatives, or setting and
 clearing the same property are invalid. The array alone must contain at least
-one entry to form a nonempty patch. `clearFields` is nullable in the runtime
-GraphQL schema to work around the current GraphQL library rejecting omitted non-null
-input fields with defaults in variables; the resolver still rejects explicit null.
+one entry to form a nonempty patch. Although `clearFields` is nullable in the schema, explicit null is rejected.
 
 Timed and date-only due alternatives cannot be supplied together. Timestamps require
 an explicit UTC offset and are stored as Gregorian components in UTC; all-day
@@ -82,8 +70,8 @@ GraphQL nulls mean omission; MCP requires omission instead of null.
 For example, `{frequency: MONTHLY, interval: 1, daysOfWeek: [{day: FRIDAY,
 ordinal: -1}]}` repeats on the last Friday each month. This writes the stored
 rule; it does not expand future occurrences or guarantee delivery. Completing
-recurring reminders can cause provider-managed follow-up instances, and that
-behavior has not been tested. Recurrence checks do not complete the test items.
+recurring reminders may create provider-managed follow-up instances; the server
+does not control that behavior.
 
 `timeZone` accepts an IANA zone identifier (or `UTC`) and applies to both resulting
 start and due components. Timed values keep their instant and are represented in
@@ -91,22 +79,16 @@ the chosen zone; date-only values keep their calendar day. `TIME_ZONE` clearing
 converts timed values to host-local wall time and removes their explicit zone.
 A zone change requires at least one resulting start or due date; zones are not
 stored independently of date components. Existing non-Gregorian or unresolvable
-dates are rejected. Without a zone change, new timed inputs use UTC as before.
+dates are rejected. Without a zone change, new timed inputs use UTC.
 
 `flagged` writes the native flag independently of priority. `remindMeDate` writes
-the application's alert date using typed Apple-event date arguments. On this
-provider it also changes the timed deadline, start components, zone, and alarms;
+the application's alert date using typed Apple-event date arguments. It can also change the timed deadline, start components, zone, and alarms;
 inspect the resulting state. It is not an independent EventKit alarm setter. It cannot
 be combined with `alarms`, or with start, due, or time-zone changes in the same request, because Reminders
 may overwrite those components. `REMIND_ME_DATE` clearing is not supported:
 AppleScript rejects a missing date, and removing
 EventKit alarms alone leaves this property intact. Unsupported clearing is
-rejected before saving. Reminder
-identity and expected list are checked before any automation set event. No
-client values are interpolated into script source.
-
-Date-only start writes and independent alert-date clearing remain unsupported. Unsupported input fields
-are rejected by input validation rather than ignored.
+rejected before saving. See [automation handlers](APPLESCRIPT.md#handlers-and-identity).
 
 ## Example
 
@@ -160,29 +142,14 @@ and matching JSON text. Validation and execution failures use `isError: true`
 without structuredContent. Discovery marks all three tools as writes and
 non-idempotent; update/delete also carry the destructive hint.
 
-Mixed EventKit/automation changes are not atomic. EventKit saves first, followed
-by automation and a refetch. If either later step fails, both APIs report
-`WRITE_APPLIED` with the reminder ID; some requested changes may already be
-stored. There is no rollback, and a failed create must not be retried blindly.
-The automation handler makes at most 30 attempts for transient missing-object
-or cannot-set errors, always against the same saved ID and expected list, with
-0.1-second delays. It never repeats EventKit creation. Successful setters can be
-repeated if a later automation read fails; non-transient errors fail immediately.
-Each Apple event still has its own timeout, so this is not a hard total deadline.
-
-A mutation can save successfully and then fail while reading native flags or
-other response metadata. MCP reports `WRITE_APPLIED` with the saved reminder ID
-in that case. Refetch that ID; do not repeat creation blindly. No rollback is
-implied. GraphQL instead can return partial response-field errors after a save.
-
 ## Execution and errors
 
 Writes run on the same serialized worker queue and main-thread native guard as
 reads. Each mutation owns an EventKit store, fetches or creates its object in
 that store, checks list editability, validates the resulting state, then commits
 one save or delete. Flag and alert-date changes also use in-process Reminders
-automation. No direct SQLite writes are used.
-Successful save responses use EventKit's refreshed object values.
+automation after the EventKit save. Automation/refetch and response-enrichment
+failures follow the [outcome table below](#client-handling-after-a-save).
 
 A GraphQL operation's root mutations execute serially. Request inventory and
 lazy automation caches are invalidated after each native mutation attempt, so
@@ -192,11 +159,6 @@ Missing update/delete IDs return `NOT_FOUND`; deletion is not silently successfu
 for a missing ID. Input failures use `INVALID_ARGUMENT`; list-capability
 failures use `READ_ONLY`. Native failures use `WRITE_FAILED` with an EventKit code.
 These are message prefixes, not structured error-code extensions.
-
-Multiple mutations are not a transaction. A successful write can be followed by
-a response-field error (for example, a delayed automation read of a new item).
-Inspect GraphQL errors and refetch before retrying. Creation has no idempotency
-key, and blindly retrying can create duplicates. Failure does not promise rollback.
 
 ## List mutations
 
@@ -212,8 +174,8 @@ Immutable, subscribed and non-editable lists are rejected for updates/deletion.
 Deletion first checks for reminders unless `allowNonEmpty` is explicitly true;
 that option deletes the list and its contents. The check and delete are not an
 atomic lock against edits by other processes. Missing list IDs are errors.
-Emblem changes run after the EventKit save; a failure reports `WRITE_APPLIED`
-with the list ID. Successful MCP writes enrich the saved list before returning.
+Emblem changes run after the EventKit save. Successful MCP writes enrich the
+saved list before returning.
 
 ## Show actions
 
@@ -223,10 +185,13 @@ these actions non-read-only and nondestructive. A post-navigation enrichment
 failure is `SHOW_APPLIED`; other navigation failures can still leave the UI
 changed and are reported as `SHOW_FAILED`.
 
-## List synchronization and color behavior
+## Synchronization retries
 
-Newly saved EventKit lists can take several seconds to
-appear in Reminders' scripting inventory. MCP list enrichment retries missing
+Reminder automation retries transient missing-object/cannot-set errors at most
+30 times with 0.1-second delays. Setters may repeat if a later automation read
+fails. Each attempt targets the same saved reminder and expected list.
+
+Newly saved EventKit lists can take several seconds to appear in Reminders' scripting inventory. MCP list enrichment retries missing
 inventory entries at most 16 times, two seconds apart. Permission, scripting,
 and projection errors fail immediately. A present null emblem is a valid value,
 not a reason to retry. Emblem writes retry only transient missing-object and
@@ -234,9 +199,6 @@ cannot-set errors on the same list ID, at most 30 attempts one second apart.
 Neither path repeats list creation. Apple-event execution adds to these waits;
 they are not hard request deadlines. Exhaustion still reports an error, including
 `WRITE_APPLIED` when a preceding save succeeded.
-
-Both APIs reject nonopaque colors before saving because Reminders normalizes
-alpha to opaque, preventing a faithful round trip.
 
 ## Client handling after a save
 

@@ -1,6 +1,5 @@
 import Foundation
 
-// Calendar projections shared by the API adapters.
 struct CalendarDateProjection {
   let instant: Date
   let day: String

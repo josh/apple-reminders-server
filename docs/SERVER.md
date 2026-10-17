@@ -30,9 +30,6 @@ configuration interface; environment-variable configuration is not supported.
 | `--request-access` | Off | Explicitly request EventKit access at startup |
 | `--help`, `-h` | — | Show usage |
 
-The Nix package targets `aarch64-darwin`. Its pinned compiler is too old for the
-locked dependencies. The Swift build above is the working build path.
-
 ## Permissions and execution
 
 EventKit and AppleScript run inside the server process. EventKit permission is
@@ -45,11 +42,7 @@ Permission attribution and persistence depend on the executable's signing and
 launch context. The current build embeds usage descriptions but does not produce
 a signed application bundle or install a background service.
 
-Data-access calls are serialized on a worker queue, with EventKit and AppleScript
-work dispatched to the original main thread. HTTP handling remains asynchronous.
-Fetch callbacks have a 30-second wait timeout; running framework calls and
-permission dialogs do not have a guaranteed total request deadline. See
-[DATA_ACCESS.md](DATA_ACCESS.md) and [APPLESCRIPT.md](APPLESCRIPT.md).
+See [data access](DATA_ACCESS.md) for threading, serialization, and cancellation.
 
 ## HTTP behavior
 
@@ -76,8 +69,18 @@ snapshots, and accessible records do not establish complete cloud synchronizatio
 Identifiers may change after a full sync. Large inventories are unbounded in
 memory, and even list-only requests currently fetch the full inventory.
 
-SwiftPM builds one executable target. Project data-access code is statically
-linked; macOS frameworks and system Swift runtime libraries remain dynamic.
-The EventKit boundary constructs typed Sendable records directly from framework objects.
-GraphQL resolvers use dynamic `Map` values, while MCP inputs and schemas use
-validated `Value` objects. Not every API boundary is checked at compile time.
+## Nix
+
+The root [flake](../flake.nix) defines `default` and `swift` packages for
+`aarch64-darwin`. It tracks `nixpkgs-unstable`, pinned by `flake.lock`.
+
+```sh
+nix build .#swift
+# Refresh the toolchain pin:
+nix flake update nixpkgs
+```
+
+The package installs `result/bin/reminders-swift`. The pinned Nixpkgs compiler is
+Swift 6.2.4; locked dependencies require Swift 6.4, so packaging currently fails
+with an explicit version check. It does not fall back to local Xcode. Use the
+Swift build above until the pinned Nix toolchain meets that requirement.

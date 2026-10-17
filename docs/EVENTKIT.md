@@ -19,12 +19,6 @@ and [retrieving events and reminders](https://developer.apple.com/documentation/
 | `EKReminder` | Reminder-specific state, dates, and priority. | [Reminder](https://developer.apple.com/documentation/eventkit/ekreminder) |
 | `EKCalendarItem` | Inherited fields such as title, notes, identifiers, alarms, and recurrence. | [Calendar item](https://developer.apple.com/documentation/eventkit/ekcalendaritem) |
 
-Not every source has reminder lists. Do not use the count of all `sources` as
-the reminder-account count without deciding what qualifies as an accessible
-reminder account. Grouping discovered reminder calendars by source is a useful
-starting point, but may omit accounts without a currently visible reminder list.
-Source ordering is not a display-order contract.
-
 ## Authorization
 
 | API or setting | Why it is useful |
@@ -37,12 +31,8 @@ Apple references: [requesting full reminder access](https://developer.apple.com/
 [authorization status](https://developer.apple.com/documentation/eventkit/ekeventstore/authorizationstatus%28for%3A%29),
 and [usage-description key](https://developer.apple.com/documentation/bundleresources/information-property-list/nsremindersfullaccessusagedescription).
 
-Read-only collection still uses the full-access Reminders authorization model;
-the write-only event permission is for calendar events. Sandboxed macOS packaging
-also needs the applicable entitlement described in Apple's
-[access guide](https://developer.apple.com/documentation/eventkit/accessing-the-event-store).
-Exact authorization behavior should be tested in the intended host application
-or service context. An Automation grant for controlling Reminders.app is separate.
+Reminder reads require full-access authorization. Deployment permissions are
+covered in [SERVER.md](SERVER.md#permissions-and-execution).
 
 ## Discover accounts and lists
 
@@ -62,10 +52,8 @@ See [EKEventStore](https://developer.apple.com/documentation/eventkit/ekeventsto
 [EKCalendar](https://developer.apple.com/documentation/eventkit/ekcalendar), and
 [EKSource](https://developer.apple.com/documentation/eventkit/eksource).
 
-The default list's source is a useful account association, but should not silently
-be presented as an independently verified default-account preference.
-`!isImmutable` and `allowsContentModifications` concern different capabilities.
-Neither guarantees that every requested operation will succeed.
+`isImmutable` and `allowsContentModifications` describe different capabilities;
+neither guarantees that a requested operation will succeed.
 
 ## Fetch reminders
 
@@ -86,24 +74,11 @@ explains predicate and identifier-based access. Direct references:
 [fetch](https://developer.apple.com/documentation/eventkit/ekeventstore/fetchreminders%28matching%3Acompletion%3A%29),
 and [cancellation](https://developer.apple.com/documentation/eventkit/ekeventstore/cancelfetchrequest%28_%3A%29).
 
-Read semantics:
-
-- Pass explicit calendars when collecting one list. Passing nil means all
-  available calendars, not an empty scope.
-- For a full list snapshot, fetch once and compute completion, priority, and due
-  partitions from the same result. Separate category queries can observe changes
-  between reads and yield inconsistent totals.
-- Use the store's supported predicate constructors. Arbitrary text searches,
-  priority filters, sorting, and offset pagination can be applied after fetching;
-  these fetch methods do not provide the documented API's pagination contract.
-- Do not use the completed-date predicate to implement a due-date filter on
-  completed reminders. Those are different dates.
-- Preserve the distinction between a nil fetch result and an empty array. The
-  callback has no error argument, so nil alone is not a detailed failure reason.
-  Check authorization and treat an indeterminate read as unavailable, not zero.
-- The installed header says cancellation prevents the completion callback.
-  An async wrapper must settle cancellation itself and handle races;
-  it cannot assume the callback will finish its pending operation.
+The server fetches one complete inventory and filters/sorts it locally. Passing
+nil calendars means all available calendars, not an empty scope. Completed-date
+predicates constrain completion dates, not due dates. A nil fetch result is
+indeterminate, unlike an empty array. Cancellation suppresses the callback, so
+wrappers must settle their own pending operation; see [data access](DATA_ACCESS.md).
 
 ## Fields worth reading
 
@@ -127,17 +102,10 @@ See [EKReminder](https://developer.apple.com/documentation/eventkit/ekreminder),
 [EKRecurrenceRule](https://developer.apple.com/documentation/eventkit/ekrecurrencerule),
 and [recurrence-rule support](https://developer.apple.com/documentation/eventkit/ekcalendaritem/recurrencerules).
 
-The reminder date properties use `DateComponents`. Apple's installed header
-describes nil time zones as floating and dates without time components as all-day;
-setting these components requires a Gregorian calendar. Do not normalize every
-deadline into UTC midnight. Use the explicit reporting rules in [METRICS.md](METRICS.md)
-when assigning due-status categories, and test date-boundary behavior rather than
-assuming predicate boundaries match those reporting rules exactly.
-
-The installed recurrence-rule initializer documents `daysOfTheMonth` for monthly
-rules only; other frequencies ignore it. Reject unsupported input combinations
-instead of accepting a schedule that would silently lose constraints. Recurrence
-weekday ordinals must also fit the frequency; verify boundary cases in fixtures.
+Date components distinguish floating zones and all-day dates; the server accepts
+Gregorian components for writes. See [read projections](READ_API.md#dates-and-stored-values),
+[deadline classification](METRICS.md#deadline-classification), and
+[write validation](WRITES.md#supported-inputs).
 
 ## Identifiers and refresh
 
@@ -149,34 +117,16 @@ never silently mutate a same-title reminder as a substitute for a missing ID.
 See [local identifier](https://developer.apple.com/documentation/eventkit/ekcalendaritem/calendaritemidentifier)
 and [external identifier](https://developer.apple.com/documentation/eventkit/ekcalendaritem/calendaritemexternalidentifier).
 
-The server treats identifiers as opaque and validates the EventKit/automation
-join at runtime; see [APPLESCRIPT.md](APPLESCRIPT.md). Source IDs are not
-guaranteed to survive account resets or full synchronization.
-
-`Notification.Name.EKEventStoreChanged` is an invalidation signal rather than
-a per-item delta log. The server obtains fresh request inventories and uses a
-timed metrics collector; it does not subscribe to this notification.
-Apple's [notification guide](https://developer.apple.com/documentation/eventkit/updating-with-notifications)
-explains why previously fetched objects can become stale.
-
-`refreshSourcesIfNecessary()` asks the store to refresh when needed; it is not
-a guarantee that a cloud sync has completed or that retained objects are current.
-See [refresh sources](https://developer.apple.com/documentation/eventkit/ekeventstore/refreshsourcesifnecessary%28%29).
+`Notification.Name.EKEventStoreChanged` signals invalidation, not item deltas.
+The server uses fresh request inventories and timed metrics collection rather
+than subscribing. See Apple's [notification guide](https://developer.apple.com/documentation/eventkit/updating-with-notifications).
+`refreshSourcesIfNecessary()` does not guarantee completed cloud synchronization.
 
 ## Fields requiring automation
 
-Public reminder properties do not include native flags, tags, section membership,
-attachments, assignments, urgent state, or a parent/subtask relationship. These
-are gaps in the public model, not values to report as false or empty.
-
-The [scripting dictionary](Reminders.sdef) separately declares native
-flags, list emblems, alert dates, and container references. The server
-reads these through in-process automation, checks identifiers, and resolves
-containers against the accessible EventKit inventory. See [READ_API.md](READ_API.md)
-for lazy field reads and unresolvable-container behavior. An EventKit-only
-metrics collector cannot faithfully publish the flagged family from priority,
-so metrics exclude flags. Counts describe accessible EventKit records, not
-every view in Reminders.app.
+Flags, emblems, alert dates, and containers use the separate
+[scripting interface](APPLESCRIPT.md). Tags, sections, attachments, assignments,
+and urgent state are not exposed by the server.
 
 ## Related write calls
 

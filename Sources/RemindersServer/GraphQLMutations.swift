@@ -69,6 +69,8 @@ func makeMutationType(
       }))
   fields["completionDate"] = InputObjectField(type: dateTime)
   fields["completed"] = InputObjectField(type: GraphQLBoolean)
+  // Nullable because GraphQLSwift rejects omitted non-null defaults in variables;
+  // input validation still rejects explicit null.
   fields["clearFields"] = InputObjectField(
     type: GraphQLList(GraphQLNonNull(clear)), defaultValue: [])
   let patch = try GraphQLInputObjectType(name: "ReminderPatch", fields: fields)

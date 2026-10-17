@@ -49,7 +49,6 @@ func orderedReminders(_ items: [ReminderRecord], args: Map) throws -> [ReminderR
   return try orderReminders(items, field: field, descending: descending)
 }
 
-// Both interfaces use the same normalized alarm and recurrence projections.
 func recurrenceProjection(_ source: Map) throws -> Map? {
   let rules = try JSONDecoder().decode(
     [RecurrenceRecord].self, from: JSONEncoder().encode(source["recurrenceRules"]))

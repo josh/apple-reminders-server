@@ -5,35 +5,38 @@ curl http://127.0.0.1:8081/graphql -H 'Content-Type: application/json' \
   --data '{"query":"{ lists(limit: 10) { totalCount items { id name } pageInfo { hasNextPage } } }"}'
 ```
 
-The [schema reference](reminders.graphql) reflects the implemented surface.
-Live introspection is authoritative for the running version:
+The [schema](reminders.graphql) lists fields and inputs; live introspection is
+authoritative. Collections return `items`, `totalCount`, and `pageInfo` with
+limit/offset pagination. Nested searches intersect the parent's scope; list
+summaries count the whole list independently of pagination.
 
-- `accounts`, `account(id:)`, `lists`, `list(id:)`, `reminders`, `reminder(id:)`,
-  `defaultAccount`, and `defaultList` are available. Accounts are sources owning visible lists.
-- Collections provide `items`, `totalCount`, and `pageInfo` with limit/offset.
-- Reminder fields include identity, name/body, completion, priority, timestamps,
-  and location. List fields include identity, name, subscription, and content
-  modification capability, list editability, and sRGB color (`#RRGGBBAA`).
-- `reminders(filter: {listIds, completed, nameContains, priorities, dueStatus, dueOnOrAfter, dueBefore}, orderBy, limit, offset)` filters by list IDs, completion, and case-insensitive title substring before pagination. Empty title searches match all items. The default order is identifier ascending. Priority ordering uses numeric values (including zero), and an empty priority filter matches nothing. Priorities must be 0–9. `DueStatus` is `OVERDUE`, `TODAY`, `FUTURE`, `UNSCHEDULED`, or `UNKNOWN`.
-- Reminder `listId`, `url`, `startDateComponents`, and `dueDateComponents` are exposed. Component dates preserve calendar/time zone and each optional EventKit component, including floating/date-only values.
-- `rawAlarms` preserves absolute date, relative offset, proximity and structured location. `alarms` uses the `AbsoluteAlarm | RelativeAlarm | LocationAlarm` union. `recurrenceRules` preserves frequency, calendar identifier, interval, weekday/ordinal and numeric calendar selectors, plus an optional recurrence end. Rules are read as stored; future occurrences are not expanded.
-- Relationships expose account lists/reminders, list account/reminders/summary, and reminder list. Nested search intersects the parent's scope with explicit filters; lists default to identifier order. Summaries count the entire list independently of search pagination.
-- `defaultAccount` is the accessible default list's account, not a separate Reminders app preference. Missing IDs and unavailable defaults return null.
-- `dueDay` is a nullable reporting day. Inclusive `dueOnOrAfter` and date-only exclusive `dueBefore` use valid Gregorian YYYY-MM-DD bounds; bounded searches omit reminders without a classifiable day. See [READ_API.md](READ_API.md) for time zone and calendar semantics.
+Accounts derive from accessible lists; `defaultAccount` is the default list's
+account. Missing IDs and unavailable defaults return null. Each execution lazily
+shares one EventKit inventory across aliases and nested fields, including cached
+failures. Requests have independent inventories; introspection does not read data.
 
-Each GraphQL execution lazily loads one plain inventory, cached by a request actor as a Task. Aliases and nested fields reuse its success or error. Concurrent HTTP requests have independent caches; introspection does not touch Reminders. This is a best-effort EventKit snapshot, not an atomic database transaction. Flag enrichment has its own lazy lookup and can observe later state.
+## Search
 
-`flagged` is resolved lazily by the GraphQL executor. Queries that neither select
-it nor filter on it use EventKit alone. Skipped fields (`@skip`, `@include`,
-including variables), unselected operations, empty results, and missing reminders
-do not trigger AppleScript unless a flag filter is evaluated. A `flagged` filter
-requires enrichment even for count-only selections. One request actor shares the
-lookup's success or failure across filters, items, and root aliases. A field read
-failure sets selected nullable `flagged` fields to null with errors; a filter read
-failure fails the collection field rather than returning misleading counts.
-MCP reminder tools enrich flags; metrics use EventKit only.
+Filters intersect. Empty ID or priority arrays match nothing; empty text matches
+all. `query` searches names/notes case-insensitively; `nameContains` searches only
+reminder names. Priorities must be 0–9. Due status includes `UNKNOWN` for
+unclassifiable components and is independent of completion; combine with
+`completed: false` for outstanding work.
 
-## Fields and search
+`orderBy` defaults to ascending direction; omission preserves ID order. Names
+compare case-insensitively, dates chronologically, and priorities numerically.
+Nulls sort last in either direction; ties use ID ascending. The same filters and
+ordering apply to nested collections.
+
+`dueOnOrAfter` and date-only `dueBefore` are inclusive/exclusive reporting-day
+bounds in Gregorian YYYY-MM-DD. `dueDay` uses the host zone for timed dates and
+preserves all-day calendar dates; unclassifiable values are null.
+`dueFrom` and timestamp `dueBefore` bound instants. All-day deadlines use midnight
+in their source zone (host zone if floating). Bounds cannot mix modes; equal or
+reversed bounds are rejected. Bounded searches exclude undated/unclassifiable
+values. See [deadline classification](METRICS.md#deadline-classification).
+
+## Dates and stored values
 
 - `dueDate` and `startDate` return UTC timestamps only for timed component dates.
   `allDayDueDate` and `allDayStartDate` return date-only values only for all-day
@@ -49,24 +52,20 @@ MCP reminder tools enrich flags; metrics use EventKit only.
   an unknown frequency produce a field error. Its runtime types are
   `ReminderRecurrence`, `ReminderRecurrenceDay`, and `ReminderRecurrenceEnd` for the
   normalized projection. `recurrenceRules` exposes the separate raw types.
-- `lists(filter: {query, accountIds, allowsContentModifications, subscribed},
-  orderBy: {direction})` supports case-insensitive name search and ordering.
-  The same inputs apply to `Account.lists`.
-- Reminder filters support `query` (name or notes), `accountIds`, `flagged`, and
-  `hasDueDate`. All filters intersect; empty ID arrays match nothing.
-- `dueFrom` is an inclusive RFC 3339 timestamp. `dueBefore` accepts an exclusive
-  timestamp or a calendar-day string. Timestamp bounds compare timed
-  deadlines as instants and all-day deadlines at midnight in their source zone
-  (host zone for floating dates). Do not mix timestamp and calendar-day bounds.
-  Equal or reversed bounds are rejected, and undated reminders are excluded.
-  `dueBefore` uses a `String` input for either representation.
-- `orderBy: {field, direction}` applies at every reminder collection. Fields are
-  `NAME`, `DUE_DATE`, `PRIORITY`, `CREATION_DATE`, `MODIFICATION_DATE`, and
-  `COMPLETION_DATE`. Direction defaults to `ASC`. Names compare case-insensitively,
-  dates chronologically, and priorities numerically. Nulls sort last in both
-  directions; ties use ID ascending. Without `orderBy`, the server keeps ID ordering.
 
 ## Automation metadata and alarms
+
+`flagged`, `emblem`, `remindMeDate`, and containers each use a separate lazy bulk
+read, caching success or failure within the request. Unselected/skipped fields,
+empty results, and missing IDs avoid those reads. A flag filter requires flag
+enrichment even for count-only queries. Field failures produce nullable-field
+errors; filter failures fail the collection. Selecting no automation fields or
+filters uses EventKit alone.
+
+```graphql
+{ reminders { totalCount items { id name } } }
+{ reminders { items { id name flagged } } }
+```
 
 `ReminderList.emblem` returns the icon-name string displayed beside the list.
 It is separate from the list color and is not an image or a promise of a portable
@@ -81,11 +80,7 @@ without matching names. A container outside that inventory (including a list
 group not exposed by EventKit) returns null with a field error. Parent references
 do not imply a children enumeration feature.
 
-These properties each have a lazy per-request bulk read, with success and failure
-cached across aliases. They do not read flags. Unselected/skipped properties do
-not perform their corresponding automation read. Each script checks identifiers
-before and after collection; the reads still are not atomic snapshots.
-The script timeout is per Apple event, not a total request deadline.
+See [automation](APPLESCRIPT.md) for identity validation and read consistency.
 
 `alarms` returns a discriminated union. Use inline fragments:
 
@@ -111,5 +106,8 @@ The script timeout is per Apple event, not a total request deadline.
 triggers that the union cannot represent fail the nullable `alarms` field instead
 of losing information. `rawAlarms` remains readable for diagnosis.
 
-Accounts without accessible lists and the application's independent
-default-account preference are not exposed. Reminder create/update/delete mutations are available for editable lists; see [WRITES.md](WRITES.md). List CRUD and show-in-Reminders actions are also implemented.
+Raw alarm and recurrence collections are empty arrays when absent. Stored rules
+are not expanded into future occurrences. Raw weekdays use Sunday = 1; zero
+first weekday is unset, and signed ordinals are preserved. Alarm offset zero
+alone does not distinguish absolute and relative triggers. See [writes](WRITES.md)
+for mutations and UI navigation.

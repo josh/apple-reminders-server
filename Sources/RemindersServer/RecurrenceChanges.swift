@@ -1,7 +1,7 @@
 import EventKit
 import Foundation
 
-/// Validated, transport-independent recurrence values; EventKit objects stay on the Reminders queue.
+/// Validated recurrence values; EventKit objects are constructed on the main thread.
 struct ReminderRecurrenceChange: Sendable {
   enum Frequency: String, Sendable {
     case daily = "DAILY"

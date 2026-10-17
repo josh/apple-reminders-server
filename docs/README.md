@@ -1,6 +1,6 @@
 # Documentation
 
-## Implemented service
+## Service
 
 - [Server](SERVER.md): build, startup options, permissions, HTTP behavior, and limits.
 - [GraphQL reads](READ_API.md) and [schema](reminders.graphql): current query surface.
@@ -8,10 +8,8 @@
 - [Writes](WRITES.md): reminder/list mutations, validation, and partial-save errors.
 - [Metrics](METRICS.md) and [exposition example](metrics.prom): EventKit-only counts and background collection.
 
-The schema and tool catalog describe the implemented surface. Live introspection
-and discovery are authoritative for the running version. Schema presence does
-not guarantee every operation or value is supported; documented restrictions
-still apply, including date-only start writes.
+Live introspection and MCP discovery describe the running version. The reference
+files retain field documentation; behavioral restrictions are in the API guides.
 
 ## Data-access references
 
