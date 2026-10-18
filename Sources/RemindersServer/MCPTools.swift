@@ -742,9 +742,9 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     let allowedLists = search.accountIds.map { ids in
       Set(data.lists.filter { ids.contains($0.source.id) }.map(\.id))
     }
-    let fetched = try data.reminders.filter {
+    let fetched = data.reminders.filter {
       if fromDate != nil || beforeDate != nil {
-        guard let date = try projectDate($0.dueDateComponents)?.instant,
+        guard let date = (try? projectDate($0.dueDateComponents))?.instant,
           fromDate == nil || date >= fromDate!, beforeDate == nil || date < beforeDate!
         else { return false }
       }

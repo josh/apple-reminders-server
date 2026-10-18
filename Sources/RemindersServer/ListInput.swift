@@ -20,7 +20,7 @@ func listChanges(_ input: MutationInput, creating: Bool) throws -> ListChanges {
     throw ServerError.message("INVALID_ARGUMENT: emblem must not be blank")
   }
   if let color = try text("color") {
-    guard color.range(of: #"^#[0-9A-Fa-f]{6}([Ff]{2})?$"#, options: .regularExpression) != nil
+    guard color.range(of: #"^#[0-9A-Fa-f]{6}([Ff]{2})?\z"#, options: .regularExpression) != nil
     else {
       throw ServerError.message(
         "INVALID_ARGUMENT: list colors must be opaque: use #RRGGBB or #RRGGBBFF")

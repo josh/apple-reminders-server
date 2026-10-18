@@ -74,7 +74,7 @@ private func searchPage(
     }
     if let flagged, flags?[item.id] != flagged { return false }
     if fromDate != nil || beforeDate != nil {
-      guard let date = try projectDate(item.dueDateComponents)?.instant,
+      guard let date = (try? projectDate(item.dueDateComponents))?.instant,
         fromDate == nil || date >= fromDate!, beforeDate == nil || date < beforeDate!
       else { return false }
     }
