@@ -21,6 +21,6 @@ has no authentication or TLS; it is intended for local use.
 | `POST /mcp` | [MCP](docs/MCP.md), [tool catalog](docs/mcp-tools.json) |
 | `GET /metrics` | [Metrics](docs/METRICS.md), [example](docs/metrics.prom) |
 
-See [server configuration and permissions](docs/SERVER.md),
-[Nix packaging](docs/SERVER.md#nix), and the [documentation index](docs/README.md).
+See [server configuration and permissions](docs/SERVER.md) and the
+[documentation index](docs/README.md).
 Source lives in the single executable target `Sources/RemindersServer/`.

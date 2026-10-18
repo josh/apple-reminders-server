@@ -68,19 +68,3 @@ inferred from the default list. Inventory reads are not atomic database
 snapshots, and accessible records do not establish complete cloud synchronization.
 Identifiers may change after a full sync. Large inventories are unbounded in
 memory, and even list-only requests currently fetch the full inventory.
-
-## Nix
-
-The root [flake](../flake.nix) defines `default` and `swift` packages for
-`aarch64-darwin`. It tracks `nixpkgs-unstable`, pinned by `flake.lock`.
-
-```sh
-nix build .#swift
-# Refresh the toolchain pin:
-nix flake update nixpkgs
-```
-
-The package installs `result/bin/reminders-swift`. The pinned Nixpkgs compiler is
-Swift 6.2.4; locked dependencies require Swift 6.4, so packaging currently fails
-with an explicit version check. It does not fall back to local Xcode. Use the
-Swift build above until the pinned Nix toolchain meets that requirement.
