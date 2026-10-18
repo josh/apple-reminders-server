@@ -14,10 +14,15 @@ actor MetricsCollector {
   }
 
   func run(intervalSeconds: Int) async {
+    var failed = false
     while !Task.isCancelled {
       do {
         snapshot = try await collectMetrics()
+        if failed { serverLogger.info("Metrics collection recovered") }
+        failed = false
       } catch {
+        logFailure("Metrics collection failed", error: error)
+        failed = true
         snapshot = nil
         failure = "Metrics collection failed: \(error)"
       }
