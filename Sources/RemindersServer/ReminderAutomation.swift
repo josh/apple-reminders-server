@@ -1,31 +1,33 @@
 import Foundation
 
+// Reminders has not exposed the saved object to scripting yet, refused the set
+// transiently, or let the event time out (it hangs lookups of objects it has not
+// loaded). Callers retry the automation step only; EventKit saves never repeat.
+struct AutomationNotReady: Error, Sendable {
+  let code: Int
+  let message: String
+}
+// -1728: object not found; -10006: cannot set; -1712: event timed out, which
+// Reminders produces for a reminder or list it has not loaded yet.
+let automationNotReadyCodes: Set<Int> = [-1728, -10006, -1712]
+
 // Fixed handler with typed Apple-event arguments. No client text becomes source.
 // Match both reminder and containing list IDs before sending any set event.
+// One attempt per call: retry timing lives off the main thread in synchronize.
+// The short event timeout bounds how long one attempt holds the main thread.
 func makeReminderWriteScript() throws -> NSAppleScript {
   let source = """
     on applychanges(reminderID, listID, changeFlag, flagValue, changeAlert, alertValue)
-        with timeout of 10 seconds
+        with timeout of 3 seconds
             tell application id "com.apple.reminders"
-                -- Retry only transient visibility/set failures on this same ID, never creation.
-                repeat with attempt from 1 to 30
-                    try
-                        set targetList to list id listID
-                        set matches to every reminder of targetList whose id is reminderID
-                        if (count of matches) > 1 then error "Reminder identity is ambiguous"
-                        if (count of matches) is 1 then
-                            set targetReminder to item 1 of matches
-                            if changeFlag then set flagged of targetReminder to flagValue
-                            if changeAlert then set remind me date of targetReminder to alertValue
-                            return {id of targetReminder, flagged of targetReminder, remind me date of targetReminder}
-                        end if
-                    on error errorText number errorCode
-                        if errorCode is not -10006 and errorCode is not -1728 then error errorText number errorCode
-                        if attempt is 30 then error errorText number errorCode
-                    end try
-                    delay 0.1
-                end repeat
-                error "Reminder did not become available to automation"
+                set targetList to list id listID
+                set matches to every reminder of targetList whose id is reminderID
+                if (count of matches) > 1 then error "Reminder identity is ambiguous"
+                if (count of matches) is 0 then error "Reminder is not yet visible to automation" number -1728
+                set targetReminder to item 1 of matches
+                if changeFlag then set flagged of targetReminder to flagValue
+                if changeAlert then set remind me date of targetReminder to alertValue
+                return {id of targetReminder, flagged of targetReminder, remind me date of targetReminder}
             end tell
         end timeout
     end applychanges
@@ -68,9 +70,12 @@ func writeReminderAutomation(
   var error: NSDictionary?
   let result = script.executeAppleEvent(event, error: &error)
   if let error {
-    throw ServerError.message(
-      "Reminders automation write failed (code \(error[NSAppleScript.errorNumber] as? Int ?? 0)): \(error[NSAppleScript.errorMessage] as? String ?? "unknown")"
-    )
+    let code = error[NSAppleScript.errorNumber] as? Int ?? 0
+    let message = error[NSAppleScript.errorMessage] as? String ?? "unknown"
+    if automationNotReadyCodes.contains(code) {
+      throw AutomationNotReady(code: code, message: message)
+    }
+    throw ServerError.message("Reminders automation write failed (code \(code)): \(message)")
   }
   guard result.numberOfItems == 3, result.atIndex(1)?.stringValue == reminderID else {
     throw ServerError.message("Automation write returned an inconsistent identity")

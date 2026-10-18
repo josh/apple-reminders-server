@@ -14,7 +14,17 @@ enum ListMutation: Sendable {
   case delete(id: String, allowNonEmpty: Bool)
 }
 
-func remindersMutateList(_ request: ListMutation) throws -> MutationResult<ListRecord> {
+// Emblem changes apply through Reminders automation after the EventKit save.
+struct PendingEmblem: Sendable {
+  let listID: String
+  let emblem: String
+}
+enum ListMutationPhase: Sendable {
+  case finished(MutationResult<ListRecord>)
+  case automation(PendingEmblem)
+}
+
+func remindersMutateList(_ request: ListMutation) throws -> ListMutationPhase {
   try requireAccess()
   let store = EKEventStore()
   let list: EKCalendar
@@ -67,7 +77,7 @@ func remindersMutateList(_ request: ListMutation) throws -> MutationResult<ListR
         "WRITE_FAILED: EventKit list deletion failed (code \((error as NSError).code)); refetch before retrying"
       )
     }
-    return .deleted(DeletedReminder(deletedId: id))
+    return .finished(.deleted(DeletedReminder(deletedId: id)))
   }
   guard let patch = changes else { throw ServerError.message("Missing list changes") }
   if let name = patch.name {
@@ -84,43 +94,48 @@ func remindersMutateList(_ request: ListMutation) throws -> MutationResult<ListR
     else { throw ServerError.message("INVALID_ARGUMENT: invalid list color") }
     list.cgColor = calendarColor
   }
-  let script = patch.emblem != nil ? try makeListEmblemScript() : nil
+  // Compile before committing: syntax failures must not leave an avoidable partial write.
+  if patch.emblem != nil { _ = try makeListEmblemScript() }
   do { try store.saveCalendar(list, commit: true) } catch {
     throw ServerError.message(
       "WRITE_FAILED: EventKit list save failed (code \((error as NSError).code)); refetch before retrying"
     )
   }
   let id = list.calendarIdentifier
-  if let script, let emblem = patch.emblem {
-    do { try writeListEmblem(script, id: id, emblem: emblem) } catch {
-      throw ServerError.message(
-        "WRITE_APPLIED: list \(id) was saved, but its emblem write failed: \(error). Refetch this ID before retrying; no rollback was attempted"
-      )
-    }
-  }
+  if let emblem = patch.emblem { return .automation(PendingEmblem(listID: id, emblem: emblem)) }
   store.reset()
   guard let refreshed = store.calendar(withIdentifier: id) else {
     throw ServerError.message("WRITE_APPLIED: list \(id) was saved but is unavailable for refetch")
   }
-  return .saved(ListRecord(refreshed))
+  return .finished(.saved(ListRecord(refreshed)))
 }
 
+// One emblem attempt on an already-saved list. AutomationNotReady means Reminders
+// has not exposed the list yet; every other failure is final.
+func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
+  try requireAccess()
+  let store = EKEventStore()
+  guard store.calendar(withIdentifier: pending.listID) != nil else {
+    throw ServerError.message("list was removed before its emblem could apply")
+  }
+  try writeListEmblem(try makeListEmblemScript(), id: pending.listID, emblem: pending.emblem)
+  store.reset()
+  guard let refreshed = store.calendar(withIdentifier: pending.listID) else {
+    throw ServerError.message("saved list is not available for refetch")
+  }
+  return ListRecord(refreshed)
+}
+
+// One attempt per call: retry timing lives off the main thread in synchronize.
+// The short event timeout bounds how long one attempt holds the main thread.
 private func makeListEmblemScript() throws -> NSAppleScript {
   let source = """
     on setemblem(listID, iconName)
-        with timeout of 10 seconds
+        with timeout of 3 seconds
             tell application id "com.apple.reminders"
-                repeat with attempt from 1 to 30
-                    try
-                        set targetList to list id listID
-                        set emblem of targetList to iconName
-                        return {id of targetList, emblem of targetList}
-                    on error errorText number errorCode
-                        if errorCode is not -1728 and errorCode is not -10006 then error errorText number errorCode
-                        if attempt is 30 then error errorText number errorCode
-                        delay 1
-                    end try
-                end repeat
+                set targetList to list id listID
+                set emblem of targetList to iconName
+                return {id of targetList, emblem of targetList}
             end tell
         end timeout
     end setemblem
@@ -149,8 +164,12 @@ private func writeListEmblem(_ script: NSAppleScript, id: String, emblem: String
   var error: NSDictionary?
   let result = script.executeAppleEvent(event, error: &error)
   if let error {
-    throw ServerError.message(
-      "Reminders emblem write failed (code \(error[NSAppleScript.errorNumber] as? Int ?? 0))")
+    let code = error[NSAppleScript.errorNumber] as? Int ?? 0
+    let message = error[NSAppleScript.errorMessage] as? String ?? "unknown"
+    if automationNotReadyCodes.contains(code) {
+      throw AutomationNotReady(code: code, message: message)
+    }
+    throw ServerError.message("Reminders emblem write failed (code \(code)): \(message)")
   }
   guard result.numberOfItems == 2, result.atIndex(1)?.stringValue == uuid.uuidString,
     result.atIndex(2)?.stringValue == emblem

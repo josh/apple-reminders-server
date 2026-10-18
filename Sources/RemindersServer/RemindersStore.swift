@@ -154,17 +154,10 @@ func fetchInventory(includeFlags: Bool) throws -> Inventory {
     guard let list = item.calendar,
       calendars.contains(where: { $0.calendarIdentifier == list.calendarIdentifier })
     else { throw ServerError.message("Reminder list inventory changed during collection") }
-    let flagged: Bool?
-    if let flags {
-      guard let key = UUID(uuidString: item.calendarItemIdentifier)?.uuidString,
-        let value = flags[key]
-      else {
-        throw ServerError.message(
-          "EventKit reminder has no unambiguous AppleScript flag match; retry")
-      }
-      flagged = value
-    } else {
-      flagged = nil
+    // Reminders exposes newly saved objects to scripting late; a missing match
+    // leaves only that reminder's flag unknown instead of failing the inventory.
+    let flagged = flags.flatMap { table in
+      UUID(uuidString: item.calendarItemIdentifier).flatMap { table[$0.uuidString] }
     }
     reminders.append(try ReminderRecord(item, now: now, flagged: flagged))
   }

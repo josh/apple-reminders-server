@@ -12,6 +12,24 @@ func withReminders<T: Sendable>(
     }
   }
 }
+
+// Reminders exposes saved objects to scripting late. Sleeping here, outside
+// withReminders, lets other requests use the store between attempts.
+func untilSynchronized<T: Sendable>(
+  within deadline: Duration = .seconds(15),
+  _ attempt: @escaping @Sendable () throws -> T
+) async throws -> T {
+  let clock = ContinuousClock()
+  let end = clock.now + deadline
+  while true {
+    do {
+      return try await withReminders(attempt)
+    } catch is AutomationNotReady where clock.now < end {
+      try await clock.sleep(for: .milliseconds(500))
+    }
+  }
+}
+
 func readInventory(includeFlags: Bool = false) async throws -> Inventory {
   try await withReminders { try fetchInventory(includeFlags: includeFlags) }
 }
@@ -30,10 +48,43 @@ func clearCompletedReminders(listID: String) async throws -> ClearCompletedResul
   try await withReminders { try executeClearCompleted(listID: listID) }
 }
 func mutateReminder(_ request: ReminderMutation) async throws -> MutationResult<ReminderRecord> {
-  try await withReminders { try executeMutation(request) }
+  switch try await withReminders({ try executeMutation(request) }) {
+  case .finished(let result): return result
+  case .automation(let pending):
+    do {
+      return .saved(try await untilSynchronized { try applyReminderAutomation(pending) })
+    } catch {
+      throw writeApplied(error, saved: "reminder \(pending.reminderID)")
+    }
+  }
 }
 func mutateList(_ request: ListMutation) async throws -> MutationResult<ListRecord> {
-  try await withReminders { try remindersMutateList(request) }
+  switch try await withReminders({ try remindersMutateList(request) }) {
+  case .finished(let result): return result
+  case .automation(let pending):
+    do {
+      return .saved(try await untilSynchronized { try applyListEmblem(pending) })
+    } catch {
+      throw writeApplied(error, saved: "list \(pending.listID)")
+    }
+  }
+}
+// The EventKit save succeeded; only the automation step after it failed.
+private func writeApplied(_ error: Error, saved object: String) -> ServerError {
+  switch error {
+  case let notReady as AutomationNotReady:
+    return .message(
+      "WRITE_APPLIED: EventKit saved \(object), but Reminders did not expose it to automation in time (code \(notReady.code): \(notReady.message)). Refetch this ID and reapply the change with an update"
+    )
+  case is CancellationError:
+    return .message(
+      "WRITE_APPLIED: EventKit saved \(object), but the request was cancelled before automation finished. Refetch this ID before retrying"
+    )
+  default:
+    return .message(
+      "WRITE_APPLIED: EventKit saved \(object), but automation or refetch failed: \(error). Refetch this ID before retrying"
+    )
+  }
 }
 func showRemindersObject(_ id: String, isList: Bool) async throws -> ShownObject {
   try await withReminders { try remindersShow(id: id, isList: isList) }

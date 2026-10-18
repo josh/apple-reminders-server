@@ -42,8 +42,20 @@ enum ReminderMutation: Sendable {
   case delete(id: String)
 }
 
+// Flag and alert changes apply through Reminders automation after the EventKit save.
+struct PendingAutomation: Sendable {
+  let reminderID: String
+  let listID: String
+  let flagged: Bool?
+  let remindMeDate: Date?
+}
+enum ReminderMutationPhase: Sendable {
+  case finished(MutationResult<ReminderRecord>)
+  case automation(PendingAutomation)
+}
+
 // Mutations honor EventKit authorization and the destination list capabilities.
-func executeMutation(_ request: ReminderMutation) throws -> MutationResult<ReminderRecord> {
+func executeMutation(_ request: ReminderMutation) throws -> ReminderMutationPhase {
   try requireAccess()
   let store = EKEventStore()
   let item: EKReminder
@@ -88,7 +100,7 @@ func executeMutation(_ request: ReminderMutation) throws -> MutationResult<Remin
         "WRITE_FAILED: EventKit delete failed (code \((error as NSError).code)); refetch before retrying"
       )
     }
-    return .deleted(DeletedReminder(deletedId: id))
+    return .finished(.deleted(DeletedReminder(deletedId: id)))
   }
   if let name = patch.name {
     guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -165,34 +177,41 @@ func executeMutation(_ request: ReminderMutation) throws -> MutationResult<Remin
   }
   let automation = patch.flagged != nil || patch.remindMeDate != nil
   // Compile before committing: syntax failures must not leave an avoidable partial write.
-  let script = automation ? try makeReminderWriteScript() : nil
+  if automation { _ = try makeReminderWriteScript() }
   do { try store.save(item, commit: true) } catch {
     throw ServerError.message(
       "WRITE_FAILED: EventKit save failed (code \((error as NSError).code)); refetch before retrying"
     )
   }
-  if let script {
-    let id = item.calendarItemIdentifier
-    do {
-      try writeReminderAutomation(
-        script, id: id, listID: list.calendarIdentifier, flagged: patch.flagged,
-        alert: patch.remindMeDate)
-      store.reset()
-      guard let refreshed = store.calendarItem(withIdentifier: id) as? EKReminder else {
-        throw ServerError.message("saved reminder is not available for refetch")
-      }
-      return .saved(try ReminderRecord(refreshed, now: Date(), flagged: patch.flagged))
-    } catch {
-      throw ServerError.message(
-        "WRITE_APPLIED: EventKit saved reminder \(id), but automation or refetch failed: \(error). Automation may have partially applied; refetch this ID before retrying. No rollback was attempted"
-      )
-    }
+  if automation {
+    return .automation(
+      PendingAutomation(
+        reminderID: item.calendarItemIdentifier, listID: list.calendarIdentifier,
+        flagged: patch.flagged, remindMeDate: patch.remindMeDate))
   }
-  do { return .saved(try ReminderRecord(item, now: Date(), flagged: nil)) } catch {
+  do { return .finished(.saved(try ReminderRecord(item, now: Date(), flagged: nil))) } catch {
     throw ServerError.message(
       "WRITE_APPLIED: EventKit saved reminder \(item.calendarItemIdentifier), but response projection failed: \(error). Refetch this ID before retrying"
     )
   }
+}
+
+// One automation attempt on an already-saved reminder. AutomationNotReady means
+// Reminders has not exposed the object yet; every other failure is final.
+func applyReminderAutomation(_ pending: PendingAutomation) throws -> ReminderRecord {
+  try requireAccess()
+  let store = EKEventStore()
+  guard store.calendarItem(withIdentifier: pending.reminderID) is EKReminder else {
+    throw ServerError.message("reminder was removed before automation could apply")
+  }
+  let script = try makeReminderWriteScript()
+  try writeReminderAutomation(
+    script, id: pending.reminderID, listID: pending.listID, flagged: pending.flagged,
+    alert: pending.remindMeDate)
+  store.reset()
+  guard let refreshed = store.calendarItem(withIdentifier: pending.reminderID) as? EKReminder
+  else { throw ServerError.message("saved reminder is not available for refetch") }
+  return try ReminderRecord(refreshed, now: Date(), flagged: pending.flagged)
 }
 
 private func mutationDate(_ value: DateComponents) -> Date? {

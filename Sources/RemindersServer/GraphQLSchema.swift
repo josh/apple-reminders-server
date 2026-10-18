@@ -68,10 +68,8 @@ private func searchPage(
   if let fromDate, let beforeDate, fromDate >= beforeDate {
     throw ServerError.message("INVALID_ARGUMENT: dueFrom must precede dueBefore")
   }
-  let items = try data.reminders.filter { item in
-    if let flags, flags[item.id] == nil {
-      throw ServerError.message("Reminder changed during flag filtering; retry")
-    }
+  let items = data.reminders.filter { item in
+    // An unknown flag (not yet exposed by Reminders) matches neither filter value.
     if let flagged, flags?[item.id] != flagged { return false }
     if fromDate != nil || beforeDate != nil {
       guard let date = (try? projectDate(item.dueDateComponents))?.instant,
@@ -140,13 +138,9 @@ actor GraphQLContext {
   func flags() async throws -> [String: Bool] {
     if lookup == nil {
       lookup = Task {
-        let reminders = try await readReminders()
         var flags: [String: Bool] = [:]
-        for item in reminders {
-          guard let value = item.flagged else {
-            throw ServerError.message("Incomplete flagged inventory")
-          }
-          flags[item.id] = value
+        for item in try await readReminders() {
+          if let value = item.flagged { flags[item.id] = value }
         }
         return flags
       }
@@ -156,7 +150,9 @@ actor GraphQLContext {
   func flag(id: String) async throws -> Bool? {
     let flags = try await flags()
     guard let value = flags[id] else {
-      throw ServerError.message("Reminder changed during flagged field resolution; retry")
+      throw ServerError.message(
+        "Reminders has not yet exposed this reminder to automation; flagged is unknown, retry later"
+      )
     }
     return value
   }

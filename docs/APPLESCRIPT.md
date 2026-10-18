@@ -19,8 +19,8 @@ by both reminder ID and expected list ID before sending a set event.
 
 Flags accept `x-apple-reminder://<UUID>` or an exact UUID. Metadata/container IDs
 use the declared reminder, list, and account URL forms. UUIDs are canonicalized;
-duplicate normalized IDs and unsupported container classes are rejected. Every
-fetched reminder must have an unambiguous flag match; extra scripting IDs are
+duplicate normalized IDs and unsupported container classes are rejected. A fetched
+reminder without a scripting match has an unknown flag; extra scripting IDs are
 allowed. Names and enumeration positions never establish identity.
 
 Bulk scripts read identifiers before and after properties and reject changed
@@ -35,6 +35,3 @@ object.
 control lazy property reads. [MCP](MCP.md) reads and [metrics](METRICS.md) use
 EventKit alone; MCP uses automation only for writes and `*_show`. There is no
 cross-request automation cache.
-
-See [writes](WRITES.md) for coupled alert/date changes, bounded same-ID retries,
-and partial-save errors. Retry handlers never repeat EventKit creation.

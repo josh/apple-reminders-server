@@ -185,19 +185,6 @@ these actions non-read-only and nondestructive. A post-navigation projection
 failure is `SHOW_APPLIED`; other navigation failures can still leave the UI
 changed and are reported as `SHOW_FAILED`.
 
-## Synchronization retries
-
-Reminder automation retries transient missing-object/cannot-set errors at most
-30 times with 0.1-second delays. Setters may repeat if a later automation read
-fails. Each attempt targets the same saved reminder and expected list.
-
-Newly saved EventKit lists can take several seconds to appear in Reminders'
-scripting inventory. Emblem writes retry only transient missing-object and
-cannot-set errors on the same list ID, at most 30 attempts one second apart, and
-never repeat list creation. Apple-event execution adds to these waits; they are
-not hard request deadlines. Exhaustion still reports an error, including
-`WRITE_APPLIED` when a preceding save succeeded.
-
 ## Client handling after a save
 
 An HTTP success status does not establish mutation success: inspect the API body.
