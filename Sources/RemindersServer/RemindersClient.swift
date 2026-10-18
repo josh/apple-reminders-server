@@ -26,6 +26,9 @@ func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async thro
     return try readScriptProperty(property)
   }
 }
+func clearCompletedReminders(listID: String) async throws -> ClearCompletedResult {
+  try await withReminders { try executeClearCompleted(listID: listID) }
+}
 func mutateReminder(_ request: ReminderMutation) async throws -> MutationResult<ReminderRecord> {
   try await withReminders { try executeMutation(request) }
 }

@@ -76,6 +76,12 @@ func makeMutationType(
   let patch = try GraphQLInputObjectType(name: "ReminderPatch", fields: fields)
   let deleted = try GraphQLObjectType(
     name: "DeleteResult", fields: ["deletedId": field(GraphQLNonNull(GraphQLID))])
+  let cleared = try GraphQLObjectType(
+    name: "ClearCompletedResult",
+    fields: [
+      "listId": field(GraphQLNonNull(GraphQLID)),
+      "deletedCount": field(GraphQLNonNull(GraphQLInt)),
+    ])
   let listPatchFields: InputObjectFieldMap = [
     "name": InputObjectField(type: GraphQLString), "color": InputObjectField(type: GraphQLString),
     "emblem": InputObjectField(type: GraphQLString),
@@ -194,6 +200,21 @@ func makeMutationType(
               id: args["id"].stringValue(),
               changes: reminderChanges(mutationInput(args["patch"]), creating: false)),
             context: context)
+        }),
+      "clearCompletedReminders": GraphQLField(
+        type: cleared,
+        description:
+          "Delete completed reminders in one list. Keep incomplete reminders and the list.",
+        args: ["listId": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
+        resolve: { _, args, context, _ in
+          do {
+            let result = try await clearCompletedReminders(listID: args["listId"].stringValue())
+            await invalidate(context)
+            return try graphMap(result)
+          } catch {
+            await invalidate(context)
+            throw error
+          }
         }),
       "deleteReminder": GraphQLField(
         type: deleted,

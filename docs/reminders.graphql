@@ -89,6 +89,11 @@ type DateComponents {
 "RFC 3339 timestamp with an explicit offset, serialized in UTC."
 scalar DateTime
 
+type ClearCompletedResult {
+  listId: ID!
+  deletedCount: Int!
+}
+
 type DeleteResult {
   "The deleted object's identifier."
   deletedId: ID!
@@ -197,6 +202,8 @@ type LocationAlarm {
 }
 
 type Mutation {
+  "Delete completed reminders in one list. Keep incomplete reminders and the list."
+  clearCompletedReminders(listId: ID!): ClearCompletedResult
   "Create a list. WRITE_APPLIED includes the saved ID if later automation fails; do not retry creation blindly. Select id to retain it if response metadata fails."
   createList(input: CreateListInput!): ReminderList
   "Create an incomplete reminder in an editable list. Omitted listId uses the application default. WRITE_APPLIED includes the saved ID if later automation fails; do not retry creation blindly. Select id to retain it if response metadata fails."

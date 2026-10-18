@@ -234,3 +234,54 @@ private func changingZone(_ value: DateComponents?, to zone: TimeZone, floating:
   value.timeZone = floating ? nil : zone
   return value
 }
+
+struct ClearCompletedResult: Encodable, Sendable {
+  let listId: String
+  let deletedCount: Int
+}
+
+func executeClearCompleted(listID: String) throws -> ClearCompletedResult {
+  guard !listID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    throw ServerError.message("INVALID_ARGUMENT: listId required")
+  }
+  try requireAccess()
+  let store = EKEventStore()
+  guard let list = store.calendar(withIdentifier: listID),
+    list.allowedEntityTypes.contains(.reminder)
+  else { throw ServerError.message("NOT_FOUND: reminder list is unavailable") }
+  guard list.allowsContentModifications else {
+    throw ServerError.message("READ_ONLY: reminder list is not editable")
+  }
+  let pending = Pending<Result<[EKReminder], Error>>()
+  let predicate = store.predicateForCompletedReminders(
+    withCompletionDateStarting: nil, ending: nil, calendars: [list])
+  let handle = store.fetchReminders(matching: predicate) { items in
+    pending.resolve(
+      items.map { .success($0) }
+        ?? .failure(ServerError.message("Cannot read completed reminders")))
+  }
+  let items: [EKReminder]
+  do { items = try pending.wait().get() } catch {
+    store.cancelFetchRequest(handle)
+    throw error
+  }
+  guard
+    items.allSatisfy({
+      $0.isCompleted && $0.calendar?.calendarIdentifier == listID
+        && $0.calendar?.allowsContentModifications == true
+    })
+  else {
+    throw ServerError.message("Reminder list changed during read; retry")
+  }
+  guard !items.isEmpty else { return ClearCompletedResult(listId: listID, deletedCount: 0) }
+  do {
+    for item in items { try store.remove(item, commit: false) }
+    try store.commit()
+  } catch {
+    store.reset()
+    throw ServerError.message(
+      "WRITE_FAILED: EventKit clear completed failed (code \((error as NSError).code)); refetch before retrying"
+    )
+  }
+  return ClearCompletedResult(listId: listID, deletedCount: items.count)
+}
