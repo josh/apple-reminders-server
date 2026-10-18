@@ -6,6 +6,18 @@ on:
     branches: [main]
 
 jobs:
+  swift-syntax:
+    runs-on: ubuntu-amd64
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check Swift syntax
+        uses: docker://swift:6.4-noble@sha256:19cbe56bdaec1918f7cf5fdeba42b9bd55bdd8a6149c9990d0e0e3a89a127d63
+        with:
+          entrypoint: bash
+          args: -ec "swiftc -frontend -parse Package.swift; swiftc -frontend -parse Sources/RemindersServer/*.swift"
+
   package-resolved:
     runs-on: ubuntu-amd64
 
