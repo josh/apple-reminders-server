@@ -44,8 +44,6 @@ Permission attribution and persistence depend on the executable's signing and
 launch context. The current build embeds usage descriptions but does not produce
 a signed application bundle or install a background service.
 
-See [data access](DATA_ACCESS.md) for threading, serialization, and cancellation.
-
 ## HTTP behavior
 
 Hummingbird hosts HTTP/1.1, including concurrent requests, keep-alive, chunked

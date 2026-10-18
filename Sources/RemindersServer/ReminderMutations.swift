@@ -55,6 +55,7 @@ enum ReminderMutationPhase: Sendable {
 }
 
 // Mutations honor EventKit authorization and the destination list capabilities.
+@MainActor
 func executeMutation(_ request: ReminderMutation) throws -> ReminderMutationPhase {
   try requireAccess()
   let store = EKEventStore()
@@ -198,6 +199,7 @@ func executeMutation(_ request: ReminderMutation) throws -> ReminderMutationPhas
 
 // One automation attempt on an already-saved reminder. AutomationNotReady means
 // Reminders has not exposed the object yet; every other failure is final.
+@MainActor
 func applyReminderAutomation(_ pending: PendingAutomation) throws -> ReminderRecord {
   try requireAccess()
   let store = EKEventStore()
@@ -259,7 +261,8 @@ struct ClearCompletedResult: Encodable, Sendable {
   let deletedCount: Int
 }
 
-func executeClearCompleted(listID: String) throws -> ClearCompletedResult {
+@MainActor
+func executeClearCompleted(listID: String) async throws -> ClearCompletedResult {
   guard !listID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
     throw ServerError.invalidArgument("listId required")
   }
@@ -271,19 +274,10 @@ func executeClearCompleted(listID: String) throws -> ClearCompletedResult {
   guard list.allowsContentModifications else {
     throw ServerError.readOnly("reminder list is not editable")
   }
-  let pending = Pending<Result<[EKReminder], Error>>()
   let predicate = store.predicateForCompletedReminders(
     withCompletionDateStarting: nil, ending: nil, calendars: [list])
-  let handle = store.fetchReminders(matching: predicate) { items in
-    pending.resolve(
-      items.map { .success($0) }
-        ?? .failure(ServerError.internalError("Cannot read completed reminders")))
-  }
-  let items: [EKReminder]
-  do { items = try pending.wait().get() } catch {
-    store.cancelFetchRequest(handle)
-    throw error
-  }
+  let items = try await fetchReminders(store, matching: predicate)
+  try requireAccess()
   guard
     items.allSatisfy({
       $0.isCompleted && $0.calendar?.calendarIdentifier == listID

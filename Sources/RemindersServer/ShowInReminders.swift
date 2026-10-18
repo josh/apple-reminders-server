@@ -2,6 +2,7 @@ import EventKit
 import Foundation
 
 /// UI navigation is deliberately separate from data mutations: it performs no save.
+@MainActor
 func remindersShow(id: String, isList: Bool) throws -> ShownObject {
   try requireAccess()
   let store = EKEventStore()

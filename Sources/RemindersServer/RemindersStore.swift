@@ -2,29 +2,88 @@ import CoreGraphics
 import EventKit
 import Foundation
 
-// The data-access entrypoint serializes all EventKit and AppleScript work on main.
-// The callback handoff is locked because EventKit may complete on another queue.
-final class Pending<Value> {
+// EventKit and AppleScript run on the main actor. EventKit calls back on an
+// arbitrary queue, and cancelling a fetch suppresses its callback, so the waiting
+// task settles its own continuation exactly once: on completion, cancellation, or
+// the timeout. Only Sendable records leave the main actor.
+private final class Settled<Value>: @unchecked Sendable {
   private let lock = NSLock()
-  private var result: Value?
-  func resolve(_ value: Value) {
+  private var continuation: CheckedContinuation<Value, Error>?
+  private var outcome: Result<Value, Error>?
+  private var cancel: (() -> Void)?
+  private var aborted = false
+
+  func attach(_ continuation: CheckedContinuation<Value, Error>) {
     lock.lock()
-    defer { lock.unlock() }
-    result = value
-  }
-  func current() -> Value? {
-    lock.lock()
-    defer { lock.unlock() }
-    return result
-  }
-  func wait() throws -> Value {
-    let deadline = ProcessInfo.processInfo.systemUptime + 30
-    while ProcessInfo.processInfo.systemUptime < deadline {
-      if let value = current() { return value }
-      RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01))
+    if let outcome {
+      lock.unlock()
+      continuation.resume(with: outcome)
+      return
     }
-    if let value = current() { return value }
-    throw ServerError.internalError("EventKit operation timed out after 30 seconds")
+    self.continuation = continuation
+    lock.unlock()
+  }
+  func resume(_ result: Result<Value, Error>) {
+    lock.lock()
+    guard outcome == nil else { return lock.unlock() }
+    outcome = result
+    let continuation = self.continuation
+    self.continuation = nil
+    cancel = nil
+    lock.unlock()
+    continuation?.resume(with: result)
+  }
+  func onCancel(_ handler: @escaping () -> Void) {
+    lock.lock()
+    guard !aborted else {
+      lock.unlock()
+      return handler()
+    }
+    cancel = handler
+    lock.unlock()
+  }
+  func abort() {
+    lock.lock()
+    aborted = true
+    let handler = cancel
+    cancel = nil
+    lock.unlock()
+    handler?()
+    resume(.failure(CancellationError()))
+  }
+}
+@MainActor
+private func settleOnce<Value>(_ start: (Settled<Value>) -> Void) async throws -> Value {
+  let settled = Settled<Value>()
+  let timeout = Task {
+    try await Task.sleep(for: .seconds(30))
+    settled.resume(
+      .failure(ServerError.internalError("EventKit operation timed out after 30 seconds")))
+  }
+  defer { timeout.cancel() }
+  return try await withTaskCancellationHandler {
+    try await withCheckedThrowingContinuation { continuation in
+      settled.attach(continuation)
+      start(settled)
+    }
+  } onCancel: {
+    settled.abort()
+  }
+}
+@MainActor
+func fetchReminders(_ store: EKEventStore, matching predicate: NSPredicate) async throws
+  -> [EKReminder]
+{
+  try await settleOnce { settled in
+    let handle = store.fetchReminders(matching: predicate) { items in
+      guard let items else {
+        return settled.resume(
+          .failure(
+            ServerError.internalError("EventKit returned an indeterminate nil reminder inventory")))
+      }
+      settled.resume(.success(items))
+    }
+    settled.onCancel { DispatchQueue.main.async { store.cancelFetchRequest(handle) } }
   }
 }
 func statusName() -> String {
@@ -102,23 +161,27 @@ func dueDay(_ components: DateComponents?) -> String? {
   else { return nil }
   return String(format: "%04d-%02d-%02d", year, month, day)
 }
-func authorizeReminders() throws {
+@MainActor
+func authorizeReminders() async throws {
   let store = EKEventStore()
-  let pending = Pending<Result<Bool, Error>>()
-  store.requestFullAccessToReminders { granted, error in
-    pending.resolve(
-      error.map {
-        .failure(
-          ServerError.internalError("EventKit authorization failed (code \(($0 as NSError).code))"))
-      } ?? .success(granted))
+  let granted: Bool = try await settleOnce { settled in
+    store.requestFullAccessToReminders { granted, error in
+      if let error {
+        settled.resume(
+          .failure(
+            ServerError.internalError(
+              "EventKit authorization failed (code \((error as NSError).code))")))
+      } else {
+        settled.resume(.success(granted))
+      }
+    }
   }
-  guard try pending.wait().get() else {
-    throw ServerError.internalError("Reminders access was not granted")
-  }
+  guard granted else { throw ServerError.internalError("Reminders access was not granted") }
   try requireAccess()
 }
 
-func fetchInventory(includeFlags: Bool) throws -> Inventory {
+@MainActor
+func fetchInventory(includeFlags: Bool) async throws -> Inventory {
   try requireAccess()
   let store = EKEventStore()
   let calendars = store.calendars(for: .reminder).sorted {
@@ -127,58 +190,34 @@ func fetchInventory(includeFlags: Bool) throws -> Inventory {
   let lists = calendars.map(ListRecord.init)
   let defaultID = store.defaultCalendarForNewReminders()?.calendarIdentifier
   let defaultListID = lists.contains(where: { $0.id == defaultID }) ? defaultID : nil
-  let flags = includeFlags ? try readScriptFlagsOnMainThread() : nil
-  var fetched: [EKReminder] = []
-  if !calendars.isEmpty {
-    let pending = Pending<Result<[EKReminder], Error>>()
-    let handle = store.fetchReminders(matching: store.predicateForReminders(in: calendars)) {
-      items in
-      pending.resolve(
-        items.map { .success($0) }
-          ?? .failure(
-            ServerError.internalError("EventKit returned an indeterminate nil reminder inventory")))
-    }
-    do { fetched = try pending.wait().get() } catch {
-      store.cancelFetchRequest(handle)
-      throw error
-    }
-  }
+  let flags = includeFlags ? try autoreleasepool { try readScriptFlags() } : nil
+  let fetched =
+    calendars.isEmpty
+    ? [] : try await fetchReminders(store, matching: store.predicateForReminders(in: calendars))
   try requireAccess()
-  let now = Date()
-  var seen = Set<String>()
-  var reminders: [ReminderRecord] = []
-  for item in fetched.sorted(by: { $0.calendarItemIdentifier < $1.calendarItemIdentifier }) {
-    guard seen.insert(item.calendarItemIdentifier).inserted else {
-      throw ServerError.internalError("EventKit returned duplicate reminder identifiers")
+  return try autoreleasepool {
+    let now = Date()
+    var seen = Set<String>()
+    var reminders: [ReminderRecord] = []
+    for item in fetched.sorted(by: { $0.calendarItemIdentifier < $1.calendarItemIdentifier }) {
+      guard seen.insert(item.calendarItemIdentifier).inserted else {
+        throw ServerError.internalError("EventKit returned duplicate reminder identifiers")
+      }
+      guard let list = item.calendar,
+        calendars.contains(where: { $0.calendarIdentifier == list.calendarIdentifier })
+      else { throw ServerError.internalError("Reminder list inventory changed during collection") }
+      // Reminders exposes newly saved objects to scripting late; a missing match
+      // leaves only that reminder's flag unknown instead of failing the inventory.
+      let flagged = flags.flatMap { table in
+        UUID(uuidString: item.calendarItemIdentifier).flatMap { table[$0.uuidString] }
+      }
+      reminders.append(try ReminderRecord(item, now: now, flagged: flagged))
     }
-    guard let list = item.calendar,
-      calendars.contains(where: { $0.calendarIdentifier == list.calendarIdentifier })
-    else { throw ServerError.internalError("Reminder list inventory changed during collection") }
-    // Reminders exposes newly saved objects to scripting late; a missing match
-    // leaves only that reminder's flag unknown instead of failing the inventory.
-    let flagged = flags.flatMap { table in
-      UUID(uuidString: item.calendarItemIdentifier).flatMap { table[$0.uuidString] }
-    }
-    reminders.append(try ReminderRecord(item, now: now, flagged: flagged))
+    return Inventory(lists: lists, reminders: reminders, defaultListId: defaultListID)
   }
-  return Inventory(lists: lists, reminders: reminders, defaultListId: defaultListID)
 }
 
-// Protected by main-thread confinement. Nested calls can occur while an Apple
-// event or EventKit callback pumps the run loop; fail instead of overlapping state.
-private var busy = false
-func performRemindersOperation<T>(_ operation: @escaping () throws -> T) throws -> T {
-  let work = {
-    guard !busy else {
-      throw ServerError.internalError("Reminders store is busy with a reentrant request; retry")
-    }
-    busy = true
-    defer { busy = false }
-    return try autoreleasepool(invoking: operation)
-  }
-  if Thread.isMainThread { return try work() }
-  return try DispatchQueue.main.sync(execute: work)
-}
+// The main run loop drains the main dispatch queue, which drives the main actor.
 func remindersRunMainLoop() {
   guard Thread.isMainThread else { return }
   _ = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in }

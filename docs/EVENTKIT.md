@@ -77,8 +77,7 @@ and [cancellation](https://developer.apple.com/documentation/eventkit/ekeventsto
 The server fetches one complete inventory and filters/sorts it locally. Passing
 nil calendars means all available calendars, not an empty scope. Completed-date
 predicates constrain completion dates, not due dates. A nil fetch result is
-indeterminate, unlike an empty array. Cancellation suppresses the callback, so
-wrappers must settle their own pending operation; see [data access](DATA_ACCESS.md).
+indeterminate, unlike an empty array.
 
 ## Fields worth reading
 

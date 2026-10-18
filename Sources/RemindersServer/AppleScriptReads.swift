@@ -13,10 +13,8 @@ private let flagsScript = """
   end timeout
   """
 
-func readScriptFlagsOnMainThread() throws -> [String: Bool] {
-  guard Thread.isMainThread else {
-    throw ServerError.internalError("AppleScript requires the main thread")
-  }
+@MainActor
+func readScriptFlags() throws -> [String: Bool] {
   guard let script = NSAppleScript(source: flagsScript) else {
     throw ServerError.internalError("AppleScript could not be compiled")
   }
@@ -108,6 +106,7 @@ extension ScriptProperty where Value == ContainerReference {
     }
   }
 }
+@MainActor
 func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [String: Value] {
   let entity = property.entity
   let expression = property.expression
@@ -121,7 +120,7 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
         end tell
     end timeout
     """
-  guard Thread.isMainThread, let script = NSAppleScript(source: source) else {
+  guard let script = NSAppleScript(source: source) else {
     throw ServerError.internalError("Cannot compile automation property read")
   }
   var error: NSDictionary?

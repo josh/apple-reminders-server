@@ -7,8 +7,7 @@ to read flags, list emblems, alert dates, and container references declared in t
 emblems, and navigates the Reminders UI.
 
 Scripts execute inside the server and send Apple events to Reminders.app, which
-may launch to handle them. See [permissions](SERVER.md#permissions-and-execution)
-and [main-thread execution and timeouts](DATA_ACCESS.md#execution-and-consistency).
+may launch to handle them. See [permissions](SERVER.md#permissions-and-execution).
 
 ## Handlers and identity
 

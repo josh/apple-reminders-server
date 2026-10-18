@@ -2,8 +2,7 @@ import CoreGraphics
 import EventKit
 import Foundation
 
-// Convert framework objects while confined to the store's main-thread operation.
-// Only Sendable value records leave this boundary.
+// Convert framework objects on the main actor. Only Sendable value records leave it.
 extension ComponentDate {
   init(_ value: DateComponents) {
     self.init(

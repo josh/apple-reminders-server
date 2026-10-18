@@ -86,7 +86,7 @@ Task.detached {
         index += 1
       }
       if requestAccess {
-        try await withReminders { try authorizeReminders() }
+        try await authorizeReminders()
       }
       try await serve(
         port: port, metricsInterval: metricsInterval, allowedOrigins: allowedOrigins,
@@ -100,5 +100,5 @@ Task.detached {
   }
 
 }
-// Keep the actual main thread available for serialized NSAppleScript execution.
+// The main thread runs the main actor, where EventKit and AppleScript execute.
 remindersRunMainLoop()

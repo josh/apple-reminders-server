@@ -13,8 +13,9 @@ let automationNotReadyCodes: Set<Int> = [-1728, -10006, -1712]
 
 // Fixed handler with typed Apple-event arguments. No client text becomes source.
 // Match both reminder and containing list IDs before sending any set event.
-// One attempt per call: retry timing lives off the main thread in synchronize.
-// The short event timeout bounds how long one attempt holds the main thread.
+// One attempt per call: untilSynchronized retries between awaits. The short event
+// timeout bounds how long one attempt holds the main actor.
+@MainActor
 func makeReminderWriteScript() throws -> NSAppleScript {
   let source = """
     on applychanges(reminderID, listID, changeFlag, flagValue, changeAlert, alertValue)
@@ -32,7 +33,7 @@ func makeReminderWriteScript() throws -> NSAppleScript {
         end timeout
     end applychanges
     """
-  guard Thread.isMainThread, let script = NSAppleScript(source: source) else {
+  guard let script = NSAppleScript(source: source) else {
     throw ServerError.internalError("Cannot create reminder automation writer")
   }
   var error: NSDictionary?
@@ -44,12 +45,11 @@ func makeReminderWriteScript() throws -> NSAppleScript {
   return script
 }
 
+@MainActor
 func writeReminderAutomation(
   _ script: NSAppleScript, id: String, listID: String, flagged: Bool?, alert: Date?
 ) throws {
-  guard Thread.isMainThread, let reminderUUID = UUID(uuidString: id),
-    let listUUID = UUID(uuidString: listID)
-  else {
+  guard let reminderUUID = UUID(uuidString: id), let listUUID = UUID(uuidString: listID) else {
     throw ServerError.unsupportedOperation(
       "automation requires UUID reminder and list identifiers")
   }

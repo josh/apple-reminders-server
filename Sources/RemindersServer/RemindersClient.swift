@@ -1,29 +1,22 @@
 import Foundation
 
-// One queue and main-thread guard protect every EventKit/AppleScript operation.
-// Framework objects stay on main; only Sendable records cross the continuation.
-private let remindersQueue = DispatchQueue(label: "reminders.store")
-func withReminders<T: Sendable>(
-  _ operation: @escaping @Sendable () throws -> T
-) async throws -> T {
-  try await withCheckedThrowingContinuation { continuation in
-    remindersQueue.async {
-      continuation.resume(with: Result { try performRemindersOperation(operation) })
-    }
-  }
+// Framework calls run as one main-actor job; the pool releases their temporaries.
+// Only Sendable records come back.
+private func onMainActor<T: Sendable>(_ body: @MainActor () throws -> T) async throws -> T {
+  try await MainActor.run { try autoreleasepool(invoking: body) }
 }
 
-// Reminders exposes saved objects to scripting late. Sleeping here, outside
-// withReminders, lets other requests use the store between attempts.
+// Reminders exposes saved objects to scripting late. Awaiting the sleep releases
+// the main actor, so other requests run between attempts.
 func untilSynchronized<T: Sendable>(
   within deadline: Duration = .seconds(15),
-  _ attempt: @escaping @Sendable () throws -> T
+  _ attempt: @MainActor () throws -> T
 ) async throws -> T {
   let clock = ContinuousClock()
   let end = clock.now + deadline
   while true {
     do {
-      return try await withReminders(attempt)
+      return try await onMainActor(attempt)
     } catch is AutomationNotReady where clock.now < end {
       try await clock.sleep(for: .milliseconds(500))
     }
@@ -31,7 +24,7 @@ func untilSynchronized<T: Sendable>(
 }
 
 func readInventory(includeFlags: Bool = false) async throws -> Inventory {
-  try await withReminders { try fetchInventory(includeFlags: includeFlags) }
+  try await fetchInventory(includeFlags: includeFlags)
 }
 func readReminders() async throws -> [ReminderRecord] {
   try await readInventory(includeFlags: true).reminders
@@ -39,16 +32,16 @@ func readReminders() async throws -> [ReminderRecord] {
 func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async throws -> [String:
   Value]
 {
-  try await withReminders {
+  try await onMainActor {
     try requireAccess()
     return try readScriptProperty(property)
   }
 }
 func clearCompletedReminders(listID: String) async throws -> ClearCompletedResult {
-  try await withReminders { try executeClearCompleted(listID: listID) }
+  try await executeClearCompleted(listID: listID)
 }
 func mutateReminder(_ request: ReminderMutation) async throws -> MutationResult<ReminderRecord> {
-  switch try await withReminders({ try executeMutation(request) }) {
+  switch try await onMainActor({ try executeMutation(request) }) {
   case .finished(let result): return result
   case .automation(let pending):
     do {
@@ -59,7 +52,7 @@ func mutateReminder(_ request: ReminderMutation) async throws -> MutationResult<
   }
 }
 func mutateList(_ request: ListMutation) async throws -> MutationResult<ListRecord> {
-  switch try await withReminders({ try remindersMutateList(request) }) {
+  switch try await remindersMutateList(request) {
   case .finished(let result): return result
   case .automation(let pending):
     do {
@@ -87,7 +80,7 @@ private func writeApplied(_ error: Error, saved object: String) -> ServerError {
   }
 }
 func showRemindersObject(_ id: String, isList: Bool) async throws -> ShownObject {
-  try await withReminders { try remindersShow(id: id, isList: isList) }
+  try await onMainActor { try remindersShow(id: id, isList: isList) }
 }
 
 struct DeletedReminder: Codable, Sendable { let deletedId: String }

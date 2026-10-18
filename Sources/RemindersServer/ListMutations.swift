@@ -24,7 +24,8 @@ enum ListMutationPhase: Sendable {
   case automation(PendingEmblem)
 }
 
-func remindersMutateList(_ request: ListMutation) throws -> ListMutationPhase {
+@MainActor
+func remindersMutateList(_ request: ListMutation) async throws -> ListMutationPhase {
   try requireAccess()
   let store = EKEventStore()
   let list: EKCalendar
@@ -54,18 +55,11 @@ func remindersMutateList(_ request: ListMutation) throws -> ListMutationPhase {
     guard !existing.isImmutable && existing.allowsContentModifications && !existing.isSubscribed
     else { throw ServerError.readOnly("list is not editable") }
     if !allowNonEmpty {
-      let pending = Pending<Result<[EKReminder], Error>>()
-      let handle = store.fetchReminders(matching: store.predicateForReminders(in: [existing])) {
-        items in
-        pending.resolve(
-          items.map { .success($0) }
-            ?? .failure(ServerError.internalError("Cannot determine whether list is empty")))
-      }
-      let items: [EKReminder]
-      do { items = try pending.wait().get() } catch {
-        store.cancelFetchRequest(handle)
-        throw error
-      }
+      let items = try await fetchReminders(
+        store, matching: store.predicateForReminders(in: [existing]))
+      guard store.calendar(withIdentifier: id) != nil,
+        items.allSatisfy({ $0.calendar?.calendarIdentifier == id })
+      else { throw ServerError.internalError("Reminder list changed during read; retry") }
       guard items.isEmpty else {
         throw ServerError.listNotEmpty(
           "pass allowNonEmpty only to intentionally delete the list and its reminders"
@@ -112,6 +106,7 @@ func remindersMutateList(_ request: ListMutation) throws -> ListMutationPhase {
 
 // One emblem attempt on an already-saved list. AutomationNotReady means Reminders
 // has not exposed the list yet; every other failure is final.
+@MainActor
 func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
   try requireAccess()
   let store = EKEventStore()
@@ -126,8 +121,9 @@ func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
   return ListRecord(refreshed)
 }
 
-// One attempt per call: retry timing lives off the main thread in synchronize.
-// The short event timeout bounds how long one attempt holds the main thread.
+// One attempt per call: untilSynchronized retries between awaits. The short event
+// timeout bounds how long one attempt holds the main actor.
+@MainActor
 private func makeListEmblemScript() throws -> NSAppleScript {
   let source = """
     on setemblem(listID, iconName)
@@ -149,6 +145,7 @@ private func makeListEmblemScript() throws -> NSAppleScript {
   }
   return script
 }
+@MainActor
 private func writeListEmblem(_ script: NSAppleScript, id: String, emblem: String) throws {
   guard let uuid = UUID(uuidString: id) else {
     throw ServerError.internalError("Unsupported list identifier for automation")

@@ -144,9 +144,7 @@ non-idempotent; update/delete also carry the destructive hint.
 
 ## Execution and errors
 
-Writes run on the same serialized worker queue and main-thread native guard as
-reads. Each mutation owns an EventKit store, fetches or creates its object in
-that store, checks list editability, validates the resulting state, then commits
+Each mutation owns an EventKit store, fetches or creates its object in that store, checks list editability, validates the resulting state, then commits
 one save or delete. Flag and alert-date changes also use in-process Reminders
 automation after the EventKit save. Automation/refetch and response-projection
 failures follow the [outcome table below](#client-handling-after-a-save).

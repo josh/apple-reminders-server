@@ -71,9 +71,6 @@ including removed lists, appear after a successful refresh, so counts may lag by
 the interval plus collection time. Totals describe accessible data, not confirmed
 cloud synchronization.
 
-Shutdown cancels the collection loop. An already dispatched EventKit operation
-can finish before it returns; see [cancellation limits](DATA_ACCESS.md#execution-and-consistency).
-
 ## Queries and validation
 
 Total reminders per list:
