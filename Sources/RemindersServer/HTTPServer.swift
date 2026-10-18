@@ -15,7 +15,7 @@ struct ServiceResponse {
 }
 func handleRequest(
   method: String, path: String, body: Data, schema: GraphQLSchema,
-  metricsCollector: MetricsCollector
+  metricsCollector: MetricsCollector, capabilities: Capabilities
 ) async throws
   -> ServiceResponse
 {
@@ -51,6 +51,19 @@ func handleRequest(
     from: JSONSerialization.data(withJSONObject: request["variables"] as? [String: Any] ?? [:]))
   let operation = request["operationName"] as? String
   do {
+    if capabilities.graphql != .write {
+      let document = try parse(source: query)
+      let operations = document.definitions.compactMap { $0 as? OperationDefinition }
+      let selected = operations.filter { operation == nil || $0.name?.value == operation }
+      guard selected.count == 1 else {
+        return try .json(
+          ["errors": [["message": "Select exactly one operation with operationName"]]], status: 400)
+      }
+      guard selected[0].operation == .query else {
+        return try .json(
+          ["errors": [["message": "Forbidden: GraphQL write access required"]]], status: 403)
+      }
+    }
     let result = try await graphql(
       schema: schema, request: query, context: GraphQLContext(), variableValues: variables,
       operationName: operation)
@@ -58,7 +71,9 @@ func handleRequest(
   } catch { return try .json(["errors": [["message": String(describing: error)]]]) }
 }
 
-func serve(port: UInt16, metricsInterval: Int, allowedOrigins: [String]) async throws {
+func serve(
+  port: UInt16, metricsInterval: Int, allowedOrigins: [String], tailscaleAppCapability: String?
+) async throws {
   let metricsCollector = MetricsCollector()
   let collectionTask = Task { await metricsCollector.run(intervalSeconds: metricsInterval) }
   defer { collectionTask.cancel() }
@@ -108,17 +123,22 @@ func serve(port: UInt16, metricsInterval: Int, allowedOrigins: [String]) async t
     {
       response = try .json(["error": "Content-Type application/json required"], status: 415)
     } else {
+      guard
+        let capabilities = try? Capabilities.parse(
+          header: headers["tailscale-app-capabilities"], capability: tailscaleAppCapability),
+        capabilities.allows(path: request.uri.path)
+      else { return respond(try .json(["error": "Forbidden"], status: 403)) }
       let body: Data
       do { body = Data(try await request.body.collect(upTo: 1_048_576).readableBytesView) } catch {
         return respond(ServiceResponse(status: 413, body: Data()))
       }
       if request.uri.path == "/mcp" {
         response = try await handleMCP(
-          method: request.method.rawValue, headers: headers, body: body)
+          method: request.method.rawValue, headers: headers, body: body, access: capabilities.mcp)
       } else {
         response = try await handleRequest(
           method: request.method.rawValue, path: request.uri.path, body: body, schema: schema,
-          metricsCollector: metricsCollector)
+          metricsCollector: metricsCollector, capabilities: capabilities)
       }
     }
     return respond(response)

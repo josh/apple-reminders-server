@@ -28,6 +28,7 @@ configuration interface; environment-variable configuration is not supported.
 | `--port` | `8081` | Loopback listener port, 1–65535 |
 | `--metrics-interval-seconds` | `3600` | Delay after each metrics collection, 1–604800 seconds |
 | `--allowed-origin <origin>` | None | Repeatable additional browser origin, `http(s)://host[:port]` |
+| `--tailscale-app-capability <name>` | Off | Require Tailscale Serve grants: `{"mcp":"rw","graphql":"r","metrics":"r"}`; omitted endpoints denied, metrics accepts only `r` |
 | `--request-access` | Off | Explicitly request EventKit access at startup |
 | `--help`, `-h` | — | Show usage |
 
@@ -61,8 +62,8 @@ Origins must have no path, query, fragment, or credentials. JSON POSTs require
 `Content-Type: application/json`; other media types return 415. Request bodies
 are limited to 1 MiB, including chunked uploads; excess returns 413.
 
-There is no authentication or TLS. Keep the service local; network exposure
-requires an explicit access-control design. GraphQL subscriptions and MCP SSE
+There is no built-in identity authentication or TLS. Keep the service local;
+network exposure requires a trusted proxy and access controls. GraphQL subscriptions and MCP SSE
 streams are not implemented. MCP protocol details are in [MCP.md](MCP.md).
 
 ## Limits

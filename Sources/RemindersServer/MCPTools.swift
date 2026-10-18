@@ -779,8 +779,14 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
 }
 private let tools = toolsCatalog()
 private let toolNames = Set(tools.map(\.name))
+// New tools require write access until explicitly classified as read-only.
+private let readOnlyTools: Set<String> = [
+  "accounts_get", "accounts_list", "lists_get", "defaults_get", "lists_summary",
+  "lists_list", "reminders_search", "reminders_get",
+]
 
-func handleMCP(method: String, headers: [String: String], body: Data) async throws
+func handleMCP(method: String, headers: [String: String], body: Data, access: Capabilities.Access)
+  async throws
   -> ServiceResponse
 {
   // Each HTTP request has isolated SDK protocol state, permitting independent clients.
@@ -802,6 +808,12 @@ func handleMCP(method: String, headers: [String: String], body: Data) async thro
     await server.withMethodHandler(CallTool.self) { params in
       guard toolNames.contains(params.name) else {
         throw MCPError.invalidParams("Unknown tool")
+      }
+      guard access == .write || (access == .read && readOnlyTools.contains(params.name)) else {
+        return .init(
+          content: [
+            .text(text: "Forbidden: MCP write access required", annotations: nil, _meta: nil)
+          ], isError: true)
       }
       do { return try await callTool(params) } catch {
         return .init(
