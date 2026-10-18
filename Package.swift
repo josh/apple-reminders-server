@@ -13,7 +13,7 @@ let package = Package(
       url: "https://github.com/GraphQLSwift/GraphQL.git",
       revision: "a83766b34139a855476166b1dc44d9ae9d8ecff4"),
     .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.1"),
-    .package(url: "https://github.com/hummingbird-project/hummingbird.git", exact: "2.26.0"),
+    .package(url: "https://github.com/hummingbird-project/hummingbird.git", exact: "2.28.0"),
   ],
   targets: [
     .executableTarget(
