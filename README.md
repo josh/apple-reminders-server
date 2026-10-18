@@ -13,7 +13,8 @@ swift build -c release
 
 Omit `--request-access` once Reminders permission is granted. Automation requires
 separate permission when first used. The server listens on `127.0.0.1:8081` and
-has no authentication or TLS; it is intended for local use.
+has no authentication or TLS; it is intended for local use. Add
+`--allowed-origin https://app.example` to allow a browser client on another origin.
 
 | Endpoint | Documentation |
 | --- | --- |

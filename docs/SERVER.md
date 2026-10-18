@@ -27,6 +27,7 @@ configuration interface; environment-variable configuration is not supported.
 | --- | --- | --- |
 | `--port` | `8081` | Loopback listener port, 1–65535 |
 | `--metrics-interval-seconds` | `3600` | Delay after each metrics collection, 1–604800 seconds |
+| `--allowed-origin <origin>` | None | Repeatable additional browser origin, `http(s)://host[:port]` |
 | `--request-access` | Off | Explicitly request EventKit access at startup |
 | `--help`, `-h` | — | Show usage |
 
@@ -52,8 +53,11 @@ stateless protocol adaptation and tool dispatch; Hummingbird owns the listener.
 GraphQLSwift handles parsing, validation, execution, and introspection.
 Dependencies are pinned in `Package.resolved`.
 
-Host and supplied Origin headers must identify localhost or 127.0.0.1 with the
-listening port. Untrusted values return 403. JSON POSTs require
+Host is not validated; run network access through a trusted proxy such as
+Tailscale Serve. Origin, when present, must be `http://localhost:<port>`,
+`http://127.0.0.1:<port>`, or an origin given by `--allowed-origin`; other origins
+return 403. Allowed origins receive CORS headers and OPTIONS preflight support.
+Origins must have no path, query, fragment, or credentials. JSON POSTs require
 `Content-Type: application/json`; other media types return 415. Request bodies
 are limited to 1 MiB, including chunked uploads; excess returns 413.
 

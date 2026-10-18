@@ -784,7 +784,13 @@ func handleMCP(method: String, headers: [String: String], body: Data) async thro
   -> ServiceResponse
 {
   // Each HTTP request has isolated SDK protocol state, permitting independent clients.
-  let transport = StatelessHTTPServerTransport()
+  // The HTTP listener enforces Origin policy for all endpoints.
+  let transport = StatelessHTTPServerTransport(
+    validationPipeline: StandardValidationPipeline(validators: [
+      AcceptHeaderValidator(mode: .jsonOnly),
+      ContentTypeValidator(),
+      ProtocolVersionValidator(),
+    ]))
   let server = Server(
     name: "apple-reminders-server", version: "0.3.0",
     capabilities: .init(tools: .init(listChanged: false)))

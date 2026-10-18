@@ -2,10 +2,12 @@ import Darwin
 import Foundation
 
 let usage = """
-  Usage: apple-reminders-server [--port 8081] [--request-access] [--metrics-interval-seconds 3600]
+  Usage: apple-reminders-server [--port 8081] [--request-access] [--metrics-interval-seconds 3600] [--allowed-origin <origin>]...
 
   Serve /graphql, /mcp, and /metrics on 127.0.0.1. Requires macOS 14+.
   --metrics-interval-seconds sets the background metrics refresh delay (default: 3600).
+  Loopback origins are always allowed; each --allowed-origin adds a browser origin
+  that may call the server cross-origin.
   --request-access explicitly requests permission in the serving process at startup.
 
   GraphQL and MCP support reminder create/update/delete in editable lists.
@@ -24,21 +26,39 @@ Task.detached {
       var port: UInt16 = 8081
       var metricsInterval = 3600
       var requestAccess = false
+      var allowedOrigins: [String] = []
       var index = 0
       var seen = Set<String>()
       while index < arguments.count {
         let option = arguments[index]
-        guard seen.insert(option).inserted else {
+        guard option == "--allowed-origin" || seen.insert(option).inserted else {
           throw ServerError.message("Duplicate option: \(option)")
         }
         switch option {
         case "--request-access": requestAccess = true
-        case "--port", "--metrics-interval-seconds":
+        case "--port", "--metrics-interval-seconds", "--allowed-origin":
           index += 1
           guard index < arguments.count else {
             throw ServerError.message("Missing value for \(option)")
           }
-          if option == "--port" {
+          if option == "--allowed-origin" {
+            let value = arguments[index]
+            guard let url = URL(string: value),
+              let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              let host = url.host?.lowercased(), !host.isEmpty,
+              url.path.isEmpty, url.query == nil, url.fragment == nil,
+              url.user == nil, url.password == nil,
+              let components = URLComponents(string: value),
+              components.percentEncodedPath.isEmpty,
+              value == value.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.contains("\n"), !value.contains("\r")
+            else {
+              throw ServerError.message(
+                "Allowed origin must be http://host[:port] or https://host[:port], without a path, query, or fragment"
+              )
+            }
+            allowedOrigins.append("\(scheme)://\(host)" + (url.port.map { ":\($0)" } ?? ""))
+          } else if option == "--port" {
             guard let value = UInt16(arguments[index]), value > 0 else {
               throw ServerError.message("Port must be between 1 and 65535")
             }
@@ -56,7 +76,7 @@ Task.detached {
       if requestAccess {
         try await withReminders { try authorizeReminders() }
       }
-      try await serve(port: port, metricsInterval: metricsInterval)
+      try await serve(port: port, metricsInterval: metricsInterval, allowedOrigins: allowedOrigins)
     }
 
     exit(0)
