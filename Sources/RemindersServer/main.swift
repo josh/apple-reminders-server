@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 
 let usage = """
-  Usage: reminders-swift [--port 8081] [--request-access] [--metrics-interval-seconds 3600]
+  Usage: apple-reminders-server [--port 8081] [--request-access] [--metrics-interval-seconds 3600]
 
   Serve /graphql, /mcp, and /metrics on 127.0.0.1. Requires macOS 14+.
   --metrics-interval-seconds sets the background metrics refresh delay (default: 3600).

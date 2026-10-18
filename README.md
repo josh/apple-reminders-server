@@ -1,6 +1,6 @@
-# macOS Reminders HTTP server
+# apple-reminders-server
 
-A Swift HTTP server for reading and changing macOS Reminders through GraphQL
+A Swift HTTP server for reading and changing Apple Reminders on macOS through GraphQL
 and MCP, with Prometheus metrics for reminder counts. EventKit and Reminders
 Apple events run in the server process.
 
@@ -8,7 +8,7 @@ Requires macOS 14+ and Swift 6.4+:
 
 ```sh
 swift build -c release
-./.build/release/reminders-swift --request-access
+./.build/release/apple-reminders-server --request-access
 ```
 
 Omit `--request-access` once Reminders permission is granted. Automation requires

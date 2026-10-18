@@ -786,7 +786,7 @@ func handleMCP(method: String, headers: [String: String], body: Data) async thro
   // Each HTTP request has isolated SDK protocol state, permitting independent clients.
   let transport = StatelessHTTPServerTransport()
   let server = Server(
-    name: "reminders-server", version: "0.3.0",
+    name: "apple-reminders-server", version: "0.3.0",
     capabilities: .init(tools: .init(listChanged: false)))
   do {
     await server.withMethodHandler(ListTools.self) { params in

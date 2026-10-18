@@ -17,7 +17,7 @@ Build with Swift 6.4+ and the macOS SDK:
 
 ```sh
 swift build -c release
-.build/release/reminders-swift --request-access
+.build/release/apple-reminders-server --request-access
 ```
 
 Omit `--request-access` after permission is granted. Startup options are the only

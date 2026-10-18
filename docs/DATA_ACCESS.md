@@ -1,6 +1,6 @@
 # Data-access architecture
 
-The single `RemindersServer` executable contains the HTTP adapters and data-access
+The single `apple-reminders-server` executable contains the HTTP adapters and data-access
 code. Project code is linked into the executable; macOS frameworks and Swift
 runtime libraries remain dynamic.
 

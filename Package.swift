@@ -5,9 +5,9 @@ import PackageDescription
 
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
 let package = Package(
-  name: "RemindersServer",
+  name: "apple-reminders-server",
   platforms: [.macOS(.v14)],
-  products: [.executable(name: "reminders-swift", targets: ["RemindersServer"])],
+  products: [.executable(name: "apple-reminders-server", targets: ["RemindersServer"])],
   dependencies: [
     .package(
       url: "https://github.com/GraphQLSwift/GraphQL.git",

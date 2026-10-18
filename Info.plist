@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>local.reminders.prototype.swift</string>
-  <key>CFBundleName</key><string>Reminders Swift Prototype</string>
+  <key>CFBundleName</key><string>apple-reminders-server</string>
   <key>NSRemindersFullAccessUsageDescription</key>
   <string>Read reminders for the local HTTP service and create, update, and delete reminders when requested.</string>
   <key>NSAppleEventsUsageDescription</key>
