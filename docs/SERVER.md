@@ -25,7 +25,7 @@ configuration interface; environment-variable configuration is not supported.
 
 | Option | Default | Behavior |
 | --- | --- | --- |
-| `--port` | `8081` | Loopback listener port, 1–65535 |
+| `--port` | `8171` | Loopback listener port, 1–65535 |
 | `--metrics-interval-seconds` | `3600` | Delay after each metrics collection, 1–604800 seconds |
 | `--allowed-origin <origin>` | None | Repeatable additional browser origin, `http(s)://host[:port]` |
 | `--tailscale-app-capability <name>` | Off | Apply Tailscale permissions when given |

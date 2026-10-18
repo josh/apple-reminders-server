@@ -1,7 +1,7 @@
 # GraphQL read API
 
 ```sh
-curl http://127.0.0.1:8081/graphql -H 'Content-Type: application/json' \
+curl http://127.0.0.1:8171/graphql -H 'Content-Type: application/json' \
   --data '{"query":"{ lists(limit: 10) { totalCount items { id name } pageInfo { hasNextPage } } }"}'
 ```
 

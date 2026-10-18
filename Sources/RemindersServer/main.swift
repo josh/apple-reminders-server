@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 
 let usage = """
-  Usage: apple-reminders-server [--port 8081] [--request-access] [--metrics-interval-seconds 3600] [--allowed-origin <origin>]... [--tailscale-app-capability <name>]
+  Usage: apple-reminders-server [--port 8171] [--request-access] [--metrics-interval-seconds 3600] [--allowed-origin <origin>]... [--tailscale-app-capability <name>]
 
   Serve /graphql, /mcp, and /metrics on 127.0.0.1. Requires macOS 14+.
   --metrics-interval-seconds sets the background metrics refresh delay (default: 3600).
@@ -24,7 +24,7 @@ Task.detached {
     if arguments == ["--help"] || arguments == ["-h"] {
       print(usage)
     } else {
-      var port: UInt16 = 8081
+      var port: UInt16 = 8171
       var metricsInterval = 3600
       var requestAccess = false
       var allowedOrigins: [String] = []

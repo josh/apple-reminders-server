@@ -8,7 +8,7 @@ application/json` and `Accept: application/json, text/event-stream`; include
 `MCP-Protocol-Version: 2025-11-25` after initialization.
 
 ```sh
-curl http://127.0.0.1:8081/mcp -H 'Content-Type: application/json' \
+curl http://127.0.0.1:8171/mcp -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"example","version":"1"}}}'
 ```
