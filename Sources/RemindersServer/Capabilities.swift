@@ -10,10 +10,10 @@ struct Capabilities {
   var metrics: Access = .denied
 
   static func parse(header: String?, capability: String?) throws -> Capabilities {
-    guard let capability else {
+    guard let capability, let header else {
       return Capabilities(graphql: .write, mcp: .write, metrics: .read)
     }
-    guard let header, header.utf8.count <= 16_384,
+    guard header.utf8.count <= 16_384,
       let object = try JSONSerialization.jsonObject(with: decodeHeader(header)) as? [String: Any],
       let grants = object[capability] as? [[String: Any]]
     else { throw ServerError.message("Forbidden") }
