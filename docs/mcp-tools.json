@@ -3173,6 +3173,7 @@
         "additionalProperties": false,
         "properties": {
           "cursor": {
+            "description": "Omit for the first page. Otherwise use nextCursor from the previous response with the same filter, orderBy, and limit.",
             "minLength": 1,
             "type": "string"
           },
@@ -3339,6 +3340,7 @@
         "additionalProperties": false,
         "properties": {
           "cursor": {
+            "description": "Omit for the first page. Otherwise use nextCursor from the previous response with the same filter, orderBy, and limit.",
             "minLength": 1,
             "type": "string"
           },

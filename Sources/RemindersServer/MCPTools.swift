@@ -32,7 +32,8 @@ private actor CursorStore {
     guard let token else { return 0 }
     guard let cursor = cursors[token], cursor.search == search else {
       throw ServerError.message(
-        "INVALID_ARGUMENT: Invalid/expired cursor or changed search criteria")
+        "INVALID_ARGUMENT: Invalid or expired cursor, or changed search criteria. Use nextCursor from the previous response with the same filter, orderBy, and limit. Omit cursor to restart."
+      )
     }
     return cursor.offset
   }
@@ -246,7 +247,11 @@ private func toolsCatalog() -> [Tool] {
     ], required: ["field"])
   let pagination: [String: Value] = [
     "limit": .object(["type": "integer", "minimum": 1, "maximum": 100, "default": 50]),
-    "cursor": .object(["type": "string", "minLength": 1]),
+    "cursor": .object([
+      "type": "string", "minLength": 1,
+      "description":
+        "Omit for the first page. Otherwise use nextCursor from the previous response with the same filter, orderBy, and limit.",
+    ]),
   ]
   let search = schema(
     pagination.merging([
@@ -459,6 +464,15 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     return text
   }
+  func cursor() throws -> String? {
+    guard let value = args["cursor"] else { return nil }
+    guard let token = value.stringValue, !token.isEmpty else {
+      throw ServerError.message(
+        "INVALID_ARGUMENT: cursor must be a nonempty nextCursor string. Omit cursor for the first page."
+      )
+    }
+    return token
+  }
   func bool(_ key: String, from values: [String: Value]? = nil) throws -> Bool? {
     guard let value = (values ?? args)[key] else { return nil }
     guard case .bool(let result) = value else {
@@ -610,7 +624,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.orderField = "NAME"
       search.descending = direction == "DESC"
     }
-    let offset = try await cursors.offset(token: string("cursor"), search: search)
+    let offset = try await cursors.offset(token: cursor(), search: search)
     var lists = try await readInventory().lists.filter {
       (search.query == nil || $0.name.lowercased().contains(search.query!.lowercased()))
         && (search.accountIds == nil || search.accountIds!.contains($0.source.id))
@@ -737,7 +751,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       }
       search.dueStatus = status
     }
-    let offset = try await cursors.offset(token: string("cursor"), search: search)
+    let offset = try await cursors.offset(token: cursor(), search: search)
     let data = try await readInventory(includeFlags: true)
     let allowedLists = search.accountIds.map { ids in
       Set(data.lists.filter { ids.contains($0.source.id) }.map(\.id))
