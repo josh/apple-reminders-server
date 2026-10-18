@@ -1,7 +1,8 @@
 import Foundation
 import GraphQL
+import HTTPTypes
 import Hummingbird
-
+import Logging
 struct ServiceResponse {
   var status: Int = 200
   var type = "application/json"
@@ -84,6 +85,14 @@ private func graphQLError(_ error: Error) -> [String: Any] {
   return ["message": server.message, "extensions": ["code": server.code.rawValue]]
 }
 
+private let forwardedFor = HTTPField.Name("x-forwarded-for")!
+private let tailscaleUserLogin = HTTPField.Name("tailscale-user-login")!
+private func jsonRPCMethod(_ body: Data) -> String {
+  let object = try? JSONSerialization.jsonObject(with: body)
+  if let method = (object as? [String: Any])?["method"] as? String { return method }
+  return object is [Any] ? "batch" : "unknown"
+}
+
 func serve(
   port: UInt16, metricsInterval: Int, allowedOrigins: [String], tailscaleAppCapability: String?
 ) async throws {
@@ -94,6 +103,7 @@ func serve(
   let origins = Set(["http://127.0.0.1:\(port)", "http://localhost:\(port)"] + allowedOrigins)
   let responder = CallbackResponder<BasicRequestContext> { request, _ in
     let started = ContinuousClock.now
+    var rpc: String?
     func respond(_ response: ServiceResponse) -> Response {
       let elapsed = started.duration(to: .now).components
       let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
@@ -101,14 +111,17 @@ func serve(
         ["/graphql", "/mcp", "/metrics"].contains(request.uri.path)
         ? request.uri.path : "other"
       let failure = response.failureKind
-      serverLogger.log(
-        level: failure == nil ? .info : .error,
-        "HTTP request",
-        metadata: [
-          "method": "\(request.method.rawValue)", "route": "\(route)",
-          "status": "\(response.status)", "duration_ms": "\(String(format: "%.2f", milliseconds))",
-          "outcome": "\(failure ?? "ok")",
-        ])
+      var metadata: Logger.Metadata = [
+        "method": "\(request.method.rawValue)", "route": "\(route)",
+        "status": "\(response.status)", "duration_ms": "\(String(format: "%.2f", milliseconds))",
+        "outcome": "\(failure ?? "ok")",
+      ]
+      // Tailscale serve forwards the peer address and, for user-owned nodes, the login.
+      if let peer = request.headers[forwardedFor] { metadata["peer"] = "\(peer)" }
+      if let login = request.headers[tailscaleUserLogin] { metadata["tailscale_user"] = "\(login)" }
+      if let agent = request.headers[.userAgent] { metadata["user_agent"] = "\(agent)" }
+      if let rpc { metadata["rpc"] = "\(rpc)" }
+      serverLogger.log(level: failure == nil ? .info : .error, "HTTP request", metadata: metadata)
       var fields: HTTPFields = [.contentType: response.type]
       for (name, value) in response.headers {
         fields[.init(name)!] = value
@@ -168,6 +181,7 @@ func serve(
           return respond(ServiceResponse(status: 413, body: Data()))
         }
         if request.uri.path == "/mcp" {
+          if request.method == .post { rpc = jsonRPCMethod(body) }
           response = try await handleMCP(
             method: request.method.rawValue, headers: headers, body: body, access: capabilities.mcp)
         } else {
