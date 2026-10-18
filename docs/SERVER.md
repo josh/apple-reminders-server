@@ -27,6 +27,7 @@ configuration interface; environment-variable configuration is not supported.
 | --- | --- | --- |
 | `--port` | `8171` | Loopback listener port, 1–65535 |
 | `--metrics-interval-seconds` | `3600` | Delay after each metrics collection, 1–604800 seconds |
+| `--log-level <level>` | `info` | Minimum log level: `trace`, `debug`, `info`, `notice`, `warning`, `error`, or `critical` |
 | `--allowed-origin <origin>` | None | Repeatable additional browser origin, `http(s)://host[:port]` |
 | `--tailscale-app-capability <name>` | Off | Apply Tailscale permissions when given |
 | `--request-access` | Off | Explicitly request EventKit access at startup |

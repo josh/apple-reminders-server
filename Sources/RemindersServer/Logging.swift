@@ -1,7 +1,7 @@
 import Foundation
 import Logging
 
-let serverLogger = Logger(label: "apple-reminders-server") { label in
+var serverLogger = Logger(label: "apple-reminders-server") { label in
   var handler = StreamLogHandler.standardError(label: label)
   handler.logLevel = .info
   return handler

@@ -1,11 +1,14 @@
 import Darwin
 import Foundation
+import Logging
 
 let usage = """
-  Usage: apple-reminders-server [--port 8171] [--request-access] [--metrics-interval-seconds 3600] [--allowed-origin <origin>]... [--tailscale-app-capability <name>]
+  Usage: apple-reminders-server [--port 8171] [--request-access] [--metrics-interval-seconds 3600] [--log-level info] [--allowed-origin <origin>]... [--tailscale-app-capability <name>]
 
   Serve /graphql, /mcp, and /metrics on 127.0.0.1. Requires macOS 14+.
   --metrics-interval-seconds sets the background metrics refresh delay (default: 3600).
+  --log-level sets the minimum log level: trace, debug, info, notice, warning, error,
+  or critical (default: info). Request lines log at info; failures log at error.
   Loopback origins are always allowed; each --allowed-origin adds a browser origin
   that may call the server cross-origin.
   --tailscale-app-capability applies Tailscale permissions when given.
@@ -27,6 +30,7 @@ Task.detached {
     } else {
       var port: UInt16 = 8171
       var metricsInterval = 3600
+      var logLevel: Logger.Level = .info
       var requestAccess = false
       var allowedOrigins: [String] = []
       var tailscaleAppCapability: String?
@@ -39,7 +43,7 @@ Task.detached {
         }
         switch option {
         case "--request-access": requestAccess = true
-        case "--port", "--metrics-interval-seconds", "--allowed-origin",
+        case "--port", "--metrics-interval-seconds", "--log-level", "--allowed-origin",
           "--tailscale-app-capability":
           index += 1
           guard index < arguments.count else {
@@ -74,6 +78,12 @@ Task.detached {
               throw ServerError.internalError("Port must be between 1 and 65535")
             }
             port = value
+          } else if option == "--log-level" {
+            guard let value = Logger.Level(rawValue: arguments[index]) else {
+              throw ServerError.internalError(
+                "Log level must be trace, debug, info, notice, warning, error, or critical")
+            }
+            logLevel = value
           } else {
             guard let value = Int(arguments[index]), (1...604800).contains(value) else {
               throw ServerError.internalError(
@@ -85,6 +95,7 @@ Task.detached {
         }
         index += 1
       }
+      serverLogger.logLevel = logLevel
       if requestAccess {
         try await authorizeReminders()
       }
