@@ -28,13 +28,20 @@ Empty text imposes no restriction. Priorities are integers 0–9; due statuses a
 lowercase. Missing single-object lookups return null. Accounts derive from
 accessible lists, and the default account is the default list's account.
 
-Read tools obtain one EventKit inventory. List/default results then read Reminders icons and containers; reminder results read flags, containers, and alert dates. Empty result collections skip metadata reads. Tool discovery and summaries do not require automation. Optional inputs must be omitted rather than null.
+Read tools obtain one EventKit inventory and never use Reminders automation, so
+MCP clients, which cannot deselect fields, are not delayed or failed by Reminders'
+scripting inventory. Flags, alert dates, container references, and list emblems
+are not part of MCP results; read them through [GraphQL](READ_API.md#automation-metadata-and-alarms),
+which exposes them per selected field. `reminders_create`/`reminders_update`
+still write `flagged` and `remindMeDate`, and `lists_create`/`lists_update` still
+write `emblem`, through automation after the EventKit save; a reminder write result
+echoes the `flagged` value it applied. Optional inputs must be omitted rather than null.
 
 Opaque random cursor tokens bind the resource type (lists or reminders), all search criteria, and page size, expire after ten minutes, and do not survive restart. The bounded cache holds up to 1,024 tokens; eviction can invalidate an earlier token. The selected sort with identifier tiebreaking makes a stable inventory deterministic, but each page reads live data: concurrent changes can cause omissions or repeats. Cursors do not represent snapshots.
 
-The catalog describes stored and projected fields. Projected dates, flags, alert
-dates, recurrence, and emblems use explicit nulls when absent; some optional raw
-fields are omitted. Metadata/projection failures fail the tool call.
+The catalog describes stored and projected fields. Projected dates and recurrence
+use explicit nulls when absent; some optional raw fields are omitted, and `flagged`
+appears only in write results. Projection failures fail the tool call.
 
 Search criteria belong in `filter`. Reminder `orderBy: {field, direction?}`
 supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, and

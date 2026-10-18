@@ -117,7 +117,7 @@ func makeMutationType(
       "createList": GraphQLField(
         type: list,
         description:
-          "Create a list. WRITE_APPLIED includes the saved ID if later automation fails; do not retry creation blindly. Select id to retain it if response metadata fails.",
+          "Create a list. WRITE_APPLIED includes the saved ID if a later step fails; do not retry creation blindly. Select id to retain it if response metadata fails.",
         args: ["input": GraphQLArgument(type: GraphQLNonNull(createList))],
         resolve: { _, args, context, _ in
           let input = try mutationInput(args["input"])
@@ -177,7 +177,7 @@ func makeMutationType(
       "createReminder": GraphQLField(
         type: reminder,
         description:
-          "Create an incomplete reminder in an editable list. Omitted listId uses the application default. WRITE_APPLIED includes the saved ID if later automation fails; do not retry creation blindly. Select id to retain it if response metadata fails.",
+          "Create an incomplete reminder in an editable list. Omitted listId uses the application default. WRITE_APPLIED includes the saved ID if a later step fails; do not retry creation blindly. Select id to retain it if response metadata fails.",
         args: ["input": GraphQLArgument(type: GraphQLNonNull(create))],
         resolve: { _, args, context, _ in
           let input = args["input"]

@@ -13,9 +13,10 @@ let usage = """
 
   GraphQL and MCP support reminder create/update/delete in editable lists.
   Server configuration uses explicit startup options only, never environment variables.
-  Reminders flag reads always use Reminders
-  automation and may prompt for Automation permission; EventKit prompts only at
-  explicit startup. GraphQL reads flags only when selected or filtered.
+  GraphQL reads flags, alert dates, emblems, and containers through Reminders
+  automation only when selected or filtered, which may prompt for Automation
+  permission; MCP reads use EventKit alone. Flag, alert-date, and emblem writes
+  use automation after the EventKit save. EventKit prompts only at explicit startup.
   """
 
 Task.detached {

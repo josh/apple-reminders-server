@@ -89,7 +89,7 @@ struct ReminderRecord: Codable, Sendable {
     try values.encode(id, forKey: .id)
     try values.encode(completed, forKey: .completed)
     try values.encode(priority, forKey: .priority)
-    try values.encode(flagged, forKey: .flagged)
+    try values.encodeIfPresent(flagged, forKey: .flagged)
     try values.encode(dueDay, forKey: .dueDay)
     try values.encode(dueStatus, forKey: .dueStatus)
     try values.encode(alarms, forKey: .alarms)

@@ -7,7 +7,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. WRITE_APPLIED includes the saved ID if subsequent automation or enrichment fails; do not retry creation blindly.",
+      "description": "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. WRITE_APPLIED includes the saved ID if the emblem write fails after the list is saved; do not retry creation blindly.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -45,32 +45,6 @@
               },
               "color": {
                 "type": "string"
-              },
-              "container": {
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "enum": [
-                      "Account",
-                      "ReminderList"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "id"
-                ],
-                "type": "object"
-              },
-              "emblem": {
-                "type": [
-                  "string",
-                  "null"
-                ]
               },
               "id": {
                 "type": "string"
@@ -132,7 +106,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. Emblem writes or response enrichment can fail after stored fields are saved. WRITE_APPLIED includes the saved ID; refetch before retrying.",
+      "description": "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. Emblem writes can fail after stored fields are saved. WRITE_APPLIED includes the saved ID; refetch before retrying.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -177,32 +151,6 @@
               },
               "color": {
                 "type": "string"
-              },
-              "container": {
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "enum": [
-                      "Account",
-                      "ReminderList"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "id"
-                ],
-                "type": "object"
-              },
-              "emblem": {
-                "type": [
-                  "string",
-                  "null"
-                ]
               },
               "id": {
                 "type": "string"
@@ -435,26 +383,6 @@
               "completionDate": {
                 "type": "string"
               },
-              "container": {
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "enum": [
-                      "ReminderList",
-                      "Reminder"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "id"
-                ],
-                "type": "object"
-              },
               "creationDate": {
                 "type": "string"
               },
@@ -542,10 +470,8 @@
                 "type": "string"
               },
               "flagged": {
-                "type": [
-                  "boolean",
-                  "null"
-                ]
+                "description": "Set in reminders_create/reminders_update results when the write set flagged.",
+                "type": "boolean"
               },
               "id": {
                 "type": "string"
@@ -817,12 +743,6 @@
                 },
                 "type": "array"
               },
-              "remindMeDate": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
               "startDate": {
                 "type": [
                   "string",
@@ -898,8 +818,6 @@
               }
             },
             "required": [
-              "container",
-              "remindMeDate",
               "rawAlarms",
               "recurrence",
               "dueDate",
@@ -911,7 +829,6 @@
               "completed",
               "priority",
               "dueDay",
-              "flagged",
               "dueStatus",
               "alarms",
               "recurrenceRules"
@@ -960,32 +877,6 @@
               },
               "color": {
                 "type": "string"
-              },
-              "container": {
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "enum": [
-                      "Account",
-                      "ReminderList"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "id"
-                ],
-                "type": "object"
-              },
-              "emblem": {
-                "type": [
-                  "string",
-                  "null"
-                ]
               },
               "id": {
                 "type": "string"
@@ -1047,7 +938,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but later automation or response enrichment failed; refetch using the reported ID.",
+      "description": "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -1362,26 +1253,6 @@
               "completionDate": {
                 "type": "string"
               },
-              "container": {
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "enum": [
-                      "ReminderList",
-                      "Reminder"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "id"
-                ],
-                "type": "object"
-              },
               "creationDate": {
                 "type": "string"
               },
@@ -1469,10 +1340,8 @@
                 "type": "string"
               },
               "flagged": {
-                "type": [
-                  "boolean",
-                  "null"
-                ]
+                "description": "Set in reminders_create/reminders_update results when the write set flagged.",
+                "type": "boolean"
               },
               "id": {
                 "type": "string"
@@ -1744,12 +1613,6 @@
                 },
                 "type": "array"
               },
-              "remindMeDate": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
               "startDate": {
                 "type": [
                   "string",
@@ -1825,8 +1688,6 @@
               }
             },
             "required": [
-              "container",
-              "remindMeDate",
               "rawAlarms",
               "recurrence",
               "dueDate",
@@ -1838,7 +1699,6 @@
               "completed",
               "priority",
               "dueDay",
-              "flagged",
               "dueStatus",
               "alarms",
               "recurrenceRules"
@@ -1859,7 +1719,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. A WRITE_APPLIED error means the save succeeded but later automation or response enrichment failed; refetch before retrying.",
+      "description": "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch before retrying.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -2205,26 +2065,6 @@
               "completionDate": {
                 "type": "string"
               },
-              "container": {
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "kind": {
-                    "enum": [
-                      "ReminderList",
-                      "Reminder"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind",
-                  "id"
-                ],
-                "type": "object"
-              },
               "creationDate": {
                 "type": "string"
               },
@@ -2312,10 +2152,8 @@
                 "type": "string"
               },
               "flagged": {
-                "type": [
-                  "boolean",
-                  "null"
-                ]
+                "description": "Set in reminders_create/reminders_update results when the write set flagged.",
+                "type": "boolean"
               },
               "id": {
                 "type": "string"
@@ -2587,12 +2425,6 @@
                 },
                 "type": "array"
               },
-              "remindMeDate": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
               "startDate": {
                 "type": [
                   "string",
@@ -2668,8 +2500,6 @@
               }
             },
             "required": [
-              "container",
-              "remindMeDate",
               "rawAlarms",
               "recurrence",
               "dueDate",
@@ -2681,7 +2511,6 @@
               "completed",
               "priority",
               "dueDay",
-              "flagged",
               "dueStatus",
               "alarms",
               "recurrenceRules"
@@ -2834,7 +2663,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Read a list with its icon and container reference; absent identifiers return null. Reminders automation metadata is required for a complete result.",
+      "description": "Read a list by ID; absent identifiers return null.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -2864,32 +2693,6 @@
                   },
                   "color": {
                     "type": "string"
-                  },
-                  "container": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      },
-                      "kind": {
-                        "enum": [
-                          "Account",
-                          "ReminderList"
-                        ],
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "id"
-                    ],
-                    "type": "object"
-                  },
-                  "emblem": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
                   },
                   "id": {
                     "type": "string"
@@ -3003,32 +2806,6 @@
                   },
                   "color": {
                     "type": "string"
-                  },
-                  "container": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      },
-                      "kind": {
-                        "enum": [
-                          "Account",
-                          "ReminderList"
-                        ],
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "id"
-                    ],
-                    "type": "object"
-                  },
-                  "emblem": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
                   },
                   "id": {
                     "type": "string"
@@ -3240,32 +3017,6 @@
                 "color": {
                   "type": "string"
                 },
-                "container": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "enum": [
-                        "Account",
-                        "ReminderList"
-                      ],
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "id"
-                  ],
-                  "type": "object"
-                },
-                "emblem": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
                 "id": {
                   "type": "string"
                 },
@@ -3335,7 +3086,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Read reminders filtered by account/list IDs, completion, flags, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is opaque, expires after 10 minutes, and requires identical criteria and limit. Optional unavailable values are omitted. Dates retain EventKit components; omitted hours mean date-only and omitted zones mean floating.",
+      "description": "Read reminders filtered by account/list IDs, completion, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is opaque, expires after 10 minutes, and requires identical criteria and limit. Optional unavailable values are omitted. Dates retain their stored components; omitted hours mean date-only and omitted zones mean floating.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -3374,9 +3125,6 @@
                   "unknown"
                 ],
                 "type": "string"
-              },
-              "flagged": {
-                "type": "boolean"
               },
               "hasDueDate": {
                 "type": "boolean"
@@ -3560,26 +3308,6 @@
                 "completionDate": {
                   "type": "string"
                 },
-                "container": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "enum": [
-                        "ReminderList",
-                        "Reminder"
-                      ],
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "id"
-                  ],
-                  "type": "object"
-                },
                 "creationDate": {
                   "type": "string"
                 },
@@ -3667,10 +3395,8 @@
                   "type": "string"
                 },
                 "flagged": {
-                  "type": [
-                    "boolean",
-                    "null"
-                  ]
+                  "description": "Set in reminders_create/reminders_update results when the write set flagged.",
+                  "type": "boolean"
                 },
                 "id": {
                   "type": "string"
@@ -3942,12 +3668,6 @@
                   },
                   "type": "array"
                 },
-                "remindMeDate": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
                 "startDate": {
                   "type": [
                     "string",
@@ -4023,8 +3743,6 @@
                 }
               },
               "required": [
-                "container",
-                "remindMeDate",
                 "rawAlarms",
                 "recurrence",
                 "dueDate",
@@ -4036,7 +3754,6 @@
                 "completed",
                 "priority",
                 "dueDay",
-                "flagged",
                 "dueStatus",
                 "alarms",
                 "recurrenceRules"
@@ -4066,7 +3783,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "description": "Read one reminder with component and projected dates, Reminders flags, container reference, alert date, alarms and recurrence; returns null when absent. Metadata read failures fail the call.",
+      "description": "Read one reminder with component and projected dates, alarms and recurrence; returns null when absent.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -4201,26 +3918,6 @@
                   "completionDate": {
                     "type": "string"
                   },
-                  "container": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      },
-                      "kind": {
-                        "enum": [
-                          "ReminderList",
-                          "Reminder"
-                        ],
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "id"
-                    ],
-                    "type": "object"
-                  },
                   "creationDate": {
                     "type": "string"
                   },
@@ -4308,10 +4005,8 @@
                     "type": "string"
                   },
                   "flagged": {
-                    "type": [
-                      "boolean",
-                      "null"
-                    ]
+                    "description": "Set in reminders_create/reminders_update results when the write set flagged.",
+                    "type": "boolean"
                   },
                   "id": {
                     "type": "string"
@@ -4583,12 +4278,6 @@
                     },
                     "type": "array"
                   },
-                  "remindMeDate": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "startDate": {
                     "type": [
                       "string",
@@ -4664,8 +4353,6 @@
                   }
                 },
                 "required": [
-                  "container",
-                  "remindMeDate",
                   "rawAlarms",
                   "recurrence",
                   "dueDate",
@@ -4677,7 +4364,6 @@
                   "completed",
                   "priority",
                   "dueDay",
-                  "flagged",
                   "dueStatus",
                   "alarms",
                   "recurrenceRules"

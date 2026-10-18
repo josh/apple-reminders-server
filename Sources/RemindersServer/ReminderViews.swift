@@ -106,10 +106,3 @@ func recurrenceView(_ rules: [RecurrenceRecord]) throws -> RecurrenceView? {
   }
   return try rules.first.map(RecurrenceView.init)
 }
-
-func scriptLookup<T>(_ values: [String: T], id: String) throws -> T {
-  guard let key = UUID(uuidString: id)?.uuidString, let index = values.index(forKey: key) else {
-    throw ServerError.message("Automation inventory does not contain the requested object; retry")
-  }
-  return values[index].value
-}

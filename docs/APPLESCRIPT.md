@@ -32,8 +32,9 @@ object.
 ## API integration
 
 [GraphQL selection and request caching](READ_API.md#automation-metadata-and-alarms)
-control lazy property reads. [MCP](MCP.md) enriches fixed result objects.
-[Metrics](METRICS.md) use EventKit alone. There is no cross-request automation cache.
+control lazy property reads. [MCP](MCP.md) reads and [metrics](METRICS.md) use
+EventKit alone; MCP uses automation only for writes and `*_show`. There is no
+cross-request automation cache.
 
 See [writes](WRITES.md) for coupled alert/date changes, bounded same-ID retries,
 and partial-save errors. Retry handlers never repeat EventKit creation.

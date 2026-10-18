@@ -148,7 +148,7 @@ Writes run on the same serialized worker queue and main-thread native guard as
 reads. Each mutation owns an EventKit store, fetches or creates its object in
 that store, checks list editability, validates the resulting state, then commits
 one save or delete. Flag and alert-date changes also use in-process Reminders
-automation after the EventKit save. Automation/refetch and response-enrichment
+automation after the EventKit save. Automation/refetch and response-projection
 failures follow the [outcome table below](#client-handling-after-a-save).
 
 A GraphQL operation's root mutations execute serially. Request inventory and
@@ -174,14 +174,14 @@ Immutable, subscribed and non-editable lists are rejected for updates/deletion.
 Deletion first checks for reminders unless `allowNonEmpty` is explicitly true;
 that option deletes the list and its contents. The check and delete are not an
 atomic lock against edits by other processes. Missing list IDs are errors.
-Emblem changes run after the EventKit save. Successful MCP writes enrich the
-saved list before returning.
+Emblem changes run after the EventKit save. MCP write results return the saved
+list's EventKit fields only.
 
 ## Show actions
 
 `showReminder`/`showList` and `reminders_show`/`lists_show` change Reminders' UI,
 without saving objects. Missing IDs fail before navigation. MCP discovery marks
-these actions non-read-only and nondestructive. A post-navigation enrichment
+these actions non-read-only and nondestructive. A post-navigation projection
 failure is `SHOW_APPLIED`; other navigation failures can still leave the UI
 changed and are reported as `SHOW_FAILED`.
 
@@ -191,13 +191,11 @@ Reminder automation retries transient missing-object/cannot-set errors at most
 30 times with 0.1-second delays. Setters may repeat if a later automation read
 fails. Each attempt targets the same saved reminder and expected list.
 
-Newly saved EventKit lists can take several seconds to appear in Reminders' scripting inventory. MCP list enrichment retries missing
-inventory entries at most 16 times, two seconds apart. Permission, scripting,
-and projection errors fail immediately. A present null emblem is a valid value,
-not a reason to retry. Emblem writes retry only transient missing-object and
-cannot-set errors on the same list ID, at most 30 attempts one second apart.
-Neither path repeats list creation. Apple-event execution adds to these waits;
-they are not hard request deadlines. Exhaustion still reports an error, including
+Newly saved EventKit lists can take several seconds to appear in Reminders'
+scripting inventory. Emblem writes retry only transient missing-object and
+cannot-set errors on the same list ID, at most 30 attempts one second apart, and
+never repeat list creation. Apple-event execution adds to these waits; they are
+not hard request deadlines. Exhaustion still reports an error, including
 `WRITE_APPLIED` when a preceding save succeeded.
 
 ## Client handling after a save
@@ -209,7 +207,7 @@ These cases apply to reminder and list create/update operations:
 | --- | --- | --- |
 | Backend automation/refetch fails after an EventKit save | GraphQL root mutation is null with a `WRITE_APPLIED` error and saved ID in its message. MCP returns `isError: true`, with the saved ID in text and no `structuredContent`. | Retain the saved ID, inspect its current state, and reconcile only the changes still needed. Never repeat creation automatically. |
 | GraphQL response metadata fails after a successful mutation | The saved object can remain in `data`, including a selected `id`, while a nullable field is null with an error path pointing to that field. | Always select `id` on writes. Preserve it even when `errors` is present. The field error does not mean the write failed. |
-| MCP response enrichment fails after a successful mutation | `WRITE_APPLIED` tool error with saved ID; no partial success payload. | Refetch the saved ID. If the same metadata read still fails, a complete MCP read may remain unavailable; inspect the item in Reminders before deciding on a retry. |
+| MCP response projection fails after a successful mutation | `WRITE_APPLIED` tool error with saved ID; no partial success payload. | Refetch the saved ID with `reminders_get` or `lists_get`, which read EventKit only. |
 | Timeout, lost connection, or unclassified error | The client may have no saved ID or confirmed outcome. | Treat the outcome as unknown, not as evidence that no write occurred. Inspect existing data before retrying a create. |
 
 A post-save failure may mean that none, some, or all requested automation fields
