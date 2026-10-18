@@ -249,7 +249,7 @@ func makeSchema() throws -> GraphQLSchema {
       "longitude": field(GraphQLFloat), "radius": field(GraphQLNonNull(GraphQLFloat)),
     ])
   let alarm = try GraphQLObjectType(
-    name: "EventKitAlarm",
+    name: "RawAlarm",
     fields: [
       "absoluteDate": field(dateTime), "relativeOffset": field(GraphQLNonNull(GraphQLFloat)),
       "proximity": field(GraphQLNonNull(GraphQLString)),

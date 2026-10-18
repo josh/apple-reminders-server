@@ -107,13 +107,6 @@ enum DueStatus {
   UNKNOWN
 }
 
-type EventKitAlarm {
-  absoluteDate: DateTime
-  proximity: String!
-  relativeOffset: Float!
-  structuredLocation: StructuredLocation
-}
-
 type Geofence {
   "Latitude in degrees, between -90 and 90."
   latitude: Float!
@@ -252,6 +245,13 @@ type Query {
   reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter): ReminderPage
 }
 
+type RawAlarm {
+  absoluteDate: DateTime
+  proximity: String!
+  relativeOffset: Float!
+  structuredLocation: StructuredLocation
+}
+
 type RecurrenceDay {
   dayOfTheWeek: Int!
   weekNumber: Int!
@@ -363,7 +363,7 @@ type Reminder {
   name: String
   "The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low."
   priority: Int
-  rawAlarms: [EventKitAlarm!]!
+  rawAlarms: [RawAlarm!]!
   "A single repeating schedule; null when no recurrence is configured. Multiple rules produce a field error."
   recurrence: ReminderRecurrence
   recurrenceRules: [RecurrenceRule!]!

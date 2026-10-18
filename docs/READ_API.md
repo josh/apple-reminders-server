@@ -102,7 +102,7 @@ See [automation](APPLESCRIPT.md) for identity validation and read consistency.
 }
 ```
 
-`rawAlarms` (type `EventKitAlarm`) exposes the stored fields. Combined or incomplete alarm
+`rawAlarms` (type `RawAlarm`) exposes the stored fields. Combined or incomplete alarm
 triggers that the union cannot represent fail the nullable `alarms` field instead
 of losing information. `rawAlarms` remains readable for diagnosis.
 
