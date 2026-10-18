@@ -1,60 +1,61 @@
-# Example Prometheus text exposition (version 0.0.4).
-# Synthetic snapshot of Reminders data; see METRICS.md for counting rules.
-
-# HELP reminders_accounts Number of accounts owning accessible reminder lists.
+# Synthetic exposition example; category values are illustrative.
+# HELP reminders_accounts Number of accounts with accessible reminder lists.
 # TYPE reminders_accounts gauge
 reminders_accounts 1
-
 # HELP reminders_lists Number of accessible reminder lists in an account.
 # TYPE reminders_lists gauge
-reminders_lists{account_id="account-example"} 2
-
-# HELP reminders_list_info Reminder list identity and display name, with a constant value of 1.
+reminders_lists{account_id="account-example"} 1
+# HELP reminders_list_info Reminder list identity and name, with value 1.
 # TYPE reminders_list_info gauge
-reminders_list_info{account_id="account-example",list_id="list-personal",name="Personal"} 1
-reminders_list_info{account_id="account-example",list_id="list-work",name="Work"} 1
-
-# HELP reminders_items Number of reminders in a list by completion status.
-# TYPE reminders_items gauge
-reminders_items{account_id="account-example",list_id="list-personal",status="incomplete"} 8
-reminders_items{account_id="account-example",list_id="list-personal",status="completed"} 12
-reminders_items{account_id="account-example",list_id="list-work",status="incomplete"} 5
-reminders_items{account_id="account-example",list_id="list-work",status="completed"} 15
-
-
-# HELP reminders_incomplete_items_by_priority Number of incomplete reminders in a list by priority category.
-# TYPE reminders_incomplete_items_by_priority gauge
-reminders_incomplete_items_by_priority{account_id="account-example",list_id="list-personal",priority="none"} 4
-reminders_incomplete_items_by_priority{account_id="account-example",list_id="list-personal",priority="low"} 1
-reminders_incomplete_items_by_priority{account_id="account-example",list_id="list-personal",priority="medium"} 1
-reminders_incomplete_items_by_priority{account_id="account-example",list_id="list-personal",priority="high"} 2
-reminders_incomplete_items_by_priority{account_id="account-example",list_id="list-work",priority="none"} 1
-reminders_incomplete_items_by_priority{account_id="account-example",list_id="list-work",priority="low"} 0
-reminders_incomplete_items_by_priority{account_id="account-example",list_id="list-work",priority="medium"} 1
-reminders_incomplete_items_by_priority{account_id="account-example",list_id="list-work",priority="high"} 3
-
-# HELP reminders_incomplete_items_by_due_status Number of incomplete reminders in a list by deadline category.
-# TYPE reminders_incomplete_items_by_due_status gauge
-reminders_incomplete_items_by_due_status{account_id="account-example",list_id="list-personal",due_status="overdue"} 2
-reminders_incomplete_items_by_due_status{account_id="account-example",list_id="list-personal",due_status="today"} 1
-reminders_incomplete_items_by_due_status{account_id="account-example",list_id="list-personal",due_status="future"} 2
-reminders_incomplete_items_by_due_status{account_id="account-example",list_id="list-personal",due_status="unscheduled"} 3
-reminders_incomplete_items_by_due_status{account_id="account-example",list_id="list-work",due_status="overdue"} 1
-reminders_incomplete_items_by_due_status{account_id="account-example",list_id="list-work",due_status="today"} 2
-reminders_incomplete_items_by_due_status{account_id="account-example",list_id="list-work",due_status="future"} 1
-reminders_incomplete_items_by_due_status{account_id="account-example",list_id="list-work",due_status="unscheduled"} 1
-
-# HELP reminders_scheduled_items Number of reminders with due components in a list.
+reminders_list_info{account_id="account-example",list_id="list-example",name="Example"} 1
+# HELP reminders_scheduled_items Number of matching reminders in each list, including completed reminders.
 # TYPE reminders_scheduled_items gauge
-reminders_scheduled_items{account_id="account-example",list_id="list-personal"} 9
-reminders_scheduled_items{account_id="account-example",list_id="list-work"} 6
-
-# HELP reminders_recurring_items Number of reminders with recurrence rules in a list.
+reminders_scheduled_items{account_id="account-example",list_id="list-example"} 2
+# HELP reminders_recurring_items Number of matching reminders in each list, including completed reminders.
 # TYPE reminders_recurring_items gauge
-reminders_recurring_items{account_id="account-example",list_id="list-personal"} 2
-reminders_recurring_items{account_id="account-example",list_id="list-work"} 1
-
-# HELP reminders_items_with_alarms Number of reminders with alarms in a list.
+reminders_recurring_items{account_id="account-example",list_id="list-example"} 0
+# HELP reminders_items_with_alarms Number of matching reminders in each list, including completed reminders.
 # TYPE reminders_items_with_alarms gauge
-reminders_items_with_alarms{account_id="account-example",list_id="list-personal"} 5
-reminders_items_with_alarms{account_id="account-example",list_id="list-work"} 3
+reminders_items_with_alarms{account_id="account-example",list_id="list-example"} 0
+# HELP reminders_items Number of reminders by completion status, priority, and deadline status.
+# TYPE reminders_items gauge
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="none",due_status="overdue"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="none",due_status="today"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="none",due_status="future"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="none",due_status="unscheduled"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="none",due_status="unknown"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="high",due_status="overdue"} 1
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="high",due_status="today"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="high",due_status="future"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="high",due_status="unscheduled"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="high",due_status="unknown"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="medium",due_status="overdue"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="medium",due_status="today"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="medium",due_status="future"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="medium",due_status="unscheduled"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="medium",due_status="unknown"} 1
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="low",due_status="overdue"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="low",due_status="today"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="low",due_status="future"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="low",due_status="unscheduled"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="incomplete",priority="low",due_status="unknown"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="none",due_status="overdue"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="none",due_status="today"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="none",due_status="future"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="none",due_status="unscheduled"} 1
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="none",due_status="unknown"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="high",due_status="overdue"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="high",due_status="today"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="high",due_status="future"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="high",due_status="unscheduled"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="high",due_status="unknown"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="medium",due_status="overdue"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="medium",due_status="today"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="medium",due_status="future"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="medium",due_status="unscheduled"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="medium",due_status="unknown"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="low",due_status="overdue"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="low",due_status="today"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="low",due_status="future"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="low",due_status="unscheduled"} 0
+reminders_items{account_id="account-example",list_id="list-example",status="completed",priority="low",due_status="unknown"} 0

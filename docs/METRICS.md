@@ -8,9 +8,7 @@ All metrics are gauges. [metrics.prom](metrics.prom) contains a synthetic exampl
 | `reminders_accounts` | None | Accounts owning accessible reminder lists. |
 | `reminders_lists` | `account_id` | Accessible lists in each account. |
 | `reminders_list_info` | `account_id`, `list_id`, `name` | List identity and name; value is 1. |
-| `reminders_items` | `account_id`, `list_id`, `status` | Reminders partitioned into `incomplete` and `completed`. |
-| `reminders_incomplete_items_by_priority` | `account_id`, `list_id`, `priority` | Incomplete reminders: `none` (0), `high` (1–4), `medium` (5), `low` (6–9). |
-| `reminders_incomplete_items_by_due_status` | `account_id`, `list_id`, `due_status` | Incomplete reminders: `overdue`, `today`, `future`, `unscheduled`. |
+| `reminders_items` | `account_id`, `list_id`, `status`, `priority`, `due_status` | Reminder counts partitioned by completion, priority, and deadline. |
 | `reminders_scheduled_items` | `account_id`, `list_id` | Reminders with due components, including unclassifiable dates. |
 | `reminders_recurring_items` | `account_id`, `list_id` | Reminders with stored recurrence rules. |
 | `reminders_items_with_alarms` | `account_id`, `list_id` | Reminders with alarms. |
@@ -25,11 +23,17 @@ completed records and accessible subtasks. Do not expand future recurrence
 instances. Empty lists are included; accounts without accessible lists are not.
 Smart views and list groups are not additional owning lists.
 
-Every list emits both completion categories and all priority/due categories,
-including zeros, when classification succeeds. Each partition of incomplete
-reminders sums to the incomplete total. Unclassifiable due components omit that
-list's entire due-status family; other counts remain available. Invalid priorities
-fail inventory validation. Zero never substitutes for a failed read.
+Each reminder contributes to exactly one `reminders_items` series:
+
+- `status`: `incomplete` or `completed`.
+- `priority`: `none` (0), `high` (1–4), `medium` (5), or `low` (6–9).
+- `due_status`: `overdue`, `today`, `future`, `unscheduled`, or `unknown`.
+
+Every list emits all 40 combinations, including zeros. Sum across unwanted labels
+to obtain totals or breakdowns. Unclassifiable due components use `unknown`,
+preserving counts in every partition. Invalid priorities fail inventory validation;
+zero never substitutes for a failed read. These gauges have no `_count` or `_total`
+suffix; see [Prometheus naming conventions](https://prometheus.io/docs/practices/naming/).
 
 IDs are opaque and may change after account resets or full synchronization.
 Names appear only on `reminders_list_info`, so renames preserve count-series
@@ -48,7 +52,7 @@ One observation instant and the host's local reporting zone apply to an inventor
 
 All-day dates retain their calendar day. Floating timed dates use the host zone;
 zoned timed dates are converted to it. Unsupported or non-roundtripping components
-are unclassifiable. A timed deadline exactly at the observation instant is `today`.
+use `unknown`. A timed deadline exactly at the observation instant is `today`.
 Thus `today` excludes overdue items and need not match Reminders.app's Today view.
 The API's due-status classification uses the same rules, independently of completion.
 
@@ -78,16 +82,18 @@ Total reminders per list:
 sum by (job, instance, account_id, list_id) (reminders_items)
 ```
 
-Overdue reminders per list:
+Incomplete overdue reminders per list:
 
 ```promql
-reminders_incomplete_items_by_due_status{due_status="overdue"}
+sum by (job, instance, account_id, list_id) (
+  reminders_items{status="incomplete",due_status="overdue"}
+)
 ```
 
 Incomplete counts with list names:
 
 ```promql
-reminders_items{status="incomplete"}
+sum by (job, instance, account_id, list_id) (reminders_items{status="incomplete"})
 * on (job, instance, account_id, list_id) group_left(name)
 reminders_list_info
 ```

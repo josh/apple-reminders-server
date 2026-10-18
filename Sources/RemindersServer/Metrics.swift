@@ -73,52 +73,28 @@ func collectMetrics() async throws -> String {
       )
     }
   }
-  let families = [
-    ("reminders_items", "status", ["incomplete", "completed"]),
-    ("reminders_incomplete_items_by_priority", "priority", ["none", "low", "medium", "high"]),
-    (
-      "reminders_incomplete_items_by_due_status", "due_status",
-      ["overdue", "today", "future", "unscheduled"]
-    ),
-  ]
-  for (name, label, categories) in families {
-    family(name, "Number of reminders in each list by \(label).")
-    for list in lists {
-      let id = list.id
-      let source = list.source
-      let items = reminders.filter { $0.listId == id }
-      var counts = Dictionary(uniqueKeysWithValues: categories.map { ($0, 0) })
-      do {
-        for item in items {
-          let completed = item.completed
-          if label != "status" && completed { continue }
-          let category: String
-          if label == "status" {
-            category = completed ? "completed" : "incomplete"
-          } else if label == "priority" {
-            let priority = item.priority
-            guard (0...9).contains(priority) else {
-              throw ServerError.message("Out-of-range priority")
-            }
-            category =
-              priority == 0 ? "none" : priority < 5 ? "high" : priority == 5 ? "medium" : "low"
-          } else {
-            let status = item.dueStatus.rawValue
-            guard categories.contains(status) else {
-              throw ServerError.message("Unclassifiable EventKit due components")
-            }
-            category = status
-          }
-          counts[category, default: 0] += 1
-        }
-      } catch {
-        if label == "due_status" || label == "priority" { continue }
-        throw error
+  family(
+    "reminders_items", "Number of reminders by completion status, priority, and deadline status.")
+  for list in lists {
+    var counts: [String: Int] = [:]
+    for item in reminders where item.listId == list.id {
+      guard (0...9).contains(item.priority) else {
+        throw ServerError.message("Out-of-range priority")
       }
-      for category in categories {
-        lines.append(
-          "\(name){account_id=\"\(metricEscape(source.id))\",list_id=\"\(metricEscape(id))\",\(label)=\"\(category)\"} \(counts[category]!)"
-        )
+      let status = item.completed ? "completed" : "incomplete"
+      let priority =
+        item.priority == 0
+        ? "none" : item.priority < 5 ? "high" : item.priority == 5 ? "medium" : "low"
+      counts["\(status)/\(priority)/\(item.dueStatus.rawValue)", default: 0] += 1
+    }
+    for status in ["incomplete", "completed"] {
+      for priority in ["none", "high", "medium", "low"] {
+        for dueStatus in DueStatus.allCases {
+          let count = counts["\(status)/\(priority)/\(dueStatus.rawValue)", default: 0]
+          lines.append(
+            "reminders_items{account_id=\"\(metricEscape(list.source.id))\",list_id=\"\(metricEscape(list.id))\",status=\"\(status)\",priority=\"\(priority)\",due_status=\"\(dueStatus.rawValue)\"} \(count)"
+          )
+        }
       }
     }
   }
