@@ -33,12 +33,12 @@ func makeReminderWriteScript() throws -> NSAppleScript {
     end applychanges
     """
   guard Thread.isMainThread, let script = NSAppleScript(source: source) else {
-    throw ServerError.message("Cannot create reminder automation writer")
+    throw ServerError.internalError("Cannot create reminder automation writer")
   }
   var error: NSDictionary?
   guard script.compileAndReturnError(&error) else {
-    throw ServerError.message(
-      "WRITE_FAILED: cannot compile reminder automation (code \(error?[NSAppleScript.errorNumber] as? Int ?? 0))"
+    throw ServerError.writeFailed(
+      "cannot compile reminder automation (code \(error?[NSAppleScript.errorNumber] as? Int ?? 0))"
     )
   }
   return script
@@ -50,8 +50,8 @@ func writeReminderAutomation(
   guard Thread.isMainThread, let reminderUUID = UUID(uuidString: id),
     let listUUID = UUID(uuidString: listID)
   else {
-    throw ServerError.message(
-      "UNSUPPORTED_OPERATION: automation requires UUID reminder and list identifiers")
+    throw ServerError.unsupportedOperation(
+      "automation requires UUID reminder and list identifiers")
   }
   let reminderID = "x-apple-reminder://" + reminderUUID.uuidString
   let listID = listUUID.uuidString
@@ -75,20 +75,20 @@ func writeReminderAutomation(
     if automationNotReadyCodes.contains(code) {
       throw AutomationNotReady(code: code, message: message)
     }
-    throw ServerError.message("Reminders automation write failed (code \(code)): \(message)")
+    throw ServerError.internalError("Reminders automation write failed (code \(code)): \(message)")
   }
   guard result.numberOfItems == 3, result.atIndex(1)?.stringValue == reminderID else {
-    throw ServerError.message("Automation write returned an inconsistent identity")
+    throw ServerError.internalError("Automation write returned an inconsistent identity")
   }
   if let flagged {
     guard let value = result.atIndex(2),
       [0x626f_6f6c, 0x7472_7565, 0x6661_6c73].contains(value.descriptorType),
       value.booleanValue == flagged
-    else { throw ServerError.message("Reminders did not retain the requested flag") }
+    else { throw ServerError.internalError("Reminders did not retain the requested flag") }
   }
   if let alert {
     guard let actual = result.atIndex(3)?.dateValue, abs(actual.timeIntervalSince(alert)) < 1 else {
-      throw ServerError.message("Reminders did not retain the requested alert date")
+      throw ServerError.internalError("Reminders did not retain the requested alert date")
     }
   }
 }

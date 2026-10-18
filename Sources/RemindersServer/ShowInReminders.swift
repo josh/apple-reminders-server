@@ -8,17 +8,17 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
   let record: ShownObject
   let scriptID: String
   guard let uuid = UUID(uuidString: id) else {
-    throw ServerError.message("INVALID_ARGUMENT: show requires a UUID identifier")
+    throw ServerError.invalidArgument("show requires a UUID identifier")
   }
   if isList {
     guard let list = store.calendar(withIdentifier: id),
       list.allowedEntityTypes.contains(.reminder)
-    else { throw ServerError.message("NOT_FOUND: list is unavailable") }
+    else { throw ServerError.notFound("list is unavailable") }
     record = .list(ListRecord(list))
     scriptID = uuid.uuidString
   } else {
     guard let item = store.calendarItem(withIdentifier: id) as? EKReminder else {
-      throw ServerError.message("NOT_FOUND: reminder is unavailable")
+      throw ServerError.notFound("reminder is unavailable")
     }
     record = .reminder(try ReminderRecord(item, now: Date(), flagged: nil))
     scriptID = "x-apple-reminder://" + uuid.uuidString
@@ -39,7 +39,7 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
     end showitem
     """
   guard let script = NSAppleScript(source: source) else {
-    throw ServerError.message("Cannot create navigation script")
+    throw ServerError.internalError("Cannot create navigation script")
   }
   let arguments = NSAppleEventDescriptor.list()
   arguments.insert(.init(string: scriptID), at: 1)
@@ -52,13 +52,13 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
   var error: NSDictionary?
   let result = script.executeAppleEvent(event, error: &error)
   if let error {
-    throw ServerError.message(
-      "SHOW_FAILED: Reminders navigation failed (code \(error[NSAppleScript.errorNumber] as? Int ?? 0)); the UI may already have changed"
+    throw ServerError.showFailed(
+      "Reminders navigation failed (code \(error[NSAppleScript.errorNumber] as? Int ?? 0)); the UI may already have changed"
     )
   }
   guard result.stringValue == scriptID else {
-    throw ServerError.message(
-      "SHOW_FAILED: unexpected navigation result; the UI may already have changed")
+    throw ServerError.showFailed(
+      "unexpected navigation result; the UI may already have changed")
   }
   return record
 }

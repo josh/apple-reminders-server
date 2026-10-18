@@ -73,16 +73,16 @@ func mutateList(_ request: ListMutation) async throws -> MutationResult<ListReco
 private func writeApplied(_ error: Error, saved object: String) -> ServerError {
   switch error {
   case let notReady as AutomationNotReady:
-    return .message(
-      "WRITE_APPLIED: EventKit saved \(object), but Reminders did not expose it to automation in time (code \(notReady.code): \(notReady.message)). Refetch this ID and reapply the change with an update"
+    return .writeApplied(
+      "EventKit saved \(object), but Reminders did not expose it to automation in time (code \(notReady.code): \(notReady.message)). Refetch this ID and reapply the change with an update"
     )
   case is CancellationError:
-    return .message(
-      "WRITE_APPLIED: EventKit saved \(object), but the request was cancelled before automation finished. Refetch this ID before retrying"
+    return .writeApplied(
+      "EventKit saved \(object), but the request was cancelled before automation finished. Refetch this ID before retrying"
     )
   default:
-    return .message(
-      "WRITE_APPLIED: EventKit saved \(object), but automation or refetch failed: \(error). Refetch this ID before retrying"
+    return .writeApplied(
+      "EventKit saved \(object), but automation or refetch failed: \(error). Refetch this ID before retrying"
     )
   }
 }
@@ -96,12 +96,14 @@ enum MutationResult<Record: Encodable & Sendable>: Encodable, Sendable {
   case deleted(DeletedReminder)
   func savedRecord() throws -> Record {
     guard case .saved(let record) = self else {
-      throw ServerError.message("Expected a saved record")
+      throw ServerError.internalError("Expected a saved record")
     }
     return record
   }
   func deletion() throws -> DeletedReminder {
-    guard case .deleted(let result) = self else { throw ServerError.message("Expected a deletion") }
+    guard case .deleted(let result) = self else {
+      throw ServerError.internalError("Expected a deletion")
+    }
     return result
   }
   func encode(to encoder: Encoder) throws {

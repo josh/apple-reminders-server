@@ -59,7 +59,7 @@ values. See [deadline classification](METRICS.md#deadline-classification).
 read, caching success or failure within the request. Unselected/skipped fields,
 empty results, and missing IDs avoid those reads. A flag filter requires flag
 enrichment even for count-only queries. Field failures produce nullable-field
-errors; filter failures fail the collection. Selecting no automation fields or
+errors; filter failures fail the collection. Every error carries `extensions.code`. Selecting no automation fields or
 filters uses EventKit alone.
 
 ```graphql

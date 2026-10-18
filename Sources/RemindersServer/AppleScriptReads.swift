@@ -15,16 +15,16 @@ private let flagsScript = """
 
 func readScriptFlagsOnMainThread() throws -> [String: Bool] {
   guard Thread.isMainThread else {
-    throw ServerError.message("AppleScript requires the main thread")
+    throw ServerError.internalError("AppleScript requires the main thread")
   }
   guard let script = NSAppleScript(source: flagsScript) else {
-    throw ServerError.message("AppleScript could not be compiled")
+    throw ServerError.internalError("AppleScript could not be compiled")
   }
   var error: NSDictionary?
   let result = script.executeAndReturnError(&error)
   if let error {
     let code = error[NSAppleScript.errorNumber] as? Int ?? 0
-    throw ServerError.message(
+    throw ServerError.internalError(
       "AppleScript Reminders read failed (code \(code)); check Automation permission and Reminders availability"
     )
   }
@@ -33,7 +33,7 @@ func readScriptFlagsOnMainThread() throws -> [String: Bool] {
     [before, flags, after].allSatisfy({ $0.descriptorType == 0x6c69_7374 }),
     before.numberOfItems == flags.numberOfItems, before.numberOfItems == after.numberOfItems
   else {
-    throw ServerError.message("AppleScript returned an inconsistent flag inventory")
+    throw ServerError.internalError("AppleScript returned an inconsistent flag inventory")
   }
   var output: [String: Bool] = [:]
   for index in 0..<before.numberOfItems {
@@ -42,7 +42,8 @@ func readScriptFlagsOnMainThread() throws -> [String: Bool] {
       let flag = flags.atIndex(index + 1),
       [0x626f_6f6c, 0x7472_7565, 0x6661_6c73].contains(flag.descriptorType)
     else {  // typeBoolean ('bool')
-      throw ServerError.message("AppleScript flag inventory changed or contained an invalid value")
+      throw ServerError.internalError(
+        "AppleScript flag inventory changed or contained an invalid value")
     }
     // Observed macOS mapping: x-apple-reminder://UUID -> EventKit UUID.
     // Accept an exact EventKit UUID as well, but never names or arbitrary URLs.
@@ -57,7 +58,7 @@ func readScriptFlagsOnMainThread() throws -> [String: Bool] {
       uuid = nil
     }
     guard let key = uuid?.uuidString, output[key] == nil else {
-      throw ServerError.message("AppleScript reminder ID is unsupported or duplicated")
+      throw ServerError.internalError("AppleScript reminder ID is unsupported or duplicated")
     }
     output[key] = flag.booleanValue
   }
@@ -74,7 +75,7 @@ extension ScriptProperty where Value == String? {
   static let emblems = Self(entity: "list", expression: "emblem of every list") { value in
     if value.typeCodeValue == 0x6d73_6e67 { return nil }
     guard let text = value.stringValue else {
-      throw ServerError.message("Unsupported list emblem value")
+      throw ServerError.internalError("Unsupported list emblem value")
     }
     return text
   }
@@ -82,7 +83,7 @@ extension ScriptProperty where Value == String? {
     value in
     if value.typeCodeValue == 0x6d73_6e67 { return nil }
     guard let date = value.dateValue else {
-      throw ServerError.message("Unsupported reminder alert date")
+      throw ServerError.internalError("Unsupported reminder alert date")
     }
     return timestamp(date)
   }
@@ -95,14 +96,14 @@ extension ScriptProperty where Value == ContainerReference {
       guard value.descriptorType == 0x6f62_6a20,
         value.forKeyword(0x666f_726d)?.enumCodeValue == 0x4944_2020,
         let parentID = value.forKeyword(0x7365_6c64)?.stringValue
-      else { throw ServerError.message("Unsupported container reference") }
+      else { throw ServerError.internalError("Unsupported container reference") }
       let kinds: [UInt32: String] = [
         0x6163_6374: "Account", 0x6c69_7374: "ReminderList", 0x7265_6d69: "Reminder",
       ]
       guard let kind = kinds[value.forKeyword(0x7761_6e74)?.typeCodeValue ?? 0],
         (entity == "list" ? ["Account", "ReminderList"] : ["ReminderList", "Reminder"]).contains(
           kind)
-      else { throw ServerError.message("Unsupported container class") }
+      else { throw ServerError.internalError("Unsupported container class") }
       return ContainerReference(kind: kind, id: try scriptIdentifier(parentID, kind: kind))
     }
   }
@@ -121,12 +122,12 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
     end timeout
     """
   guard Thread.isMainThread, let script = NSAppleScript(source: source) else {
-    throw ServerError.message("Cannot compile automation property read")
+    throw ServerError.internalError("Cannot compile automation property read")
   }
   var error: NSDictionary?
   let result = script.executeAndReturnError(&error)
   if let error {
-    throw ServerError.message(
+    throw ServerError.internalError(
       "Reminders automation property read failed (code \(error[NSAppleScript.errorNumber] as? Int ?? 0))"
     )
   }
@@ -134,15 +135,17 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
     result.numberOfItems == 3,
     [before, rows, after].allSatisfy({ $0.descriptorType == 0x6c69_7374 }),
     before.numberOfItems == rows.numberOfItems, after.numberOfItems == rows.numberOfItems
-  else { throw ServerError.message("Inconsistent automation inventory") }
+  else { throw ServerError.internalError("Inconsistent automation inventory") }
   var output: [String: Value] = [:]
   for index in 0..<rows.numberOfItems {
     guard let value = rows.atIndex(index + 1),
       let id = before.atIndex(index + 1)?.stringValue,
       id == after.atIndex(index + 1)?.stringValue
-    else { throw ServerError.message("Automation inventory changed during read; retry") }
+    else { throw ServerError.internalError("Automation inventory changed during read; retry") }
     let key = try scriptIdentifier(id, kind: entity == "list" ? "ReminderList" : "Reminder")
-    guard output[key] == nil else { throw ServerError.message("Duplicate automation identifier") }
+    guard output[key] == nil else {
+      throw ServerError.internalError("Duplicate automation identifier")
+    }
     // updateValue preserves an explicit nil payload when Value is Optional.
     output.updateValue(try property.decode(value), forKey: key)
   }
@@ -157,9 +160,9 @@ private func scriptIdentifier(_ value: String, kind: String) throws -> String {
   case "Reminder": prefix = "x-apple-reminder://"
   case "ReminderList": prefix = "x-apple-reminderkit://REMCDList/"
   case "Account": prefix = "x-apple-reminderkit://REMCDAccount/"
-  default: throw ServerError.message("Unknown automation identifier kind")
+  default: throw ServerError.internalError("Unknown automation identifier kind")
   }
   guard value.hasPrefix(prefix), let uuid = UUID(uuidString: String(value.dropFirst(prefix.count)))
-  else { throw ServerError.message("Unsupported automation identifier format for \(kind)") }
+  else { throw ServerError.internalError("Unsupported automation identifier format for \(kind)") }
   return uuid.uuidString
 }

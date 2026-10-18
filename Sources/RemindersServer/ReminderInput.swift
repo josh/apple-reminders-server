@@ -74,7 +74,7 @@ indirect enum MutationInput: Decodable, Equatable, Sendable {
     default: break
     }
   }
-  private func invalid(_ text: String) -> ServerError { .message("INVALID_ARGUMENT: " + text) }
+  private func invalid(_ text: String) -> ServerError { .invalidArgument(text) }
 }
 func mutationInput<T: Encodable>(_ value: T) throws -> MutationInput {
   try JSONDecoder().decode(MutationInput.self, from: JSONEncoder().encode(value))
@@ -89,7 +89,7 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     common.union(creating ? ["listId"] : ["completed", "completionDate", "clearFields"]))
   let values = try input.dictionaryValue()
   if !creating, values.values.contains(.null) {
-    throw ServerError.message("INVALID_ARGUMENT: patch values cannot be null; use clearFields")
+    throw ServerError.invalidArgument("patch values cannot be null; use clearFields")
   }
   func text(_ key: String) throws -> String? {
     let value = input[key]
@@ -101,20 +101,20 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
   result.body = try text("body")
   result.location = try text("location")
   if let name = result.name, name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-    throw ServerError.message("INVALID_ARGUMENT: name must not be blank")
+    throw ServerError.invalidArgument("name must not be blank")
   }
   if let value = try text("url") {
     guard let url = URL(string: value), let scheme = url.scheme, !scheme.isEmpty,
       value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil
     else {
-      throw ServerError.message("INVALID_ARGUMENT: url must be an absolute URL without whitespace")
+      throw ServerError.invalidArgument("url must be an absolute URL without whitespace")
     }
     result.url = url
   }
   if input["priority"] != .undefined && input["priority"] != .null {
     let priority = try input["priority"].intValue()
     guard (0...9).contains(priority) else {
-      throw ServerError.message("INVALID_ARGUMENT: priority must be 0...9")
+      throw ServerError.invalidArgument("priority must be 0...9")
     }
     result.priority = priority
   }
@@ -125,12 +125,12 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
   if rawClear != .undefined && rawClear != .null {
     let names = try rawClear.arrayValue().map { try $0.stringValue() }
     guard Set(names).count == names.count else {
-      throw ServerError.message("INVALID_ARGUMENT: duplicate clearFields")
+      throw ServerError.invalidArgument("duplicate clearFields")
     }
     result.clear = try Set(
       names.map {
         guard let value = ReminderClearValue(rawValue: $0) else {
-          throw ServerError.message("UNSUPPORTED_OPERATION: unsupported clear field")
+          throw ServerError.unsupportedOperation("unsupported clear field")
         }
         return value
       })
@@ -145,7 +145,7 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     guard !(timed != nil && day != nil), !(clear && (timed != nil || day != nil)),
       !(result.clear.contains(timedClear) && result.clear.contains(dayClear))
     else {
-      throw ServerError.message("INVALID_ARGUMENT: conflicting date representations or clearFields")
+      throw ServerError.invalidArgument("conflicting date representations or clearFields")
     }
     if let timed {
       let instant = try parseTimestamp(timed)
@@ -167,8 +167,8 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     return nil
   }
   if try text("allDayStartDate") != nil {
-    throw ServerError.message(
-      "UNSUPPORTED_OPERATION: this Reminders provider normalizes date-only starts to timed midnight; use startDate explicitly"
+    throw ServerError.unsupportedOperation(
+      "this Reminders provider normalizes date-only starts to timed midnight; use startDate explicitly"
     )
   }
   if let completion = try text("completionDate") {
@@ -179,15 +179,15 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
       && (result.completionDate != nil || result.clear.contains(.completionDate))),
     !(result.completionDate != nil && result.clear.contains(.completionDate))
   else {
-    throw ServerError.message(
-      "INVALID_ARGUMENT: completed and completionDate changes are mutually exclusive")
+    throw ServerError.invalidArgument(
+      "completed and completionDate changes are mutually exclusive")
   }
   if input["alarms"] != .undefined && input["alarms"] != .null {
     result.alarms = try input["alarms"].arrayValue().map(parseAlarmInput)
   }
   if input["recurrence"] != .undefined && input["recurrence"] != .null {
     guard !result.clear.contains(.recurrence) else {
-      throw ServerError.message("INVALID_ARGUMENT: cannot set and clear recurrence")
+      throw ServerError.invalidArgument("cannot set and clear recurrence")
     }
     result.recurrence = try parseRecurrenceInput(input["recurrence"])
   }
@@ -199,15 +199,15 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     guard TimeZone.knownTimeZoneIdentifiers.contains(zone) || zone == "UTC",
       let parsed = TimeZone(identifier: zone)
     else {
-      throw ServerError.message("INVALID_ARGUMENT: timeZone must be an IANA time-zone identifier")
+      throw ServerError.invalidArgument("timeZone must be an IANA time-zone identifier")
     }
     result.timeZone = parsed
   }
   guard !(result.timeZone != nil && result.clear.contains(.timeZone)),
     !(result.alarms != nil && result.remindMeDate != nil)
   else {
-    throw ServerError.message(
-      "INVALID_ARGUMENT: conflicting timeZone, remindMeDate, alarms or clearFields")
+    throw ServerError.invalidArgument(
+      "conflicting timeZone, remindMeDate, alarms or clearFields")
   }
   result.due = try date("dueDate", "allDayDueDate", .dueDate, .allDayDueDate)
   result.start = try date("startDate", "allDayStartDate", .startDate, .allDayStartDate)
@@ -219,15 +219,15 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
       result.due == nil && result.start == nil && result.timeZone == nil
         && result.clear.isDisjoint(with: dateClears)
     else {
-      throw ServerError.message(
-        "INVALID_ARGUMENT: remindMeDate changes stored date components; do not combine it with start, due or timeZone changes"
+      throw ServerError.invalidArgument(
+        "remindMeDate changes stored date components; do not combine it with start, due or timeZone changes"
       )
     }
   }
   guard !(result.location != nil && result.clear.contains(.location)),
     !(result.url != nil && result.clear.contains(.url))
   else {
-    throw ServerError.message("INVALID_ARGUMENT: cannot set and clear the same field")
+    throw ServerError.invalidArgument("cannot set and clear the same field")
   }
   if !creating {
     guard
@@ -237,7 +237,7 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
         || result.timeZone != nil || result.flagged != nil || result.remindMeDate != nil
         || !result.clear.isEmpty
     else {
-      throw ServerError.message("INVALID_ARGUMENT: patch must contain at least one change")
+      throw ServerError.invalidArgument("patch must contain at least one change")
     }
   }
   return result
@@ -249,7 +249,7 @@ func parseAlarmInput(_ input: MutationInput) throws -> ReminderAlarmChange {
     input[$0] != .null && input[$0] != .undefined
   }
   guard keys.count == 1 else {
-    throw ServerError.message("INVALID_ARGUMENT: each alarm requires exactly one trigger")
+    throw ServerError.invalidArgument("each alarm requires exactly one trigger")
   }
   if keys[0] == "absoluteDate" {
     return .absolute(try parseTimestamp(input["absoluteDate"].stringValue()))
@@ -257,7 +257,7 @@ func parseAlarmInput(_ input: MutationInput) throws -> ReminderAlarmChange {
   if keys[0] == "relativeOffsetSeconds" {
     let offset = try input["relativeOffsetSeconds"].doubleValue()
     guard offset.isFinite else {
-      throw ServerError.message("INVALID_ARGUMENT: alarm offset must be finite")
+      throw ServerError.invalidArgument("alarm offset must be finite")
     }
     return .relative(offset)
   }
@@ -270,7 +270,7 @@ func parseAlarmInput(_ input: MutationInput) throws -> ReminderAlarmChange {
   guard latitude.isFinite, longitude.isFinite, radius.isFinite, (-90...90).contains(latitude),
     (-180...180).contains(longitude), radius >= 0,
     ["ARRIVE", "DEPART"].contains(proximity)
-  else { throw ServerError.message("INVALID_ARGUMENT: invalid geofence") }
+  else { throw ServerError.invalidArgument("invalid geofence") }
   let title =
     geo["title"] == .undefined || geo["title"] == .null ? nil : try geo["title"].stringValue()
   return .location(

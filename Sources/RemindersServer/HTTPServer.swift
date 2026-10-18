@@ -64,11 +64,24 @@ func handleRequest(
           ["errors": [["message": "Forbidden: GraphQL write access required"]]], status: 403)
       }
     }
-    let result = try await graphql(
+    var result = try await graphql(
       schema: schema, request: query, context: GraphQLContext(), variableValues: variables,
       operationName: operation)
+    result.errors = result.errors.map(withErrorCode)
     return ServiceResponse(body: try GraphQLJSONEncoder().encode(result))
-  } catch { return try .json(["errors": [["message": String(describing: error)]]]) }
+  } catch { return try .json(["errors": [graphQLError(error)]]) }
+}
+
+// The executor wraps resolver errors; put the server's code where GraphQL clients expect it.
+private func withErrorCode(_ error: GraphQLError) -> GraphQLError {
+  guard let server = error.originalError as? ServerError else { return error }
+  return GraphQLError(
+    message: error.message, locations: error.locations, path: error.path,
+    extensions: error.extensions.merging(["code": .string(server.code.rawValue)]) { _, new in new })
+}
+private func graphQLError(_ error: Error) -> [String: Any] {
+  guard let server = error as? ServerError else { return ["message": String(describing: error)] }
+  return ["message": server.message, "extensions": ["code": server.code.rawValue]]
 }
 
 func serve(

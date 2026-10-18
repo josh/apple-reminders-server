@@ -20,14 +20,14 @@ struct RecurrenceView: Encodable {
   let end: End?
   init(_ rule: RecurrenceRecord) throws {
     guard rule.frequency != .unknown else {
-      throw ServerError.message("UNSUPPORTED: unknown recurrence frequency")
+      throw ServerError.unsupported("unknown recurrence frequency")
     }
     frequency = rule.frequency.rawValue.uppercased()
     interval = rule.interval
     let weekdays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
     let days = try rule.daysOfTheWeek.map { value in
       guard (1...7).contains(value.dayOfTheWeek) else {
-        throw ServerError.message("UNSUPPORTED: unknown recurrence weekday")
+        throw ServerError.unsupported("unknown recurrence weekday")
       }
       return Day(
         day: weekdays[value.dayOfTheWeek - 1],
@@ -44,7 +44,7 @@ struct RecurrenceView: Encodable {
       guard
         (value.endDate != nil && value.occurrenceCount == 0)
           || (value.endDate == nil && value.occurrenceCount > 0)
-      else { throw ServerError.message("UNSUPPORTED: ambiguous recurrence end") }
+      else { throw ServerError.unsupported("ambiguous recurrence end") }
       end = End(
         until: value.endDate, count: value.occurrenceCount > 0 ? value.occurrenceCount : nil)
     } else {
@@ -66,7 +66,7 @@ struct AlarmView: Encodable {
   let geofence: Geofence?
   init(_ alarm: AlarmRecord) throws {
     guard alarm.relativeOffset.isFinite else {
-      throw ServerError.message("UNSUPPORTED: nonfinite alarm offset")
+      throw ServerError.unsupported("nonfinite alarm offset")
     }
     if alarm.structuredLocation != nil || alarm.proximity != .none {
       guard let location = alarm.structuredLocation, [.enter, .leave].contains(alarm.proximity),
@@ -75,8 +75,8 @@ struct AlarmView: Encodable {
         latitude.isFinite, longitude.isFinite, (-90...90).contains(latitude),
         (-180...180).contains(longitude), location.radius.isFinite, location.radius >= 0
       else {
-        throw ServerError.message(
-          "UNSUPPORTED: incomplete or combined location alarm; inspect rawAlarms")
+        throw ServerError.unsupported(
+          "incomplete or combined location alarm; inspect rawAlarms")
       }
       kind = "LocationAlarm"
       at = nil
@@ -86,7 +86,7 @@ struct AlarmView: Encodable {
         radiusMeters: location.radius, proximity: alarm.proximity == .enter ? "ARRIVE" : "DEPART")
     } else if let date = alarm.absoluteDate {
       guard alarm.relativeOffset == 0 else {
-        throw ServerError.message("UNSUPPORTED: combined alarm triggers; inspect rawAlarms")
+        throw ServerError.unsupported("combined alarm triggers; inspect rawAlarms")
       }
       kind = "AbsoluteAlarm"
       at = date
@@ -102,7 +102,7 @@ struct AlarmView: Encodable {
 }
 func recurrenceView(_ rules: [RecurrenceRecord]) throws -> RecurrenceView? {
   guard rules.count <= 1 else {
-    throw ServerError.message("UNSUPPORTED: multiple recurrence rules; inspect recurrenceRules")
+    throw ServerError.unsupported("multiple recurrence rules; inspect recurrenceRules")
   }
   return try rules.first.map(RecurrenceView.init)
 }

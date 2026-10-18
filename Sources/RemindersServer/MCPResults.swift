@@ -18,7 +18,7 @@ struct MCPReminder: Encodable {
     let due = try projectDate(record.dueDateComponents)
     let start = try projectDate(record.startDateComponents)
     if let due, let start, due.timeZone != start.timeZone {
-      throw ServerError.message("UNSUPPORTED: start and due have different time zones")
+      throw ServerError.unsupported("start and due have different time zones")
     }
     try c.encode(due?.timed == true ? due.map { timestamp($0.instant) } : nil, forKey: .dueDate)
     try c.encode(due?.timed == false ? due?.day : nil, forKey: .allDayDueDate)

@@ -58,6 +58,7 @@ mix modes.
 ## Errors
 
 Successful calls include `structuredContent` and matching JSON text. Tool errors
-set `isError: true` and return diagnostic text without a success payload.
-Protocol errors are handled by the SDK. See [write outcomes](WRITES.md#client-handling-after-a-save)
-for failures after a save.
+set `isError: true` and return `{"error": {"code": "...", "message": "..."}}` as
+text without `structuredContent`. [Writes](WRITES.md#execution-and-errors) list
+the codes and the [write outcomes](WRITES.md#client-handling-after-a-save) for
+failures after a save. Protocol errors are handled by the SDK.

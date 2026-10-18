@@ -30,8 +30,8 @@ private actor CursorStore {
     cursors = cursors.filter { $0.value.expires > Date() }
     guard let token else { return 0 }
     guard let cursor = cursors[token], cursor.search == search else {
-      throw ServerError.message(
-        "INVALID_ARGUMENT: Invalid or expired cursor, or changed search criteria. Use nextCursor from the previous response with the same filter, orderBy, and limit. Omit cursor to restart."
+      throw ServerError.invalidArgument(
+        "Invalid or expired cursor, or changed search criteria. Use nextCursor from the previous response with the same filter, orderBy, and limit. Omit cursor to restart."
       )
     }
     return cursor.offset
@@ -322,13 +322,13 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "lists_create",
       description:
-        "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. WRITE_APPLIED includes the saved ID if the emblem write fails after the list is saved; do not retry creation blindly.",
+        "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. If the emblem write fails after the save, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly.",
       inputSchema: listCreate, annotations: created,
       outputSchema: schema(["list": list], required: ["list"])),
     Tool(
       name: "lists_update",
       description:
-        "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. Emblem writes can fail after stored fields are saved. WRITE_APPLIED includes the saved ID; refetch before retrying.",
+        "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. If the emblem write fails after the save, the error has code WRITE_APPLIED and names the saved ID; refetch before retrying.",
       inputSchema: schema(
         ["id": primitive("string"), "patch": listPatch], required: ["id", "patch"]),
       annotations: changed, outputSchema: schema(["list": list], required: ["list"])),
@@ -443,27 +443,27 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   func filters(_ allowed: Set<String>) throws -> [String: Value] {
     guard let value = args["filter"] else { return [:] }
     guard case .object(let filter) = value, Set(filter.keys).isSubset(of: allowed) else {
-      throw ServerError.message("INVALID_ARGUMENT: filter must be an object with known fields")
+      throw ServerError.invalidArgument("filter must be an object with known fields")
     }
     return filter
   }
   func keys(_ allowed: Set<String>) throws {
     guard Set(args.keys).isSubset(of: allowed) else {
-      throw ServerError.message("INVALID_ARGUMENT: Unknown argument")
+      throw ServerError.invalidArgument("Unknown argument")
     }
   }
   func string(_ key: String, from values: [String: Value]? = nil) throws -> String? {
     guard let value = (values ?? args)[key] else { return nil }
     guard let text = value.stringValue else {
-      throw ServerError.message("INVALID_ARGUMENT: \(key) must be a string")
+      throw ServerError.invalidArgument("\(key) must be a string")
     }
     return text
   }
   func cursor() throws -> String? {
     guard let value = args["cursor"] else { return nil }
     guard let token = value.stringValue, !token.isEmpty else {
-      throw ServerError.message(
-        "INVALID_ARGUMENT: cursor must be a nonempty nextCursor string. Omit cursor for the first page."
+      throw ServerError.invalidArgument(
+        "cursor must be a nonempty nextCursor string. Omit cursor for the first page."
       )
     }
     return token
@@ -471,18 +471,18 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   func bool(_ key: String, from values: [String: Value]? = nil) throws -> Bool? {
     guard let value = (values ?? args)[key] else { return nil }
     guard case .bool(let result) = value else {
-      throw ServerError.message("INVALID_ARGUMENT: \(key) must be boolean")
+      throw ServerError.invalidArgument("\(key) must be boolean")
     }
     return result
   }
   func ids(_ key: String, from values: [String: Value]? = nil) throws -> [String]? {
     guard let value = (values ?? args)[key] else { return nil }
     guard case .array(let values) = value else {
-      throw ServerError.message("INVALID_ARGUMENT: \(key) must be an array")
+      throw ServerError.invalidArgument("\(key) must be an array")
     }
     return try values.map { value in
       guard case .string(let id) = value, !id.isEmpty else {
-        throw ServerError.message("INVALID_ARGUMENT: \(key) must contain nonempty identifiers")
+        throw ServerError.invalidArgument("\(key) must contain nonempty identifiers")
       }
       return id
     }
@@ -490,7 +490,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   func limit() throws -> Int {
     guard let value = args["limit"] else { return 50 }
     guard case .int(let number) = value, (1...100).contains(number) else {
-      throw ServerError.message("INVALID_ARGUMENT: limit must be 1...100")
+      throw ServerError.invalidArgument("limit must be 1...100")
     }
     return number
   }
@@ -506,7 +506,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     } else {
       try keys(["id", "patch"])
       guard let id = try string("id"), !id.isEmpty, let patch = args["patch"] else {
-        throw ServerError.message("INVALID_ARGUMENT: id and patch required")
+        throw ServerError.invalidArgument("id and patch required")
       }
       input = try mutationInput(patch)
       try input.rejectNulls()
@@ -514,8 +514,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     let saved = try await mutateReminder(request).savedRecord()
     do { return try result(GetOutput(reminder: MCPReminder(record: saved))) } catch {
-      throw ServerError.message(
-        "WRITE_APPLIED: reminder \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying."
+      throw ServerError.writeApplied(
+        "reminder \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying."
       )
     }
   case "lists_create", "lists_update":
@@ -529,7 +529,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     } else {
       try keys(["id", "patch"])
       guard let id = try string("id"), !id.isEmpty, let value = args["patch"] else {
-        throw ServerError.message("INVALID_ARGUMENT: id and patch required")
+        throw ServerError.invalidArgument("id and patch required")
       }
       let input = try mutationInput(value)
       try input.rejectNulls()
@@ -537,14 +537,14 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     let saved = try await mutateList(request).savedRecord()
     do { return try result(ListOutput(list: MCPList(record: saved))) } catch {
-      throw ServerError.message(
-        "WRITE_APPLIED: list \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying"
+      throw ServerError.writeApplied(
+        "list \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying"
       )
     }
   case "lists_delete":
     try keys(["id", "allowNonEmpty"])
     guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.message("INVALID_ARGUMENT: id required")
+      throw ServerError.invalidArgument("id required")
     }
     let deleted = try await mutateList(
       .delete(id: id, allowNonEmpty: try bool("allowNonEmpty") ?? false)
@@ -553,38 +553,38 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   case "reminders_show":
     try keys(["id"])
     guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.message("INVALID_ARGUMENT: id required")
+      throw ServerError.invalidArgument("id required")
     }
     guard case .reminder(let shown) = try await showRemindersObject(id, isList: false) else {
-      throw ServerError.message("Expected a reminder")
+      throw ServerError.internalError("Expected a reminder")
     }
     do { return try result(GetOutput(reminder: MCPReminder(record: shown))) } catch {
-      throw ServerError.message(
-        "SHOW_APPLIED: reminder \(id) was shown, but response projection failed: \(error)")
+      throw ServerError.showApplied(
+        "reminder \(id) was shown, but response projection failed: \(error)")
     }
   case "lists_show":
     try keys(["id"])
     guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.message("INVALID_ARGUMENT: id required")
+      throw ServerError.invalidArgument("id required")
     }
     guard case .list(let shown) = try await showRemindersObject(id, isList: true) else {
-      throw ServerError.message("Expected a list")
+      throw ServerError.internalError("Expected a list")
     }
     do { return try result(ListOutput(list: MCPList(record: shown))) } catch {
-      throw ServerError.message(
-        "SHOW_APPLIED: list \(id) was shown, but response projection failed: \(error)")
+      throw ServerError.showApplied(
+        "list \(id) was shown, but response projection failed: \(error)")
     }
   case "reminders_delete":
     try keys(["id"])
     guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.message("INVALID_ARGUMENT: id required")
+      throw ServerError.invalidArgument("id required")
     }
     let deleted = try await mutateReminder(.delete(id: id)).deletion()
     return try result(deleted)
   case "accounts_get":
     try keys(["id"])
     guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.message("INVALID_ARGUMENT: id required")
+      throw ServerError.invalidArgument("id required")
     }
     return try result(AccountOutput(account: await readInventory().accounts.first { $0.id == id }))
   case "lists_list":
@@ -604,7 +604,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       let direction =
         order["direction"] == .undefined ? "ASC" : try order["direction"].stringValue()
       guard ["ASC", "DESC"].contains(direction) else {
-        throw ServerError.message("INVALID_ARGUMENT: invalid list order direction")
+        throw ServerError.invalidArgument("invalid list order direction")
       }
       search.orderField = "NAME"
       search.descending = direction == "DESC"
@@ -636,7 +636,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   case "lists_get":
     try keys(["id"])
     guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.message("INVALID_ARGUMENT: id required")
+      throw ServerError.invalidArgument("id required")
     }
     let records = try await readInventory().lists.filter { $0.id == id }
     return try result(ListOutput(list: records.first.map(MCPList.init)))
@@ -650,7 +650,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   case "lists_summary":
     try keys(["listId"])
     let id = try string("listId")
-    guard id != "" else { throw ServerError.message("INVALID_ARGUMENT: listId must not be empty") }
+    guard id != "" else { throw ServerError.invalidArgument("listId must not be empty") }
     let data = try await readInventory()
     return try result(
       SummaryOutput(
@@ -660,7 +660,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   case "reminders_get":
     try keys(["id"])
     guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.message("INVALID_ARGUMENT: id required")
+      throw ServerError.invalidArgument("id required")
     }
     let records = try await readInventory().reminders.filter { $0.id == id }
     return try result(GetOutput(reminder: records.first.map(MCPReminder.init)))
@@ -680,13 +680,13 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard !(search.dueFrom != nil && (search.dueOnOrAfter != nil || dayUpper != nil)),
       !(search.dueOnOrAfter != nil && timestampUpper != nil)
     else {
-      throw ServerError.message("INVALID_ARGUMENT: do not mix calendar-day and timestamp bounds")
+      throw ServerError.invalidArgument("do not mix calendar-day and timestamp bounds")
     }
     try validateDays(search.dueOnOrAfter, dayUpper)
     let fromDate = try search.dueFrom.map(parseTimestamp)
     let beforeDate = try timestampUpper.map(parseTimestamp)
     if let fromDate, let beforeDate, fromDate >= beforeDate {
-      throw ServerError.message("INVALID_ARGUMENT: dueFrom must precede dueBefore")
+      throw ServerError.invalidArgument("dueFrom must precede dueBefore")
     }
     if let value = args["orderBy"] {
       let order = try mutationInput(value)
@@ -696,41 +696,41 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       guard
         ["NAME", "DUE_DATE", "PRIORITY", "CREATION_DATE", "MODIFICATION_DATE", "COMPLETION_DATE"]
           .contains(field)
-      else { throw ServerError.message("INVALID_ARGUMENT: invalid order field") }
+      else { throw ServerError.invalidArgument("invalid order field") }
       let direction =
         order["direction"] == .undefined ? "ASC" : try order["direction"].stringValue()
       guard ["ASC", "DESC"].contains(direction) else {
-        throw ServerError.message("INVALID_ARGUMENT: invalid order direction")
+        throw ServerError.invalidArgument("invalid order direction")
       }
       search.orderField = field
       search.descending = direction == "DESC"
     }
     if let value = filter["completed"] {
       guard case .bool(let flag) = value else {
-        throw ServerError.message("INVALID_ARGUMENT: completed must be boolean")
+        throw ServerError.invalidArgument("completed must be boolean")
       }
       search.completed = flag
     }
     if let value = args["limit"] {
       guard case .int(let limit) = value, (1...100).contains(limit) else {
-        throw ServerError.message("INVALID_ARGUMENT: limit must be 1...100")
+        throw ServerError.invalidArgument("limit must be 1...100")
       }
       search.limit = limit
     }
     if let value = filter["priorities"] {
       guard case .array(let values) = value else {
-        throw ServerError.message("INVALID_ARGUMENT: priorities must be an integer array")
+        throw ServerError.invalidArgument("priorities must be an integer array")
       }
       search.priorities = try values.map { value in
         guard case .int(let number) = value, (0...9).contains(number) else {
-          throw ServerError.message("INVALID_ARGUMENT: priorities must be 0...9")
+          throw ServerError.invalidArgument("priorities must be 0...9")
         }
         return number
       }
     }
     if let value = try string("dueStatus", from: filter) {
       guard let status = DueStatus(rawValue: value) else {
-        throw ServerError.message("INVALID_ARGUMENT: invalid dueStatus")
+        throw ServerError.invalidArgument("invalid dueStatus")
       }
       search.dueStatus = status
     }
@@ -781,6 +781,17 @@ private let readOnlyTools: Set<String> = [
   "lists_list", "reminders_search", "reminders_get",
 ]
 
+// Tool errors are JSON like successful results, with the code clients act on.
+private func errorText(_ error: Error) -> String {
+  let server = error as? ServerError
+  let payload: [String: String] = [
+    "code": server?.code.rawValue ?? ErrorCode.internalError.rawValue,
+    "message": server?.message ?? String(describing: error),
+  ]
+  let data = try? JSONEncoder().encode(["error": payload])
+  return data.flatMap { String(data: $0, encoding: .utf8) } ?? String(describing: error)
+}
+
 func handleMCP(method: String, headers: [String: String], body: Data, access: Capabilities.Access)
   async throws
   -> ServiceResponse
@@ -813,8 +824,7 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
       }
       do { return try await callTool(params) } catch {
         return .init(
-          content: [.text(text: String(describing: error), annotations: nil, _meta: nil)],
-          isError: true)
+          content: [.text(text: errorText(error), annotations: nil, _meta: nil)], isError: true)
       }
     }
     try await server.start(transport: transport)

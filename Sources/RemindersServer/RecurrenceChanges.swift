@@ -25,7 +25,7 @@ struct ReminderRecurrenceChange: Sendable {
     weeks: [Int]?, yearDays: [Int]?, positions: [Int]?, until: Date?, count: Int?
   ) throws {
     func require(_ condition: Bool, _ message: String) throws {
-      guard condition else { throw ServerError.message("INVALID_ARGUMENT: recurrence " + message) }
+      guard condition else { throw ServerError.invalidArgument("recurrence " + message) }
     }
     try require(interval > 0 && interval <= Int(Int32.max), "interval must be 1...2147483647")
     try require(until == nil || count == nil, "end must choose until or count")

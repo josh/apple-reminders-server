@@ -9,7 +9,7 @@ actor MetricsCollector {
   private var failure = "Metrics collection has not completed yet"
 
   func cachedSnapshot() throws -> String {
-    guard let snapshot else { throw ServerError.message(failure) }
+    guard let snapshot else { throw ServerError.internalError(failure) }
     return snapshot
   }
 
@@ -42,7 +42,8 @@ func collectMetrics() async throws -> String {
   var reminders: [ReminderRecord] = []
   for item in fetched {
     guard let listID = item.listId, listIDs.contains(listID) else {
-      throw ServerError.message("Reminder inventory changed during collection; retry the scrape")
+      throw ServerError.internalError(
+        "Reminder inventory changed during collection; retry the scrape")
     }
     if seen.insert(item.id).inserted { reminders.append(item) }
   }
@@ -84,7 +85,7 @@ func collectMetrics() async throws -> String {
     var counts: [String: Int] = [:]
     for item in reminders where item.listId == list.id {
       guard (0...9).contains(item.priority) else {
-        throw ServerError.message("Out-of-range priority")
+        throw ServerError.internalError("Out-of-range priority")
       }
       let status = item.completed ? "completed" : "incomplete"
       let priority =

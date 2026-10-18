@@ -7,7 +7,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. WRITE_APPLIED includes the saved ID if the emblem write fails after the list is saved; do not retry creation blindly.",
+      "description": "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. If the emblem write fails after the save, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -106,7 +106,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "description": "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. Emblem writes can fail after stored fields are saved. WRITE_APPLIED includes the saved ID; refetch before retrying.",
+      "description": "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. If the emblem write fails after the save, the error has code WRITE_APPLIED and names the saved ID; refetch before retrying.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {

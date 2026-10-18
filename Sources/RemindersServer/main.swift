@@ -35,7 +35,7 @@ Task.detached {
       while index < arguments.count {
         let option = arguments[index]
         guard option == "--allowed-origin" || seen.insert(option).inserted else {
-          throw ServerError.message("Duplicate option: \(option)")
+          throw ServerError.internalError("Duplicate option: \(option)")
         }
         switch option {
         case "--request-access": requestAccess = true
@@ -43,14 +43,14 @@ Task.detached {
           "--tailscale-app-capability":
           index += 1
           guard index < arguments.count else {
-            throw ServerError.message("Missing value for \(option)")
+            throw ServerError.internalError("Missing value for \(option)")
           }
           if option == "--tailscale-app-capability" {
             let value = arguments[index]
             let parts = value.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
             guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty,
               !value.contains(where: { $0.isWhitespace }), !value.hasPrefix("--")
-            else { throw ServerError.message("Capability must be a domain/path name") }
+            else { throw ServerError.internalError("Capability must be a domain/path name") }
             tailscaleAppCapability = value
           } else if option == "--allowed-origin" {
             let value = arguments[index]
@@ -64,23 +64,24 @@ Task.detached {
               value == value.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.contains("\n"), !value.contains("\r")
             else {
-              throw ServerError.message(
+              throw ServerError.internalError(
                 "Allowed origin must be http://host[:port] or https://host[:port], without a path, query, or fragment"
               )
             }
             allowedOrigins.append("\(scheme)://\(host)" + (url.port.map { ":\($0)" } ?? ""))
           } else if option == "--port" {
             guard let value = UInt16(arguments[index]), value > 0 else {
-              throw ServerError.message("Port must be between 1 and 65535")
+              throw ServerError.internalError("Port must be between 1 and 65535")
             }
             port = value
           } else {
             guard let value = Int(arguments[index]), (1...604800).contains(value) else {
-              throw ServerError.message("Metrics interval must be between 1 and 604800 seconds")
+              throw ServerError.internalError(
+                "Metrics interval must be between 1 and 604800 seconds")
             }
             metricsInterval = value
           }
-        default: throw ServerError.message("Use --help for server options")
+        default: throw ServerError.internalError("Use --help for server options")
         }
         index += 1
       }

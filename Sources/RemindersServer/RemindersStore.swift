@@ -24,7 +24,7 @@ final class Pending<Value> {
       RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01))
     }
     if let value = current() { return value }
-    throw ServerError.message("EventKit operation timed out after 30 seconds")
+    throw ServerError.internalError("EventKit operation timed out after 30 seconds")
   }
 }
 func statusName() -> String {
@@ -39,7 +39,7 @@ func statusName() -> String {
 }
 func requireAccess() throws {
   guard EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else {
-    throw ServerError.message(
+    throw ServerError.internalError(
       "Reminders access is \(statusName()); explicitly request access at startup or grant it in System Settings"
     )
   }
@@ -109,11 +109,11 @@ func authorizeReminders() throws {
     pending.resolve(
       error.map {
         .failure(
-          ServerError.message("EventKit authorization failed (code \(($0 as NSError).code))"))
+          ServerError.internalError("EventKit authorization failed (code \(($0 as NSError).code))"))
       } ?? .success(granted))
   }
   guard try pending.wait().get() else {
-    throw ServerError.message("Reminders access was not granted")
+    throw ServerError.internalError("Reminders access was not granted")
   }
   try requireAccess()
 }
@@ -136,7 +136,7 @@ func fetchInventory(includeFlags: Bool) throws -> Inventory {
       pending.resolve(
         items.map { .success($0) }
           ?? .failure(
-            ServerError.message("EventKit returned an indeterminate nil reminder inventory")))
+            ServerError.internalError("EventKit returned an indeterminate nil reminder inventory")))
     }
     do { fetched = try pending.wait().get() } catch {
       store.cancelFetchRequest(handle)
@@ -149,11 +149,11 @@ func fetchInventory(includeFlags: Bool) throws -> Inventory {
   var reminders: [ReminderRecord] = []
   for item in fetched.sorted(by: { $0.calendarItemIdentifier < $1.calendarItemIdentifier }) {
     guard seen.insert(item.calendarItemIdentifier).inserted else {
-      throw ServerError.message("EventKit returned duplicate reminder identifiers")
+      throw ServerError.internalError("EventKit returned duplicate reminder identifiers")
     }
     guard let list = item.calendar,
       calendars.contains(where: { $0.calendarIdentifier == list.calendarIdentifier })
-    else { throw ServerError.message("Reminder list inventory changed during collection") }
+    else { throw ServerError.internalError("Reminder list inventory changed during collection") }
     // Reminders exposes newly saved objects to scripting late; a missing match
     // leaves only that reminder's flag unknown instead of failing the inventory.
     let flagged = flags.flatMap { table in
@@ -170,7 +170,7 @@ private var busy = false
 func performRemindersOperation<T>(_ operation: @escaping () throws -> T) throws -> T {
   let work = {
     guard !busy else {
-      throw ServerError.message("Reminders store is busy with a reentrant request; retry")
+      throw ServerError.internalError("Reminders store is busy with a reentrant request; retry")
     }
     busy = true
     defer { busy = false }

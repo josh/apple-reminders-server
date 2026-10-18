@@ -1,11 +1,46 @@
 import Foundation
 
-enum ServerError: Error, CustomStringConvertible {
-  case message(String)
-  var description: String {
-    switch self {
-    case .message(let text): return text
-    }
+// Codes are the client contract. GraphQL reports them in extensions.code and
+// MCP in the error payload; the message is a sentence for people.
+enum ErrorCode: String, Sendable {
+  case invalidArgument = "INVALID_ARGUMENT"
+  case notFound = "NOT_FOUND"
+  case forbidden = "FORBIDDEN"
+  case readOnly = "READ_ONLY"
+  case unsupported = "UNSUPPORTED"
+  case unsupportedOperation = "UNSUPPORTED_OPERATION"
+  case listNotEmpty = "LIST_NOT_EMPTY"
+  case writeFailed = "WRITE_FAILED"
+  case writeApplied = "WRITE_APPLIED"
+  case showApplied = "SHOW_APPLIED"
+  case showFailed = "SHOW_FAILED"
+  case internalError = "INTERNAL"
+}
+struct ServerError: Error, CustomStringConvertible, Sendable {
+  let code: ErrorCode
+  let message: String
+  var description: String { message }
+  static func invalidArgument(_ message: String) -> Self {
+    .init(code: .invalidArgument, message: message)
+  }
+  static func notFound(_ message: String) -> Self { .init(code: .notFound, message: message) }
+  static func forbidden(_ message: String) -> Self { .init(code: .forbidden, message: message) }
+  static func readOnly(_ message: String) -> Self { .init(code: .readOnly, message: message) }
+  static func unsupported(_ message: String) -> Self { .init(code: .unsupported, message: message) }
+  static func unsupportedOperation(_ message: String) -> Self {
+    .init(code: .unsupportedOperation, message: message)
+  }
+  static func listNotEmpty(_ message: String) -> Self {
+    .init(code: .listNotEmpty, message: message)
+  }
+  static func writeFailed(_ message: String) -> Self { .init(code: .writeFailed, message: message) }
+  static func writeApplied(_ message: String) -> Self {
+    .init(code: .writeApplied, message: message)
+  }
+  static func showApplied(_ message: String) -> Self { .init(code: .showApplied, message: message) }
+  static func showFailed(_ message: String) -> Self { .init(code: .showFailed, message: message) }
+  static func internalError(_ message: String) -> Self {
+    .init(code: .internalError, message: message)
   }
 }
 
@@ -150,16 +185,16 @@ func validateDays(_ lower: String?, _ upper: String?) throws {
       let year = Int(parts[0]), (1...9999).contains(year), let month = Int(parts[1]),
       (1...12).contains(month), let day = Int(parts[2])
     else {
-      throw ServerError.message("INVALID_ARGUMENT: date bounds must be valid Gregorian YYYY-MM-DD")
+      throw ServerError.invalidArgument("date bounds must be valid Gregorian YYYY-MM-DD")
     }
     let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
     let days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     guard (1...days[month - 1]).contains(day) else {
-      throw ServerError.message("INVALID_ARGUMENT: invalid Gregorian date")
+      throw ServerError.invalidArgument("invalid Gregorian date")
     }
   }
   if let lower, let upper, lower >= upper {
-    throw ServerError.message("INVALID_ARGUMENT: dueOnOrAfter must precede dueBefore")
+    throw ServerError.invalidArgument("dueOnOrAfter must precede dueBefore")
   }
 }
 func matchesDays(_ day: String?, _ lower: String?, _ upper: String?) -> Bool {

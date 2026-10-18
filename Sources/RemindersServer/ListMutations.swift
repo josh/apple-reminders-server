@@ -32,34 +32,34 @@ func remindersMutateList(_ request: ListMutation) throws -> ListMutationPhase {
   switch request {
   case .create(let accountID, let patch):
     guard let source = store.sources.first(where: { $0.sourceIdentifier == accountID }) else {
-      throw ServerError.message("NOT_FOUND: account is unavailable")
+      throw ServerError.notFound("account is unavailable")
     }
     guard let name = patch.name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    else { throw ServerError.message("INVALID_ARGUMENT: list name must not be blank") }
+    else { throw ServerError.invalidArgument("list name must not be blank") }
     list = EKCalendar(for: .reminder, eventStore: store)
     list.source = source
     changes = patch
   case .update(let id, let patch):
     guard let existing = store.calendar(withIdentifier: id),
       existing.allowedEntityTypes.contains(.reminder)
-    else { throw ServerError.message("NOT_FOUND: reminder list is unavailable") }
+    else { throw ServerError.notFound("reminder list is unavailable") }
     guard !existing.isImmutable && existing.allowsContentModifications && !existing.isSubscribed
-    else { throw ServerError.message("READ_ONLY: list is not editable") }
+    else { throw ServerError.readOnly("list is not editable") }
     list = existing
     changes = patch
   case .delete(let id, let allowNonEmpty):
     guard let existing = store.calendar(withIdentifier: id),
       existing.allowedEntityTypes.contains(.reminder)
-    else { throw ServerError.message("NOT_FOUND: reminder list is unavailable") }
+    else { throw ServerError.notFound("reminder list is unavailable") }
     guard !existing.isImmutable && existing.allowsContentModifications && !existing.isSubscribed
-    else { throw ServerError.message("READ_ONLY: list is not editable") }
+    else { throw ServerError.readOnly("list is not editable") }
     if !allowNonEmpty {
       let pending = Pending<Result<[EKReminder], Error>>()
       let handle = store.fetchReminders(matching: store.predicateForReminders(in: [existing])) {
         items in
         pending.resolve(
           items.map { .success($0) }
-            ?? .failure(ServerError.message("Cannot determine whether list is empty")))
+            ?? .failure(ServerError.internalError("Cannot determine whether list is empty")))
       }
       let items: [EKReminder]
       do { items = try pending.wait().get() } catch {
@@ -67,22 +67,22 @@ func remindersMutateList(_ request: ListMutation) throws -> ListMutationPhase {
         throw error
       }
       guard items.isEmpty else {
-        throw ServerError.message(
-          "LIST_NOT_EMPTY: pass allowNonEmpty only to intentionally delete the list and its reminders"
+        throw ServerError.listNotEmpty(
+          "pass allowNonEmpty only to intentionally delete the list and its reminders"
         )
       }
     }
     do { try store.removeCalendar(existing, commit: true) } catch {
-      throw ServerError.message(
-        "WRITE_FAILED: EventKit list deletion failed (code \((error as NSError).code)); refetch before retrying"
+      throw ServerError.writeFailed(
+        "EventKit list deletion failed (code \((error as NSError).code)); refetch before retrying"
       )
     }
     return .finished(.deleted(DeletedReminder(deletedId: id)))
   }
-  guard let patch = changes else { throw ServerError.message("Missing list changes") }
+  guard let patch = changes else { throw ServerError.internalError("Missing list changes") }
   if let name = patch.name {
     guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-      throw ServerError.message("INVALID_ARGUMENT: list name must not be blank")
+      throw ServerError.invalidArgument("list name must not be blank")
     }
     list.title = name
   }
@@ -91,21 +91,21 @@ func remindersMutateList(_ request: ListMutation) throws -> ListMutationPhase {
       color.allSatisfy({ $0.isFinite && (0...1).contains($0) }),
       let calendarColor = CGColor(
         colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!, components: color.map { CGFloat($0) })
-    else { throw ServerError.message("INVALID_ARGUMENT: invalid list color") }
+    else { throw ServerError.invalidArgument("invalid list color") }
     list.cgColor = calendarColor
   }
   // Compile before committing: syntax failures must not leave an avoidable partial write.
   if patch.emblem != nil { _ = try makeListEmblemScript() }
   do { try store.saveCalendar(list, commit: true) } catch {
-    throw ServerError.message(
-      "WRITE_FAILED: EventKit list save failed (code \((error as NSError).code)); refetch before retrying"
+    throw ServerError.writeFailed(
+      "EventKit list save failed (code \((error as NSError).code)); refetch before retrying"
     )
   }
   let id = list.calendarIdentifier
   if let emblem = patch.emblem { return .automation(PendingEmblem(listID: id, emblem: emblem)) }
   store.reset()
   guard let refreshed = store.calendar(withIdentifier: id) else {
-    throw ServerError.message("WRITE_APPLIED: list \(id) was saved but is unavailable for refetch")
+    throw ServerError.writeApplied("list \(id) was saved but is unavailable for refetch")
   }
   return .finished(.saved(ListRecord(refreshed)))
 }
@@ -116,12 +116,12 @@ func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
   try requireAccess()
   let store = EKEventStore()
   guard store.calendar(withIdentifier: pending.listID) != nil else {
-    throw ServerError.message("list was removed before its emblem could apply")
+    throw ServerError.internalError("list was removed before its emblem could apply")
   }
   try writeListEmblem(try makeListEmblemScript(), id: pending.listID, emblem: pending.emblem)
   store.reset()
   guard let refreshed = store.calendar(withIdentifier: pending.listID) else {
-    throw ServerError.message("saved list is not available for refetch")
+    throw ServerError.internalError("saved list is not available for refetch")
   }
   return ListRecord(refreshed)
 }
@@ -141,17 +141,17 @@ private func makeListEmblemScript() throws -> NSAppleScript {
     end setemblem
     """
   guard let script = NSAppleScript(source: source) else {
-    throw ServerError.message("Cannot create list emblem writer")
+    throw ServerError.internalError("Cannot create list emblem writer")
   }
   var error: NSDictionary?
   guard script.compileAndReturnError(&error) else {
-    throw ServerError.message("Cannot compile list emblem writer")
+    throw ServerError.internalError("Cannot compile list emblem writer")
   }
   return script
 }
 private func writeListEmblem(_ script: NSAppleScript, id: String, emblem: String) throws {
   guard let uuid = UUID(uuidString: id) else {
-    throw ServerError.message("Unsupported list identifier for automation")
+    throw ServerError.internalError("Unsupported list identifier for automation")
   }
   let arguments = NSAppleEventDescriptor.list()
   arguments.insert(.init(string: uuid.uuidString), at: 1)
@@ -169,9 +169,9 @@ private func writeListEmblem(_ script: NSAppleScript, id: String, emblem: String
     if automationNotReadyCodes.contains(code) {
       throw AutomationNotReady(code: code, message: message)
     }
-    throw ServerError.message("Reminders emblem write failed (code \(code)): \(message)")
+    throw ServerError.internalError("Reminders emblem write failed (code \(code)): \(message)")
   }
   guard result.numberOfItems == 2, result.atIndex(1)?.stringValue == uuid.uuidString,
     result.atIndex(2)?.stringValue == emblem
-  else { throw ServerError.message("Reminders did not retain the requested emblem") }
+  else { throw ServerError.internalError("Reminders did not retain the requested emblem") }
 }

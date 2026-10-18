@@ -155,10 +155,11 @@ A GraphQL operation's root mutations execute serially. Request inventory and
 lazy automation caches are invalidated after each native mutation attempt, so
 later mutation fields and nested reads do not reuse a pre-write snapshot.
 
-Missing update/delete IDs return `NOT_FOUND`; deletion is not silently successful
-for a missing ID. Input failures use `INVALID_ARGUMENT`; list-capability
-failures use `READ_ONLY`. Native failures use `WRITE_FAILED` with an EventKit code.
-These are message prefixes, not structured error-code extensions.
+Every error carries a code. GraphQL reports it in `extensions.code`; MCP tool
+errors return `{"error": {"code": "...", "message": "..."}}` as text. Missing
+update/delete IDs return `NOT_FOUND`. Input failures use `INVALID_ARGUMENT`,
+list-capability failures `READ_ONLY`, and native failures `WRITE_FAILED` with the
+EventKit code in the message.
 
 ## List mutations
 
@@ -192,7 +193,7 @@ These cases apply to reminder and list create/update operations:
 
 | Outcome | Response | Client action |
 | --- | --- | --- |
-| Backend automation/refetch fails after an EventKit save | GraphQL root mutation is null with a `WRITE_APPLIED` error and saved ID in its message. MCP returns `isError: true`, with the saved ID in text and no `structuredContent`. | Retain the saved ID, inspect its current state, and reconcile only the changes still needed. Never repeat creation automatically. |
+| Backend automation/refetch fails after an EventKit save | GraphQL root mutation is null with an error whose code is `WRITE_APPLIED` and whose message names the saved ID. MCP returns `isError: true` with the same code and message and no `structuredContent`. | Retain the saved ID, inspect its current state, and reconcile only the changes still needed. Never repeat creation automatically. |
 | GraphQL response metadata fails after a successful mutation | The saved object can remain in `data`, including a selected `id`, while a nullable field is null with an error path pointing to that field. | Always select `id` on writes. Preserve it even when `errors` is present. The field error does not mean the write failed. |
 | MCP response projection fails after a successful mutation | `WRITE_APPLIED` tool error with saved ID; no partial success payload. | Refetch the saved ID with `reminders_get` or `lists_get`, which read EventKit only. |
 | Timeout, lost connection, or unclassified error | The client may have no saved ID or confirmed outcome. | Treat the outcome as unknown, not as evidence that no write occurred. Inspect existing data before retrying a create. |

@@ -16,22 +16,22 @@ struct Capabilities {
     guard header.utf8.count <= 16_384,
       let object = try JSONSerialization.jsonObject(with: decodeHeader(header)) as? [String: Any],
       let grants = object[capability] as? [[String: Any]]
-    else { throw ServerError.message("Forbidden") }
+    else { throw ServerError.forbidden("Forbidden") }
 
     var result = Capabilities()
     for grant in grants {
       for (name, value) in grant {
         guard let value = value as? String, value == "r" || value == "rw" else {
-          throw ServerError.message("Forbidden")
+          throw ServerError.forbidden("Forbidden")
         }
         let access: Access = value == "rw" ? .write : .read
         switch name {
         case "graphql": result.graphql = maxAccess(result.graphql, access)
         case "mcp": result.mcp = maxAccess(result.mcp, access)
         case "metrics":
-          guard access == .read else { throw ServerError.message("Forbidden") }
+          guard access == .read else { throw ServerError.forbidden("Forbidden") }
           result.metrics = .read
-        default: throw ServerError.message("Forbidden")
+        default: throw ServerError.forbidden("Forbidden")
         }
       }
     }
@@ -58,7 +58,7 @@ struct Capabilities {
     var decoded = Data()
     for word in header.split(whereSeparator: { $0.isWhitespace }) {
       guard word.lowercased().hasPrefix("=?utf-8?q?"), word.hasSuffix("?=") else {
-        throw ServerError.message("Forbidden")
+        throw ServerError.forbidden("Forbidden")
       }
       let bytes = Array(word.dropFirst(10).dropLast(2).utf8)
       var index = 0
@@ -71,7 +71,7 @@ struct Capabilities {
             }),
             let byte = UInt8(
               String(decoding: bytes[(index + 1)...(index + 2)], as: UTF8.self), radix: 16)
-          else { throw ServerError.message("Forbidden") }
+          else { throw ServerError.forbidden("Forbidden") }
           decoded.append(byte)
           index += 3
         case 95:
@@ -79,7 +79,7 @@ struct Capabilities {
           index += 1
         default:
           guard (33...126).contains(bytes[index]), bytes[index] != 63 else {
-            throw ServerError.message("Forbidden")
+            throw ServerError.forbidden("Forbidden")
           }
           decoded.append(bytes[index])
           index += 1
@@ -87,7 +87,7 @@ struct Capabilities {
       }
     }
     guard String(data: decoded, encoding: .utf8) != nil else {
-      throw ServerError.message("Forbidden")
+      throw ServerError.forbidden("Forbidden")
     }
     return decoded
   }

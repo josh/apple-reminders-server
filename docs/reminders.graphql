@@ -204,9 +204,9 @@ type LocationAlarm {
 type Mutation {
   "Delete completed reminders in one list. Keep incomplete reminders and the list."
   clearCompletedReminders(listId: ID!): ClearCompletedResult
-  "Create a list. WRITE_APPLIED includes the saved ID if a later step fails; do not retry creation blindly. Select id to retain it if response metadata fails."
+  "Create a list. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails."
   createList(input: CreateListInput!): ReminderList
-  "Create an incomplete reminder in an editable list. Omitted listId uses the application default. WRITE_APPLIED includes the saved ID if a later step fails; do not retry creation blindly. Select id to retain it if response metadata fails."
+  "Create an incomplete reminder in an editable list. Omitted listId uses the application default. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails."
   createReminder(input: CreateReminderInput!): Reminder
   "Delete a list; nonempty lists require allowNonEmpty. Concurrent external edits are not locked."
   deleteList(id: ID!, allowNonEmpty: Boolean! = false): DeleteResult
@@ -216,9 +216,9 @@ type Mutation {
   showList(id: ID!): ReminderList
   "Show a reminder in the Reminders UI without changing its data."
   showReminder(id: ID!): Reminder
-  "Update list properties. WRITE_APPLIED means a save succeeded before a later failure; refetch the saved ID before retrying."
+  "Update list properties. An error with code WRITE_APPLIED means the save succeeded before a later failure; refetch the saved ID before retrying."
   updateList(id: ID!, patch: ListPatch!): ReminderList
-  "Update supplied fields. Null patch values are rejected; clearFields removes optional values. Dates can affect alerts. WRITE_APPLIED means a save succeeded before a later failure; refetch the saved ID before retrying."
+  "Update supplied fields. Null patch values are rejected; clearFields removes optional values. Dates can affect alerts. An error with code WRITE_APPLIED means the save succeeded before a later failure; refetch the saved ID before retrying."
   updateReminder(id: ID!, patch: ReminderPatch!): Reminder
 }
 

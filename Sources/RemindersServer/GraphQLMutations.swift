@@ -117,7 +117,7 @@ func makeMutationType(
       "createList": GraphQLField(
         type: list,
         description:
-          "Create a list. WRITE_APPLIED includes the saved ID if a later step fails; do not retry creation blindly. Select id to retain it if response metadata fails.",
+          "Create a list. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails.",
         args: ["input": GraphQLArgument(type: GraphQLNonNull(createList))],
         resolve: { _, args, context, _ in
           let input = try mutationInput(args["input"])
@@ -129,7 +129,7 @@ func makeMutationType(
       "updateList": GraphQLField(
         type: list,
         description:
-          "Update list properties. WRITE_APPLIED means a save succeeded before a later failure; refetch the saved ID before retrying.",
+          "Update list properties. An error with code WRITE_APPLIED means the save succeeded before a later failure; refetch the saved ID before retrying.",
         args: [
           "id": GraphQLArgument(type: GraphQLNonNull(GraphQLID)),
           "patch": GraphQLArgument(type: GraphQLNonNull(listPatch)),
@@ -177,7 +177,7 @@ func makeMutationType(
       "createReminder": GraphQLField(
         type: reminder,
         description:
-          "Create an incomplete reminder in an editable list. Omitted listId uses the application default. WRITE_APPLIED includes the saved ID if a later step fails; do not retry creation blindly. Select id to retain it if response metadata fails.",
+          "Create an incomplete reminder in an editable list. Omitted listId uses the application default. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails.",
         args: ["input": GraphQLArgument(type: GraphQLNonNull(create))],
         resolve: { _, args, context, _ in
           let input = args["input"]
@@ -189,7 +189,7 @@ func makeMutationType(
       "updateReminder": GraphQLField(
         type: reminder,
         description:
-          "Update supplied fields. Null patch values are rejected; clearFields removes optional values. Dates can affect alerts. WRITE_APPLIED means a save succeeded before a later failure; refetch the saved ID before retrying.",
+          "Update supplied fields. Null patch values are rejected; clearFields removes optional values. Dates can affect alerts. An error with code WRITE_APPLIED means the save succeeded before a later failure; refetch the saved ID before retrying.",
         args: [
           "id": GraphQLArgument(type: GraphQLNonNull(GraphQLID)),
           "patch": GraphQLArgument(type: GraphQLNonNull(patch)),

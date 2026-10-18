@@ -22,7 +22,7 @@ func graphMap<T: Encodable>(_ value: T) throws -> Map {
 func graphMaps<T: Encodable>(_ values: [T]) throws -> [Map] { try values.map(graphMap) }
 private func inventory(_ context: (any Sendable)?) async throws -> Inventory {
   guard let context = context as? GraphQLContext else {
-    throw ServerError.message("Missing inventory resolver context")
+    throw ServerError.internalError("Missing inventory resolver context")
   }
   return try await context.inventory()
 }
@@ -40,7 +40,7 @@ private func searchPage(
   var flags: [String: Bool]?
   if flagged != nil {
     guard let context = context as? GraphQLContext else {
-      throw ServerError.message("Missing flag context")
+      throw ServerError.internalError("Missing flag context")
     }
     flags = try await context.flags()
   }
@@ -49,7 +49,7 @@ private func searchPage(
   let query = try? criteria["nameContains"].stringValue()
   let priorities = try? criteria["priorities"].arrayValue().map { try $0.intValue() }
   guard priorities?.allSatisfy({ (0...9).contains($0) }) ?? true else {
-    throw ServerError.message("priorities must be 0...9")
+    throw ServerError.invalidArgument("priorities must be 0...9")
   }
   let status = try? criteria["dueStatus"].stringValue().lowercased()
   let lower = try? criteria["dueOnOrAfter"].stringValue()
@@ -60,13 +60,13 @@ private func searchPage(
   guard !(from != nil && (lower != nil || dayUpper != nil)),
     !(lower != nil && timestampUpper != nil)
   else {
-    throw ServerError.message("INVALID_ARGUMENT: do not mix calendar-day and timestamp bounds")
+    throw ServerError.invalidArgument("do not mix calendar-day and timestamp bounds")
   }
   try validateDays(lower, dayUpper)
   let fromDate = try from.map(parseTimestamp)
   let beforeDate = try timestampUpper.map(parseTimestamp)
   if let fromDate, let beforeDate, fromDate >= beforeDate {
-    throw ServerError.message("INVALID_ARGUMENT: dueFrom must precede dueBefore")
+    throw ServerError.invalidArgument("dueFrom must precede dueBefore")
   }
   let items = data.reminders.filter { item in
     // An unknown flag (not yet exposed by Reminders) matches neither filter value.
@@ -95,7 +95,7 @@ func page(_ values: [Map], args: Map) throws -> Map {
   let limit = try args["limit"].intValue()
   let offset = try args["offset"].intValue()
   guard (1...100).contains(limit), offset >= 0 else {
-    throw ServerError.message("limit must be 1...100 and offset must be nonnegative")
+    throw ServerError.invalidArgument("limit must be 1...100 and offset must be nonnegative")
   }
   let start = min(offset, values.count)
   let end = min(start + limit, values.count)
@@ -125,7 +125,7 @@ actor GraphQLContext {
     }
     let values = try await properties[command]!.value
     guard let key = UUID(uuidString: id)?.uuidString, let value = values[key] else {
-      throw ServerError.message("No matching automation object; inventory may have changed")
+      throw ServerError.internalError("No matching automation object; inventory may have changed")
     }
     return value
   }
@@ -150,7 +150,7 @@ actor GraphQLContext {
   func flag(id: String) async throws -> Bool? {
     let flags = try await flags()
     guard let value = flags[id] else {
-      throw ServerError.message(
+      throw ServerError.internalError(
         "Reminders has not yet exposed this reminder to automation; flagged is unknown, retry later"
       )
     }
@@ -273,7 +273,7 @@ func makeSchema() throws -> GraphQLSchema {
   let alarmUnion = try GraphQLUnionType(
     name: "ReminderAlarm",
     resolveType: { value, _ in
-      guard let value = value as? Map else { throw ServerError.message("Invalid alarm") }
+      guard let value = value as? Map else { throw ServerError.internalError("Invalid alarm") }
       return try value["__typename"].stringValue()
     }, types: [absoluteAlarm, relativeAlarm, locationAlarm])
   let recurrenceDay = try GraphQLObjectType(
@@ -365,7 +365,7 @@ func makeSchema() throws -> GraphQLSchema {
         type: GraphQLBoolean,
         resolve: { source, _, context, _ in
           guard let item = source as? Map, let context = context as? GraphQLContext else {
-            throw ServerError.message("Missing reminder resolver context")
+            throw ServerError.internalError("Missing reminder resolver context")
           }
           return try await context.flag(id: item["id"].stringValue())
         }),
@@ -389,8 +389,8 @@ func makeSchema() throws -> GraphQLSchema {
           let due = try componentValue(source, key: "dueDateComponents")
           let start = try componentValue(source, key: "startDateComponents")
           if let due, let start, due.timeZone != start.timeZone {
-            throw ServerError.message(
-              "UNSUPPORTED: start and due dates use different time zones; inspect component fields")
+            throw ServerError.unsupported(
+              "start and due dates use different time zones; inspect component fields")
           }
           return due?.timeZone ?? start?.timeZone
         }),
@@ -431,7 +431,7 @@ func makeSchema() throws -> GraphQLSchema {
         "total", "completed", "incomplete", "overdue", "scheduled", "recurring", "withAlarms",
       ].map { ($0, field(GraphQLNonNull(GraphQLInt))) }))
   let resolveContainerType: GraphQLTypeResolve = { value, _ in
-    guard let value = value as? Map else { throw ServerError.message("Invalid container") }
+    guard let value = value as? Map else { throw ServerError.internalError("Invalid container") }
     return try value["__typename"].stringValue()
   }
   let listContainer = try GraphQLUnionType(
@@ -465,7 +465,7 @@ func makeSchema() throws -> GraphQLSchema {
         default: break
         }
         guard var result = value else {
-          throw ServerError.message(
+          throw ServerError.internalError(
             "Container is outside the accessible inventory or changed during the read")
         }
         result["__typename"] = Map(kind)
