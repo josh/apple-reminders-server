@@ -8,7 +8,8 @@ let usage = """
   Serve /graphql, /mcp, and /metrics on 127.0.0.1. Requires macOS 14+.
   --metrics-interval-seconds sets the background metrics refresh delay (default: 3600).
   --log-level sets the minimum log level: trace, debug, info, notice, warning, error,
-  or critical (default: info). Request lines log at info; failures log at error.
+  or critical (default: info). Requests log at debug, client errors at notice, and
+  server errors at error.
   Loopback origins are always allowed; each --allowed-origin adds a browser origin
   that may call the server cross-origin.
   --tailscale-app-capability applies Tailscale permissions when given.

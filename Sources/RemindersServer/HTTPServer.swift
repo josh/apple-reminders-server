@@ -110,7 +110,11 @@ func serve(
       let route =
         ["/graphql", "/mcp", "/metrics"].contains(request.uri.path)
         ? request.uri.path : "other"
-      let failure = response.failureKind
+      // MCP clients probe for an event stream with GET; the spec answer is 405.
+      let probe = request.method == .get && route == "/mcp" && response.status == 405
+      let failure = probe ? nil : response.failureKind
+      let level: Logger.Level =
+        response.status >= 500 ? .error : failure == nil ? .debug : .notice
       var metadata: Logger.Metadata = [
         "method": "\(request.method.rawValue)", "route": "\(route)",
         "status": "\(response.status)", "duration_ms": "\(String(format: "%.2f", milliseconds))",
@@ -121,7 +125,7 @@ func serve(
       if let login = request.headers[tailscaleUserLogin] { metadata["tailscale_user"] = "\(login)" }
       if let agent = request.headers[.userAgent] { metadata["user_agent"] = "\(agent)" }
       if let rpc { metadata["rpc"] = "\(rpc)" }
-      serverLogger.log(level: failure == nil ? .info : .error, "HTTP request", metadata: metadata)
+      serverLogger.log(level: level, "HTTP request", metadata: metadata)
       var fields: HTTPFields = [.contentType: response.type]
       for (name, value) in response.headers {
         fields[.init(name)!] = value
