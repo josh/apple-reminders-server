@@ -81,8 +81,7 @@ func remindersMutateList(_ request: ListMutation) async throws -> ListMutationPh
     list.title = name
   }
   if let color = patch.color {
-    guard color.count == 4, color[3] == 1,
-      color.allSatisfy({ $0.isFinite && (0...1).contains($0) }),
+    guard
       let calendarColor = CGColor(
         colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!, components: color.map { CGFloat($0) })
     else { throw ServerError.invalidArgument("invalid list color") }
