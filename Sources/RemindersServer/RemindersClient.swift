@@ -23,9 +23,6 @@ func untilSynchronized<T: Sendable>(
   }
 }
 
-func readInventory(includeFlags: Bool = false) async throws -> Inventory {
-  try await fetchInventory(includeFlags: includeFlags)
-}
 func readReminders() async throws -> [ReminderRecord] {
   try await readInventory(includeFlags: true).reminders
 }
@@ -36,9 +33,6 @@ func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async thro
     try requireAccess()
     return try readScriptProperty(property)
   }
-}
-func clearCompletedReminders(listID: String) async throws -> ClearCompletedResult {
-  try await executeClearCompleted(listID: listID)
 }
 func mutateReminder(_ request: ReminderMutation) async throws -> MutationResult<ReminderRecord> {
   switch try await onMainActor({ try executeMutation(request) }) {

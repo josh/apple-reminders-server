@@ -181,7 +181,7 @@ func authorizeReminders() async throws {
 }
 
 @MainActor
-func fetchInventory(includeFlags: Bool) async throws -> Inventory {
+func readInventory(includeFlags: Bool = false) async throws -> Inventory {
   try requireAccess()
   let store = EKEventStore()
   let calendars = store.calendars(for: .reminder).sorted {

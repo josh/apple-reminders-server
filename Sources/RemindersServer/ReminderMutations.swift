@@ -262,7 +262,7 @@ struct ClearCompletedResult: Encodable, Sendable {
 }
 
 @MainActor
-func executeClearCompleted(listID: String) async throws -> ClearCompletedResult {
+func clearCompletedReminders(listID: String) async throws -> ClearCompletedResult {
   guard !listID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
     throw ServerError.invalidArgument("listId required")
   }
