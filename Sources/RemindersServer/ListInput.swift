@@ -22,11 +22,8 @@ func listChanges(_ input: MutationInput, creating: Bool) throws -> ListChanges {
       throw ServerError.invalidArgument(
         "list colors must be opaque: use #RRGGBB or #RRGGBBFF")
     }
-    let hex = String(color.dropFirst()) + (color.count == 7 ? "FF" : "")
-    result.color = stride(from: 0, to: 8, by: 2).map { index in
-      let start = hex.index(hex.startIndex, offsetBy: index)
-      return Double(Int(hex[start..<hex.index(start, offsetBy: 2)], radix: 16)!) / 255
-    }
+    let rgba = UInt32(color.dropFirst() + (color.count == 7 ? "FF" : ""), radix: 16)!
+    result.color = (0..<4).map { Double(rgba >> (24 - 8 * $0) & 0xFF) / 255 }
   }
   guard creating || result.name != nil || result.color != nil || result.emblem != nil else {
     throw ServerError.invalidArgument("list patch must contain at least one change")
