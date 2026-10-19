@@ -36,17 +36,7 @@ actor MetricsCollector {
 func collectMetrics() async throws -> String {
   let data = try await readInventory(includeFlags: false)
   let lists = data.lists
-  let fetched = data.reminders
-  let listIDs = Set(lists.map { $0.id })
-  var seen = Set<String>()
-  var reminders: [ReminderRecord] = []
-  for item in fetched {
-    guard let listID = item.listId, listIDs.contains(listID) else {
-      throw ServerError.internalError(
-        "Reminder inventory changed during collection; retry the scrape")
-    }
-    if seen.insert(item.id).inserted { reminders.append(item) }
-  }
+  let reminders = data.reminders
   let accounts = Set(lists.map { $0.source.id })
   var lines: [String] = []
   func family(_ name: String, _ help: String) {
@@ -84,9 +74,6 @@ func collectMetrics() async throws -> String {
   for list in lists {
     var counts: [String: Int] = [:]
     for item in reminders where item.listId == list.id {
-      guard (0...9).contains(item.priority) else {
-        throw ServerError.internalError("Out-of-range priority")
-      }
       let status = item.completed ? "completed" : "incomplete"
       let priority =
         item.priority == 0
