@@ -577,8 +577,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.invalidArgument("id required")
     }
-    let records = try await readInventory().lists.filter { $0.id == id }
-    return try result(ListOutput(list: records.first.map(MCPList.init)))
+    return try result(ListOutput(list: await readList(id: id).map(MCPList.init)))
   case "defaults_get":
     try keys([])
     let data = try await readInventory()
@@ -601,8 +600,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.invalidArgument("id required")
     }
-    let records = try await readInventory().reminders.filter { $0.id == id }
-    return try result(GetOutput(reminder: records.first.map(MCPReminder.init)))
+    return try result(GetOutput(reminder: await readReminder(id: id).map(MCPReminder.init)))
   case "reminders_search":
     try keys(["filter", "orderBy", "limit", "cursor"])
     let filter = try filters(reminderFilterKeys)

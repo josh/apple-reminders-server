@@ -210,6 +210,21 @@ func readInventory() async throws -> Inventory {
     return Inventory(lists: lists, reminders: reminders, defaultListId: defaultListID)
   }
 }
+@MainActor
+func readReminder(id: String) throws -> ReminderRecord? {
+  try requireAccess()
+  return try (EKEventStore().calendarItem(withIdentifier: id) as? EKReminder).map {
+    try ReminderRecord($0, now: Date(), flagged: nil)
+  }
+}
+@MainActor
+func readList(id: String) throws -> ListRecord? {
+  try requireAccess()
+  guard let list = EKEventStore().calendar(withIdentifier: id),
+    list.allowedEntityTypes.contains(.reminder)
+  else { return nil }
+  return try ListRecord(list)
+}
 
 // The main run loop drains the main dispatch queue, which drives the main actor.
 func remindersRunMainLoop() {
