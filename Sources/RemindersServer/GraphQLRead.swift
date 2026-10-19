@@ -18,35 +18,16 @@ func calendarField(_ type: GraphQLOutputType, key: String, timed: Bool) -> Graph
 
 func listSearchPage(_ data: Inventory, args: Map, accountID: String? = nil) throws -> Map {
   let filter = args["filter"]
-  let query = try? filter["query"].stringValue().lowercased()
-  let accounts = try? filter["accountIds"].arrayValue().map { try $0.stringValue() }
-  let editable = try? filter["allowsContentModifications"].boolValue()
-  let subscribed = try? filter["subscribed"].boolValue()
-  var items = data.lists.filter {
-    (accountID == nil || $0.source.id == accountID)
-      && (accounts == nil || accounts!.contains($0.source.id))
-      && (query == nil || $0.name.lowercased().contains(query!))
-      && (editable == nil || $0.allowsContentModifications == editable)
-      && (subscribed == nil || $0.isSubscribed == subscribed)
-  }
+  var search = Search()
+  search.query = try? filter["query"].stringValue()
+  search.accountIds = try? filter["accountIds"].arrayValue().map { try $0.stringValue() }
+  search.allowsContentModifications = try? filter["allowsContentModifications"].boolValue()
+  search.subscribed = try? filter["subscribed"].boolValue()
   if args["orderBy"] != .null && args["orderBy"] != .undefined {
-    let descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
-    items.sort {
-      let a = $0.name.lowercased()
-      let b = $1.name.lowercased()
-      return a == b ? $0.id < $1.id : descending ? a > b : a < b
-    }
+    search.orderField = "NAME"
+    search.descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
   }
-  return try page(items, args: args)
-}
-
-func orderedReminders(_ items: [ReminderRecord], args: Map) throws -> [ReminderRecord] {
-  guard args["orderBy"] != .null && args["orderBy"] != .undefined else {
-    return items
-  }
-  let field = try args["orderBy"]["field"].stringValue()
-  let descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
-  return try orderReminders(items, field: field, descending: descending)
+  return try page(search.lists(data, accountID: accountID), args: args)
 }
 
 func recurrenceProjection(_ source: Map) throws -> Map? {

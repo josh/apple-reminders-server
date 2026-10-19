@@ -30,66 +30,36 @@ private func searchPage(
   _ data: Inventory, args: Map, context: (any Sendable)?, scope: Set<String>? = nil
 ) async throws -> Map {
   let criteria = args["filter"]
-  let text = try? criteria["query"].stringValue().lowercased()
-  let accounts = try? criteria["accountIds"].arrayValue().map { try $0.stringValue() }
-  let accountLists = accounts.map { accounts in
-    Set(data.lists.filter { accounts.contains($0.source.id) }.map(\.id))
+  var search = Search()
+  search.query = try? criteria["query"].stringValue()
+  search.nameContains = try? criteria["nameContains"].stringValue()
+  search.accountIds = try? criteria["accountIds"].arrayValue().map { try $0.stringValue() }
+  search.listIds = try? criteria["listIds"].arrayValue().map { try $0.stringValue() }
+  search.hasDueDate = try? criteria["hasDueDate"].boolValue()
+  search.completed = try? criteria["completed"].boolValue()
+  search.flagged = try? criteria["flagged"].boolValue()
+  search.priorities = try? criteria["priorities"].arrayValue().map { try $0.intValue() }
+  guard search.priorities?.allSatisfy({ (0...9).contains($0) }) ?? true else {
+    throw ServerError.invalidArgument("priorities must be 0...9")
   }
-  let hasDueDate = try? criteria["hasDueDate"].boolValue()
-  let flagged = try? criteria["flagged"].boolValue()
+  search.dueStatus = (try? criteria["dueStatus"].stringValue()).flatMap {
+    DueStatus(rawValue: $0.lowercased())
+  }
+  search.dueOnOrAfter = try? criteria["dueOnOrAfter"].stringValue()
+  search.dueBefore = try? criteria["dueBefore"].stringValue()
+  search.dueFrom = try? criteria["dueFrom"].stringValue()
+  if args["orderBy"] != .null && args["orderBy"] != .undefined {
+    search.orderField = try args["orderBy"]["field"].stringValue()
+    search.descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
+  }
   var flags: [String: Bool]?
-  if flagged != nil {
+  if search.flagged != nil {
     guard let context = context as? GraphQLContext else {
       throw ServerError.internalError("Missing flag context")
     }
     flags = try await context.flags()
   }
-  let ids = try? criteria["listIds"].arrayValue().map { try $0.stringValue() }
-  let completed = try? criteria["completed"].boolValue()
-  let query = try? criteria["nameContains"].stringValue()
-  let priorities = try? criteria["priorities"].arrayValue().map { try $0.intValue() }
-  guard priorities?.allSatisfy({ (0...9).contains($0) }) ?? true else {
-    throw ServerError.invalidArgument("priorities must be 0...9")
-  }
-  let status = try? criteria["dueStatus"].stringValue().lowercased()
-  let lower = try? criteria["dueOnOrAfter"].stringValue()
-  let upper = try? criteria["dueBefore"].stringValue()
-  let from = try? criteria["dueFrom"].stringValue()
-  let timestampUpper = upper.flatMap { $0.contains("T") ? $0 : nil }
-  let dayUpper = upper.flatMap { $0.contains("T") ? nil : $0 }
-  guard !(from != nil && (lower != nil || dayUpper != nil)),
-    !(lower != nil && timestampUpper != nil)
-  else {
-    throw ServerError.invalidArgument("do not mix calendar-day and timestamp bounds")
-  }
-  try validateDays(lower, dayUpper)
-  let fromDate = try from.map(parseTimestamp)
-  let beforeDate = try timestampUpper.map(parseTimestamp)
-  if let fromDate, let beforeDate, fromDate >= beforeDate {
-    throw ServerError.invalidArgument("dueFrom must precede dueBefore")
-  }
-  let items = data.reminders.filter { item in
-    // An unknown flag (not yet exposed by Reminders) matches neither filter value.
-    if let flagged, flags?[item.id] != flagged { return false }
-    if fromDate != nil || beforeDate != nil {
-      guard let date = (try? projectDate(item.dueDateComponents))?.instant,
-        fromDate == nil || date >= fromDate!, beforeDate == nil || date < beforeDate!
-      else { return false }
-    }
-    return (accountLists == nil || accountLists!.contains(item.listId ?? ""))
-      && (hasDueDate == nil || hasDueDate == (item.dueDateComponents != nil))
-      && (text == nil || (item.name ?? "").lowercased().contains(text!)
-        || (item.body ?? "").lowercased().contains(text!))
-      && (scope == nil || scope!.contains(item.listId ?? ""))
-      && (priorities == nil || priorities!.contains(item.priority))
-      && (status == nil || status == item.dueStatus.rawValue)
-      && (ids == nil || ids!.contains(item.listId ?? ""))
-      && (completed == nil || completed == item.completed)
-      && (query == nil || query!.isEmpty
-        || (item.name ?? "").lowercased().contains(query!.lowercased()))
-      && matchesDays(item.dueDay, lower, dayUpper)
-  }
-  return try page(orderedReminders(items, args: args), args: args)
+  return try page(search.reminders(data, scope: scope, flags: flags), args: args)
 }
 func page<T: Encodable>(_ values: [T], args: Map) throws -> Map {
   let limit = try args["limit"].intValue()

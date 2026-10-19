@@ -1,23 +1,6 @@
 import Foundation
 import MCP
 
-private struct Search: Codable, Equatable, Sendable {
-  var orderField: String?
-  var descending: Bool = false
-  var dueFrom: String?
-  var accountIds: [String]?
-  var listIds: [String]?
-  var hasDueDate: Bool?
-  var allowsContentModifications: Bool?
-  var subscribed: Bool?
-  var completed: Bool?
-  var query: String?
-  var limit: Int = 50
-  var priorities: [Int]?
-  var dueStatus: DueStatus?
-  var dueOnOrAfter: String?
-  var dueBefore: String?
-}
 private struct SearchOutput: Encodable {
   let items: [MCPReminder]
   let totalCount: Int
@@ -579,20 +562,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.descending = direction == "DESC"
     }
     let offset = try cursor()
-    var lists = try await readInventory().lists.filter {
-      (search.query == nil || $0.name.lowercased().contains(search.query!.lowercased()))
-        && (search.accountIds == nil || search.accountIds!.contains($0.source.id))
-        && (search.subscribed == nil || search.subscribed == $0.isSubscribed)
-        && (search.allowsContentModifications == nil
-          || search.allowsContentModifications == $0.allowsContentModifications)
-    }
-    if search.orderField != nil {
-      lists.sort { a, b in
-        let x = a.name.lowercased()
-        let y = b.name.lowercased()
-        return x == y ? a.id < b.id : search.descending ? x > y : x < y
-      }
-    }
+    let lists = try await search.lists(readInventory())
     let start = min(offset, lists.count)
     let end = min(start + search.limit, lists.count)
     let token = end < lists.count ? String(end) : nil
@@ -644,19 +614,6 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     search.listIds = try ids("listIds", from: filter)
     search.hasDueDate = try bool("hasDueDate", from: filter)
     search.dueFrom = try string("dueFrom", from: filter)
-    let timestampUpper = search.dueBefore.flatMap { $0.contains("T") ? $0 : nil }
-    let dayUpper = search.dueBefore.flatMap { $0.contains("T") ? nil : $0 }
-    guard !(search.dueFrom != nil && (search.dueOnOrAfter != nil || dayUpper != nil)),
-      !(search.dueOnOrAfter != nil && timestampUpper != nil)
-    else {
-      throw ServerError.invalidArgument("do not mix calendar-day and timestamp bounds")
-    }
-    try validateDays(search.dueOnOrAfter, dayUpper)
-    let fromDate = try search.dueFrom.map(parseTimestamp)
-    let beforeDate = try timestampUpper.map(parseTimestamp)
-    if let fromDate, let beforeDate, fromDate >= beforeDate {
-      throw ServerError.invalidArgument("dueFrom must precede dueBefore")
-    }
     if let value = args["orderBy"] {
       let order = try mutationInput(value)
       try order.rejectNulls()
@@ -703,32 +660,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       }
       search.dueStatus = status
     }
+    let items = try search.reminders(await readInventory())
     let offset = try cursor()
-    let data = try await readInventory()
-    let allowedLists = search.accountIds.map { ids in
-      Set(data.lists.filter { ids.contains($0.source.id) }.map(\.id))
-    }
-    let fetched = data.reminders.filter {
-      if fromDate != nil || beforeDate != nil {
-        guard let date = (try? projectDate($0.dueDateComponents))?.instant,
-          fromDate == nil || date >= fromDate!, beforeDate == nil || date < beforeDate!
-        else { return false }
-      }
-      return (allowedLists == nil || allowedLists!.contains($0.listId ?? ""))
-        && (search.listIds == nil || search.listIds!.contains($0.listId ?? ""))
-        && (search.hasDueDate == nil || search.hasDueDate == ($0.dueDateComponents != nil))
-        && matchesDays($0.dueDay, search.dueOnOrAfter, dayUpper)
-        && (search.priorities == nil || search.priorities!.contains($0.priority))
-        && (search.dueStatus == nil || $0.dueStatus == search.dueStatus)
-        && (search.completed == nil || $0.completed == search.completed)
-        && (search.query == nil || search.query!.isEmpty
-          || (($0.name ?? "").lowercased().contains(search.query!.lowercased())
-            || ($0.body ?? "").lowercased().contains(search.query!.lowercased())))
-    }
-    let items =
-      try search.orderField.map {
-        try orderReminders(fetched, field: $0, descending: search.descending)
-      } ?? fetched
     let start = min(offset, items.count)
     let end = min(start + search.limit, items.count)
     let token = end < items.count ? String(end) : nil
