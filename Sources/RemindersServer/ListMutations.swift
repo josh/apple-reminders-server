@@ -35,8 +35,9 @@ func remindersMutateList(_ request: ListMutation) async throws -> ListMutationPh
     guard let source = store.sources.first(where: { $0.sourceIdentifier == accountID }) else {
       throw ServerError.notFound("account is unavailable")
     }
-    guard let name = patch.name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    else { throw ServerError.invalidArgument("list name must not be blank") }
+    guard patch.name != nil else {
+      throw ServerError.invalidArgument("list name must not be blank")
+    }
     list = EKCalendar(for: .reminder, eventStore: store)
     list.source = source
     changes = patch

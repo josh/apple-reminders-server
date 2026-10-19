@@ -70,8 +70,7 @@ func executeMutation(_ request: ReminderMutation) throws -> ReminderMutationPhas
     guard list.allowsContentModifications else {
       throw ServerError.readOnly("destination list is not editable")
     }
-    guard let name = patch.name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    else { throw ServerError.invalidArgument("name must not be blank") }
+    guard patch.name != nil else { throw ServerError.invalidArgument("name must not be blank") }
     item = EKReminder(eventStore: store)
     item.calendar = list
     changes = patch
