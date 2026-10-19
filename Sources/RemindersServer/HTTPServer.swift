@@ -93,6 +93,11 @@ private func graphQLError(_ error: Error) -> [String: Any] {
   return ["message": server.message, "extensions": ["code": server.code.rawValue]]
 }
 
+// Headers the server reads as one value; a repeat is ambiguous. Every other header
+// may repeat per RFC 9110 and is joined with a comma, as proxies expect.
+private let singleValueHeaders: Set<String> = [
+  "origin", "content-type", "tailscale-app-capabilities",
+]
 private let forwardedFor = HTTPField.Name("x-forwarded-for")!
 private let tailscaleUserLogin = HTTPField.Name("tailscale-user-login")!
 private func jsonRPCMethod(_ body: Data) -> String {
@@ -154,13 +159,16 @@ func serve(
     do {
       let response: ServiceResponse
       var headers: [String: String] = [:]
-      // Reject ambiguous repeated headers instead of silently picking one.
       for header in request.headers {
         let key = header.name.rawName.lowercased()
-        guard headers[key] == nil else {
-          return respond(ServiceResponse(status: 400, body: Data()))
+        guard let existing = headers[key] else {
+          headers[key] = header.value
+          continue
         }
-        headers[key] = header.value
+        guard !singleValueHeaders.contains(key) else {
+          return respond(try .json(["error": "Repeated \(key) header"], status: 400))
+        }
+        headers[key] = existing + ", " + header.value
       }
       if let origin = headers["origin"], !origins.contains(origin.lowercased()) {
         response = try .json(["error": "Untrusted origin"], status: 403)
