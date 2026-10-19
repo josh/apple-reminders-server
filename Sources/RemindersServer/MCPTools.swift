@@ -379,9 +379,7 @@ private func toolsCatalog() -> [Tool] {
       description:
         "Read one reminder with component and projected dates, alarms and recurrence; returns null when absent.",
       inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: annotations,
-      outputSchema: schema(
-        ["reminder": .object(["anyOf": .array([item, primitive("null")])])], required: ["reminder"])
-    ),
+      outputSchema: schema(["reminder": nullable(item)], required: ["reminder"])),
   ]
 }
 private func result<T: Encodable>(_ value: T) throws -> CallTool.Result {
