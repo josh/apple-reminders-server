@@ -23,8 +23,11 @@ func untilSynchronized<T: Sendable>(
   }
 }
 
-func readReminders() async throws -> [ReminderRecord] {
-  try await readInventory(includeFlags: true).reminders
+func readFlags() async throws -> [String: Bool] {
+  try await onMainActor {
+    try requireAccess()
+    return try readScriptFlags()
+  }
 }
 func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async throws -> [String:
   Value]

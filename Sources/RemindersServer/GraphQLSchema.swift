@@ -138,9 +138,12 @@ actor GraphQLContext {
   func flags() async throws -> [String: Bool] {
     if lookup == nil {
       lookup = Task {
+        let table = try await readFlags()
         var flags: [String: Bool] = [:]
-        for item in try await readReminders() {
-          if let value = item.flagged { flags[item.id] = value }
+        for item in try await inventory().reminders {
+          if let value = UUID(uuidString: item.id).flatMap({ table[$0.uuidString] }) {
+            flags[item.id] = value
+          }
         }
         return flags
       }
