@@ -25,20 +25,12 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
     scriptID = "x-apple-reminder://" + uuid.uuidString
   }
   let script = try makeShowScript()
-  let arguments = NSAppleEventDescriptor.list()
-  arguments.insert(.init(string: scriptID), at: 1)
-  arguments.insert(.init(boolean: isList), at: 2)
-  let event = NSAppleEventDescriptor(
-    eventClass: 0x6173_6372, eventID: 0x7073_6272, targetDescriptor: nil, returnID: -1,
-    transactionID: 0)
-  event.setParam(.init(string: "showitem"), forKeyword: 0x736e_616d)
-  event.setParam(arguments, forKeyword: 0x2d2d_2d2d)
-  var error: NSDictionary?
-  let result = script.executeAppleEvent(event, error: &error)
-  if let error {
+  let result: NSAppleEventDescriptor
+  do {
+    result = try callHandler(script, "showitem", [.init(string: scriptID), .init(boolean: isList)])
+  } catch {
     throw ServerError.showFailed(
-      "Reminders navigation failed (code \(error[NSAppleScript.errorNumber] as? Int ?? 0)); the UI may already have changed"
-    )
+      "Reminders navigation failed (\(error)); the UI may already have changed")
   }
   guard result.stringValue == scriptID else {
     throw ServerError.showFailed(
@@ -47,10 +39,8 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
   return record
 }
 
-@MainActor private var compiledShowScript: NSAppleScript?
 @MainActor
 private func makeShowScript() throws -> NSAppleScript {
-  if let script = compiledShowScript { return script }
   let source = """
     on showitem(objectID, isList)
         with timeout of 10 seconds
@@ -66,13 +56,5 @@ private func makeShowScript() throws -> NSAppleScript {
         end timeout
     end showitem
     """
-  guard let script = NSAppleScript(source: source) else {
-    throw ServerError.internalError("Cannot create navigation script")
-  }
-  var error: NSDictionary?
-  guard script.compileAndReturnError(&error) else {
-    throw ServerError.internalError("Cannot compile navigation script")
-  }
-  compiledShowScript = script
-  return script
+  return try compiledScript(source, what: "navigation script")
 }

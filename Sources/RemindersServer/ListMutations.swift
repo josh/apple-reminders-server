@@ -123,10 +123,8 @@ func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
 
 // One attempt per call: untilSynchronized retries between awaits. The short event
 // timeout bounds how long one attempt holds the main actor.
-@MainActor private var compiledListEmblemScript: NSAppleScript?
 @MainActor
 private func makeListEmblemScript() throws -> NSAppleScript {
-  if let script = compiledListEmblemScript { return script }
   let source = """
     on setemblem(listID, iconName)
         with timeout of 3 seconds
@@ -138,39 +136,15 @@ private func makeListEmblemScript() throws -> NSAppleScript {
         end timeout
     end setemblem
     """
-  guard let script = NSAppleScript(source: source) else {
-    throw ServerError.internalError("Cannot create list emblem writer")
-  }
-  var error: NSDictionary?
-  guard script.compileAndReturnError(&error) else {
-    throw ServerError.internalError("Cannot compile list emblem writer")
-  }
-  compiledListEmblemScript = script
-  return script
+  return try compiledScript(source, what: "list emblem writer")
 }
 @MainActor
 private func writeListEmblem(_ script: NSAppleScript, id: String, emblem: String) throws {
   guard let uuid = UUID(uuidString: id) else {
     throw ServerError.internalError("Unsupported list identifier for automation")
   }
-  let arguments = NSAppleEventDescriptor.list()
-  arguments.insert(.init(string: uuid.uuidString), at: 1)
-  arguments.insert(.init(string: emblem), at: 2)
-  let event = NSAppleEventDescriptor(
-    eventClass: 0x6173_6372, eventID: 0x7073_6272, targetDescriptor: nil, returnID: -1,
-    transactionID: 0)
-  event.setParam(.init(string: "setemblem"), forKeyword: 0x736e_616d)
-  event.setParam(arguments, forKeyword: 0x2d2d_2d2d)
-  var error: NSDictionary?
-  let result = script.executeAppleEvent(event, error: &error)
-  if let error {
-    let code = error[NSAppleScript.errorNumber] as? Int ?? 0
-    let message = error[NSAppleScript.errorMessage] as? String ?? "unknown"
-    if automationNotReadyCodes.contains(code) {
-      throw AutomationNotReady(code: code, message: message)
-    }
-    throw ServerError.internalError("Reminders emblem write failed (code \(code)): \(message)")
-  }
+  let result = try callHandler(
+    script, "setemblem", [.init(string: uuid.uuidString), .init(string: emblem)])
   guard result.numberOfItems == 2, result.atIndex(1)?.stringValue == uuid.uuidString,
     result.atIndex(2)?.stringValue == emblem
   else { throw ServerError.internalError("Reminders did not retain the requested emblem") }

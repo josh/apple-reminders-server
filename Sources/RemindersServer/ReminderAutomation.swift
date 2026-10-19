@@ -11,14 +11,53 @@ struct AutomationNotReady: Error, Sendable {
 // Reminders produces for a reminder or list it has not loaded yet.
 let automationNotReadyCodes: Set<Int> = [-1728, -10006, -1712]
 
-// Fixed handler with typed Apple-event arguments. No client text becomes source.
+// Fixed handlers compiled once per process. No client text becomes source.
+@MainActor private var compiledScripts: [String: NSAppleScript] = [:]
+@MainActor
+func compiledScript(_ source: String, what: String) throws -> NSAppleScript {
+  if let script = compiledScripts[source] { return script }
+  guard let script = NSAppleScript(source: source) else {
+    throw ServerError.internalError("Cannot create \(what)")
+  }
+  var error: NSDictionary?
+  guard script.compileAndReturnError(&error) else {
+    throw ServerError.internalError(
+      "Cannot compile \(what) (code \(error?[NSAppleScript.errorNumber] as? Int ?? 0))")
+  }
+  compiledScripts[source] = script
+  return script
+}
+// Calls a handler with typed Apple-event arguments. Not-ready codes surface as
+// AutomationNotReady so callers can retry the automation step.
+@MainActor
+func callHandler(
+  _ script: NSAppleScript, _ name: String, _ arguments: [NSAppleEventDescriptor]
+) throws -> NSAppleEventDescriptor {
+  let list = NSAppleEventDescriptor.list()
+  for (index, value) in arguments.enumerated() { list.insert(value, at: index + 1) }
+  let event = NSAppleEventDescriptor(
+    eventClass: 0x6173_6372, eventID: 0x7073_6272, targetDescriptor: nil, returnID: -1,
+    transactionID: 0)
+  event.setParam(.init(string: name), forKeyword: 0x736e_616d)
+  event.setParam(list, forKeyword: 0x2d2d_2d2d)
+  var error: NSDictionary?
+  let result = script.executeAppleEvent(event, error: &error)
+  if let error {
+    let code = error[NSAppleScript.errorNumber] as? Int ?? 0
+    let message = error[NSAppleScript.errorMessage] as? String ?? "unknown"
+    if automationNotReadyCodes.contains(code) {
+      throw AutomationNotReady(code: code, message: message)
+    }
+    throw ServerError.internalError("Reminders handler \(name) failed (code \(code)): \(message)")
+  }
+  return result
+}
+
 // Match both reminder and containing list IDs before sending any set event.
 // One attempt per call: untilSynchronized retries between awaits. The short event
 // timeout bounds how long one attempt holds the main actor.
-@MainActor private var compiledReminderWriteScript: NSAppleScript?
 @MainActor
 func makeReminderWriteScript() throws -> NSAppleScript {
-  if let script = compiledReminderWriteScript { return script }
   let source = """
     on applychanges(reminderID, listID, changeFlag, flagValue, changeAlert, alertValue)
         with timeout of 3 seconds
@@ -35,17 +74,7 @@ func makeReminderWriteScript() throws -> NSAppleScript {
         end timeout
     end applychanges
     """
-  guard let script = NSAppleScript(source: source) else {
-    throw ServerError.internalError("Cannot create reminder automation writer")
-  }
-  var error: NSDictionary?
-  guard script.compileAndReturnError(&error) else {
-    throw ServerError.writeFailed(
-      "cannot compile reminder automation (code \(error?[NSAppleScript.errorNumber] as? Int ?? 0))"
-    )
-  }
-  compiledReminderWriteScript = script
-  return script
+  return try compiledScript(source, what: "reminder automation writer")
 }
 
 @MainActor
@@ -57,29 +86,13 @@ func writeReminderAutomation(
       "automation requires UUID reminder and list identifiers")
   }
   let reminderID = "x-apple-reminder://" + reminderUUID.uuidString
-  let listID = listUUID.uuidString
-  let arguments = NSAppleEventDescriptor.list()
-  let values: [NSAppleEventDescriptor] = [
-    .init(string: reminderID), .init(string: listID), .init(boolean: flagged != nil),
-    .init(boolean: flagged ?? false), .init(boolean: alert != nil),
-    .init(date: alert ?? Date(timeIntervalSince1970: 0)),
-  ]
-  for (index, value) in values.enumerated() { arguments.insert(value, at: index + 1) }
-  let event = NSAppleEventDescriptor(
-    eventClass: 0x6173_6372, eventID: 0x7073_6272, targetDescriptor: nil, returnID: -1,
-    transactionID: 0)
-  event.setParam(.init(string: "applychanges"), forKeyword: 0x736e_616d)
-  event.setParam(arguments, forKeyword: 0x2d2d_2d2d)
-  var error: NSDictionary?
-  let result = script.executeAppleEvent(event, error: &error)
-  if let error {
-    let code = error[NSAppleScript.errorNumber] as? Int ?? 0
-    let message = error[NSAppleScript.errorMessage] as? String ?? "unknown"
-    if automationNotReadyCodes.contains(code) {
-      throw AutomationNotReady(code: code, message: message)
-    }
-    throw ServerError.internalError("Reminders automation write failed (code \(code)): \(message)")
-  }
+  let result = try callHandler(
+    script, "applychanges",
+    [
+      .init(string: reminderID), .init(string: listUUID.uuidString),
+      .init(boolean: flagged != nil), .init(boolean: flagged ?? false),
+      .init(boolean: alert != nil), .init(date: alert ?? Date(timeIntervalSince1970: 0)),
+    ])
   guard result.numberOfItems == 3, result.atIndex(1)?.stringValue == reminderID else {
     throw ServerError.internalError("Automation write returned an inconsistent identity")
   }
