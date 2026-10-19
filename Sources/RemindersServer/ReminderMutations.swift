@@ -64,12 +64,9 @@ func executeMutation(_ request: ReminderMutation) throws -> ReminderMutationPhas
   switch request {
   case .create(let listID, let patch):
     let list =
-      listID.flatMap { store.calendar(withIdentifier: $0) }
+      listID.flatMap { reminderList(store, id: $0) }
       ?? (listID == nil ? store.defaultCalendarForNewReminders() : nil)
     guard let list else { throw ServerError.notFound("reminder list is unavailable") }
-    guard list.allowedEntityTypes.contains(.reminder) else {
-      throw ServerError.invalidArgument("destination is not a reminder list")
-    }
     guard list.allowsContentModifications else {
       throw ServerError.readOnly("destination list is not editable")
     }
