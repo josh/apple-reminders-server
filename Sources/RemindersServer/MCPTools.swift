@@ -2,7 +2,6 @@ import Foundation
 import MCP
 
 private struct Search: Codable, Equatable, Sendable {
-  var resource: String = "reminders"
   var orderField: String?
   var descending: Bool = false
   var dueFrom: String?
@@ -19,36 +18,6 @@ private struct Search: Codable, Equatable, Sendable {
   var dueOnOrAfter: String?
   var dueBefore: String?
 }
-private struct Cursor {
-  let search: Search
-  let offset: Int
-  let expires: Date
-}
-private actor CursorStore {
-  private var cursors: [String: Cursor] = [:]
-  func offset(token: String?, search: Search) throws -> Int {
-    cursors = cursors.filter { $0.value.expires > Date() }
-    guard let token else { return 0 }
-    guard let cursor = cursors[token], cursor.search == search else {
-      throw ServerError.invalidArgument(
-        "Invalid or expired cursor, or changed search criteria. Use nextCursor from the previous response with the same filter, orderBy, and limit. Omit cursor to restart."
-      )
-    }
-    return cursor.offset
-  }
-  func insert(search: Search, offset: Int) -> String {
-    if cursors.count >= 1024,
-      let oldest = cursors.min(by: { $0.value.expires < $1.value.expires })?.key
-    {
-      cursors.removeValue(forKey: oldest)
-    }
-    let token = UUID().uuidString
-    cursors[token] = Cursor(
-      search: search, offset: offset, expires: Date(timeIntervalSinceNow: 600))
-    return token
-  }
-}
-private let cursors = CursorStore()
 private struct SearchOutput: Encodable {
   let items: [MCPReminder]
   let totalCount: Int
@@ -405,7 +374,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "lists_list",
       description:
-        "Read lists filtered by name, account IDs, editability, and subscription. Use filter for search criteria. orderBy.direction selects name ordering; omission uses identifier order. Filters intersect. Pagination uses limit and an opaque cursor tied to unchanged criteria. Name ordering is case-insensitive with ID ascending ties.",
+        "Read lists filtered by name, account IDs, editability, and subscription. Use filter for search criteria. orderBy.direction selects name ordering; omission uses identifier order. Filters intersect. Pagination uses limit and cursor; keep the criteria unchanged across pages. Name ordering is case-insensitive with ID ascending ties.",
       inputSchema: listSearch, annotations: annotations,
       outputSchema: schema(
         [
@@ -415,7 +384,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "reminders_search",
       description:
-        "Read reminders filtered by account/list IDs, completion, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is opaque, expires after 10 minutes, and requires identical criteria and limit. Optional unavailable values are omitted. Dates retain their stored components; omitted hours mean date-only and omitted zones mean floating.",
+        "Read reminders filtered by account/list IDs, completion, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is the next page offset; keep criteria and limit unchanged across pages. Optional unavailable values are omitted. Dates retain their stored components; omitted hours mean date-only and omitted zones mean floating.",
       inputSchema: search, annotations: annotations,
       outputSchema: schema(
         [
@@ -459,14 +428,15 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     return text
   }
-  func cursor() throws -> String? {
-    guard let value = args["cursor"] else { return nil }
-    guard let token = value.stringValue, !token.isEmpty else {
+  // A cursor is the next page's offset; the client keeps the criteria unchanged.
+  func cursor() throws -> Int {
+    guard let value = args["cursor"] else { return 0 }
+    guard let token = value.stringValue, let offset = Int(token), offset >= 0 else {
       throw ServerError.invalidArgument(
-        "cursor must be a nonempty nextCursor string. Omit cursor for the first page."
+        "cursor must be a nextCursor string from the previous response. Omit cursor for the first page."
       )
     }
-    return token
+    return offset
   }
   func bool(_ key: String, from values: [String: Value]? = nil) throws -> Bool? {
     guard let value = (values ?? args)[key] else { return nil }
@@ -591,7 +561,6 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     try keys(["filter", "orderBy", "limit", "cursor"])
     let filter = try filters(listFilterKeys)
     var search = Search()
-    search.resource = "lists"
     search.query = try string("query", from: filter)
     search.accountIds = try ids("accountIds", from: filter)
     search.allowsContentModifications = try bool("allowsContentModifications", from: filter)
@@ -609,7 +578,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.orderField = "NAME"
       search.descending = direction == "DESC"
     }
-    let offset = try await cursors.offset(token: cursor(), search: search)
+    let offset = try cursor()
     var lists = try await readInventory().lists.filter {
       (search.query == nil || $0.name.lowercased().contains(search.query!.lowercased()))
         && (search.accountIds == nil || search.accountIds!.contains($0.source.id))
@@ -626,7 +595,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     let start = min(offset, lists.count)
     let end = min(start + search.limit, lists.count)
-    let token = end < lists.count ? await cursors.insert(search: search, offset: end) : nil
+    let token = end < lists.count ? String(end) : nil
     return try result(
       ListsOutput(
         items: lists[start..<end].map(MCPList.init), totalCount: lists.count, nextCursor: token))
@@ -734,7 +703,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       }
       search.dueStatus = status
     }
-    let offset = try await cursors.offset(token: cursor(), search: search)
+    let offset = try cursor()
     let data = try await readInventory()
     let allowedLists = search.accountIds.map { ids in
       Set(data.lists.filter { ids.contains($0.source.id) }.map(\.id))
@@ -762,10 +731,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       } ?? fetched
     let start = min(offset, items.count)
     let end = min(start + search.limit, items.count)
-    var token: String?
-    if end < items.count {
-      token = await cursors.insert(search: search, offset: end)
-    }
+    let token = end < items.count ? String(end) : nil
     return try result(
       SearchOutput(
         items: items[start..<end].map(MCPReminder.init), totalCount: items.count,

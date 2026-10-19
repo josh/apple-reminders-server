@@ -37,7 +37,7 @@ still write `flagged` and `remindMeDate`, and `lists_create`/`lists_update` stil
 write `emblem`, through automation after the EventKit save; a reminder write result
 echoes the `flagged` value it applied. Optional inputs must be omitted rather than null.
 
-Opaque random cursor tokens bind the resource type (lists or reminders), all search criteria, and page size, expire after ten minutes, and do not survive restart. The bounded cache holds up to 1,024 tokens; eviction can invalidate an earlier token. The selected sort with identifier tiebreaking makes a stable inventory deterministic, but each page reads live data: concurrent changes can cause omissions or repeats. Cursors do not represent snapshots.
+A cursor is the next page's offset as a string. It is not bound to the search criteria: changing the filter, ordering, or limit while reusing a cursor shifts the page silently, so keep them unchanged. The selected sort with identifier tiebreaking makes a stable inventory deterministic, but each page reads live data: concurrent changes can cause omissions or repeats. Cursors do not represent snapshots.
 
 The catalog describes stored and projected fields. Projected dates and recurrence
 use explicit nulls when absent; some optional raw fields are omitted, and `flagged`
@@ -47,8 +47,8 @@ Search criteria belong in `filter`. Reminder `orderBy: {field, direction?}`
 supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, and
 COMPLETION_DATE with ASC/DESC ordering. List `orderBy: {direction?}` orders by
 name. Direction defaults to ASC. Nulls sort last in both directions and ties use
-ID ascending. Without `orderBy`, results use ID ascending. Cursors require
-unchanged filters, ordering, and limit.
+ID ascending. Without `orderBy`, results use ID ascending. Keep filters,
+ordering, and limit unchanged across pages.
 
 `dueFrom` and timestamp `dueBefore` bound deadline instants inclusively and
 exclusively, respectively. All-day deadlines use midnight in their source time
