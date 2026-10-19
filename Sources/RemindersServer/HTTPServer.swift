@@ -33,16 +33,10 @@ func handleRequest(
         body: Data(try await metricsCollector.cachedSnapshot().utf8))
     } catch { return try .json(["error": String(describing: error)], status: 503) }
   }
-  guard path == "/graphql" || path == "/mcp" else {
-    return try .json(["error": "Not found"], status: 404)
-  }
+  guard path == "/graphql" else { return try .json(["error": "Not found"], status: 404) }
   guard method == "POST" else { return try .json(["error": "POST required"], status: 405) }
   guard let request = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
-    return try .json(
-      [
-        "jsonrpc": "2.0", "id": NSNull(),
-        "error": ["code": -32700, "message": "Expected one JSON object"],
-      ], status: 400)
+    return try .json(["errors": [["message": "Expected one JSON object"]]], status: 400)
   }
   guard let query = request["query"] as? String else {
     return try .json(["errors": [["message": "query must be a string"]]], status: 400)
