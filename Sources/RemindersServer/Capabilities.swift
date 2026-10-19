@@ -1,7 +1,7 @@
 import Foundation
 
 struct Capabilities {
-  enum Access: Int {
+  enum Access: Comparable {
     case denied, read, write
   }
 
@@ -26,8 +26,8 @@ struct Capabilities {
         }
         let access: Access = value == "rw" ? .write : .read
         switch name {
-        case "graphql": result.graphql = maxAccess(result.graphql, access)
-        case "mcp": result.mcp = maxAccess(result.mcp, access)
+        case "graphql": result.graphql = max(result.graphql, access)
+        case "mcp": result.mcp = max(result.mcp, access)
         case "metrics":
           guard access == .read else { throw ServerError.forbidden("Forbidden") }
           result.metrics = .read
@@ -45,10 +45,6 @@ struct Capabilities {
     case "/metrics": return metrics != .denied
     default: return true
     }
-  }
-
-  private static func maxAccess(_ lhs: Access, _ rhs: Access) -> Access {
-    lhs.rawValue >= rhs.rawValue ? lhs : rhs
   }
 
   // Serve uses RFC2047 UTF-8 Q encoding for non-ASCII capability values.
