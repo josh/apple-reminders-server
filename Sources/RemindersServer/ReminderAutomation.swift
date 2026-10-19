@@ -98,8 +98,7 @@ func writeReminderAutomation(
   }
   if let flagged {
     guard let value = result.atIndex(2),
-      [0x626f_6f6c, 0x7472_7565, 0x6661_6c73].contains(value.descriptorType),
-      value.booleanValue == flagged
+      (try? ScriptProperty<Bool>.flags.decode(value)) == flagged
     else { throw ServerError.internalError("Reminders did not retain the requested flag") }
   }
   if let alert {
