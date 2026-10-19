@@ -100,9 +100,6 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
   result.name = try text("name")
   result.body = try text("body")
   result.location = try text("location")
-  if let name = result.name, name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-    throw ServerError.invalidArgument("name must not be blank")
-  }
   if let value = try text("url") {
     guard let url = URL(string: value), let scheme = url.scheme, !scheme.isEmpty,
       value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil
@@ -112,11 +109,7 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     result.url = url
   }
   if input["priority"] != .undefined && input["priority"] != .null {
-    let priority = try input["priority"].intValue()
-    guard (0...9).contains(priority) else {
-      throw ServerError.invalidArgument("priority must be 0...9")
-    }
-    result.priority = priority
+    result.priority = try input["priority"].intValue()
   }
   if input["completed"] != .undefined && input["completed"] != .null {
     result.completed = try input["completed"].boolValue()

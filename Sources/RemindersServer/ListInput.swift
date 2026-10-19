@@ -13,9 +13,6 @@ func listChanges(_ input: MutationInput, creating: Bool) throws -> ListChanges {
   }
   result.name = try text("name")
   result.emblem = try text("emblem")
-  if let name = result.name, name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-    throw ServerError.invalidArgument("list name must not be blank")
-  }
   if let emblem = result.emblem, emblem.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
     throw ServerError.invalidArgument("emblem must not be blank")
   }
