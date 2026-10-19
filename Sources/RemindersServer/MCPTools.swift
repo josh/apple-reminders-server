@@ -134,9 +134,7 @@ private func toolsCatalog() -> [Tool] {
     "daysOfWeek": array(
       schema(
         [
-          "day": enumeration([
-            "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
-          ]), "ordinal": primitive("integer"),
+          "day": enumeration(weekdayNames), "ordinal": primitive("integer"),
         ], required: ["day"])),
     "end": schema(["until": primitive("string"), "count": primitive("integer")]),
   ]
@@ -185,9 +183,7 @@ private func toolsCatalog() -> [Tool] {
     required: ["id", "name", "source", "allowsContentModifications", "isImmutable", "isSubscribed"])
   let order = schema(
     [
-      "field": enumeration([
-        "NAME", "DUE_DATE", "PRIORITY", "CREATION_DATE", "MODIFICATION_DATE", "COMPLETION_DATE",
-      ]), "direction": enumeration(["ASC", "DESC"]),
+      "field": enumeration(reminderSortFields), "direction": enumeration(["ASC", "DESC"]),
     ], required: ["field"])
   let pagination: [String: Value] = [
     "limit": .object(["type": "integer", "minimum": 1, "maximum": 100, "default": 50]),
@@ -614,10 +610,9 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       try order.rejectNulls()
       try order.checkKeys(["field", "direction"])
       let field = try order["field"].stringValue()
-      guard
-        ["NAME", "DUE_DATE", "PRIORITY", "CREATION_DATE", "MODIFICATION_DATE", "COMPLETION_DATE"]
-          .contains(field)
-      else { throw ServerError.invalidArgument("invalid order field") }
+      guard reminderSortFields.contains(field) else {
+        throw ServerError.invalidArgument("invalid order field")
+      }
       search.orderField = field
       search.descending = try descending(order)
     }

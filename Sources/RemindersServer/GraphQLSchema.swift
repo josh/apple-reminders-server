@@ -193,9 +193,7 @@ func makeSchema() throws -> GraphQLSchema {
   }
   let dueStatus = try enumeration("DueStatus", DueStatus.allCases.map(\.rawValue))
   let direction = try enumeration("SortDirection", ["ASC", "DESC"])
-  let orderField = try enumeration(
-    "ReminderSortField",
-    ["NAME", "DUE_DATE", "PRIORITY", "CREATION_DATE", "MODIFICATION_DATE", "COMPLETION_DATE"])
+  let orderField = try enumeration("ReminderSortField", reminderSortFields)
   let reminderOrder = try GraphQLInputObjectType(
     name: "ReminderOrder",
     fields: [
@@ -269,8 +267,7 @@ func makeSchema() throws -> GraphQLSchema {
   ] { recurrenceFields[name] = field(GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLInt)))) }
   let recurrence = try GraphQLObjectType(name: "RecurrenceRule", fields: recurrenceFields)
   let frequency = try enumeration("RecurrenceFrequency", ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"])
-  let weekday = try enumeration(
-    "Weekday", ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"])
+  let weekday = try enumeration("Weekday", weekdayNames)
   let scheduleDay = try GraphQLObjectType(
     name: "ReminderRecurrenceDay",
     fields: ["day": field(GraphQLNonNull(weekday)), "ordinal": field(GraphQLInt)])

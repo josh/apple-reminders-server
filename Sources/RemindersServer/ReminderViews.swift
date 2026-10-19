@@ -24,13 +24,12 @@ struct RecurrenceView: Encodable {
     }
     frequency = rule.frequency.rawValue.uppercased()
     interval = rule.interval
-    let weekdays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
     let days = try rule.daysOfTheWeek.map { value in
       guard (1...7).contains(value.dayOfTheWeek) else {
         throw ServerError.unsupported("unknown recurrence weekday")
       }
       return Day(
-        day: weekdays[value.dayOfTheWeek - 1],
+        day: weekdayNames[value.dayOfTheWeek - 1],
         ordinal: value.weekNumber == 0 ? nil : value.weekNumber)
     }
     daysOfWeek = days.isEmpty ? nil : days

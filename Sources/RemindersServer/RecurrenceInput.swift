@@ -17,8 +17,7 @@ func parseRecurrenceInput(_ input: MutationInput) throws -> ReminderRecurrenceCh
   if input["daysOfWeek"].isSet {
     days = try input["daysOfWeek"].arrayValue().map { value in
       try value.checkKeys(["day", "ordinal"])
-      let names = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
-      guard let index = names.firstIndex(of: try value["day"].stringValue()) else {
+      guard let index = weekdayNames.firstIndex(of: try value["day"].stringValue()) else {
         throw ServerError.invalidArgument("unknown weekday")
       }
       let ordinal = value["ordinal"].isSet ? try value["ordinal"].intValue() : 0

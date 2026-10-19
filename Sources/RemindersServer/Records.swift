@@ -68,6 +68,11 @@ struct ListRecord: Codable, Sendable {
 enum DueStatus: String, Codable, Sendable, CaseIterable {
   case overdue, today, future, unscheduled, unknown
 }
+// Index + 1 is the Gregorian weekday number EventKit uses.
+let weekdayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+let reminderSortFields = [
+  "NAME", "DUE_DATE", "PRIORITY", "CREATION_DATE", "MODIFICATION_DATE", "COMPLETION_DATE",
+]
 struct StructuredLocation: Codable, Sendable {
   let title: String?
   let latitude: Double?
