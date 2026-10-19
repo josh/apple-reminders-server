@@ -59,7 +59,6 @@ private let wholeSecondTimestamps: ISO8601DateFormatter = {
   formatter.formatOptions = [.withInternetDateTime]
   return formatter
 }()
-func timestampFormatter() -> ISO8601DateFormatter { fractionalTimestamps }
 func timestamp(_ date: Date) -> String {
   fractionalTimestamps.string(from: date)
 }

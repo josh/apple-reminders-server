@@ -41,8 +41,7 @@ extension ReminderRecord {
       let listID = item.calendar?.calendarIdentifier, !listID.isEmpty,
       (0...9).contains(item.priority)
     else { throw ServerError.internalError("Invalid EventKit reminder identifiers or priority") }
-    let formatter = timestampFormatter()
-    func stamp(_ date: Date?) -> String? { date.map { formatter.string(from: $0) } }
+    func stamp(_ date: Date?) -> String? { date.map(timestamp) }
     self.init(
       id: item.calendarItemIdentifier, externalId: item.calendarItemExternalIdentifier,
       listId: listID, name: item.title, body: item.notes, flagged: flagged,
