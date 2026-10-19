@@ -66,7 +66,8 @@ and expose no flag counts.
 
 Before collection succeeds, or after a collection fails, `/metrics` returns 503.
 A failure clears the previous snapshot; the next attempt follows after one
-minute (or the interval, if shorter) until collection succeeds. During an
+minute, then after doubling delays capped at the interval, until collection
+succeeds. During an
 in-progress refresh, the previous successful snapshot remains available. Changes,
 including removed lists, appear after a successful refresh, so counts may lag by
 the interval plus collection time. Totals describe accessible data, not confirmed

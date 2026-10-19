@@ -15,20 +15,22 @@ actor MetricsCollector {
 
   func run(intervalSeconds: Int) async {
     var failed = false
+    var delay = intervalSeconds
     while !Task.isCancelled {
       do {
         snapshot = try await collectMetrics()
         if failed { serverLogger.info("Metrics collection recovered") }
         failed = false
+        delay = intervalSeconds
       } catch {
         logFailure("Metrics collection failed", error: error)
-        failed = true
         snapshot = nil
         failure = "Metrics collection failed: \(error)"
+        // Retry after a minute, doubling toward the interval so a lasting failure stays quiet.
+        delay = failed ? min(delay * 2, intervalSeconds) : min(60, intervalSeconds)
+        failed = true
       }
-      do {
-        try await Task.sleep(for: .seconds(failed ? min(60, intervalSeconds) : intervalSeconds))
-      } catch { return }
+      do { try await Task.sleep(for: .seconds(delay)) } catch { return }
     }
   }
 }
