@@ -139,12 +139,7 @@ func serve(
       }
       if let origin = request.headers[.origin], origins.contains(origin.lowercased()) {
         fields[.accessControlAllowOrigin] = origin
-        let vary = fields[.vary]
-        if !(vary?.split(separator: ",").contains {
-          $0.trimmingCharacters(in: .whitespaces).lowercased() == "origin"
-        } ?? false) {
-          fields[.vary] = vary.map { $0 + ", Origin" } ?? "Origin"
-        }
+        fields[.vary] = "Origin"
       }
       return Response(
         status: .init(code: response.status), headers: fields,
