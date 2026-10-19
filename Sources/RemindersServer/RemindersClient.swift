@@ -8,12 +8,9 @@ private func onMainActor<T: Sendable>(_ body: @MainActor () throws -> T) async t
 
 // Reminders exposes saved objects to scripting late. Awaiting the sleep releases
 // the main actor, so other requests run between attempts.
-func untilSynchronized<T: Sendable>(
-  within deadline: Duration = .seconds(15),
-  _ attempt: @MainActor () throws -> T
-) async throws -> T {
+func untilSynchronized<T: Sendable>(_ attempt: @MainActor () throws -> T) async throws -> T {
   let clock = ContinuousClock()
-  let end = clock.now + deadline
+  let end = clock.now + .seconds(15)
   while true {
     do {
       return try await onMainActor(attempt)

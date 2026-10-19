@@ -57,12 +57,12 @@ extension ReminderRecord {
       dueDay: RemindersServer.dueDay(item.dueDateComponents),
       dueStatus: RemindersServer.dueStatus(item.dueDateComponents, now: now)
         .flatMap(DueStatus.init(rawValue:)) ?? .unknown,
-      alarms: (item.alarms ?? []).map { AlarmRecord($0, stamp: stamp) },
-      recurrenceRules: (item.recurrenceRules ?? []).map { RecurrenceRecord($0, stamp: stamp) })
+      alarms: (item.alarms ?? []).map(AlarmRecord.init),
+      recurrenceRules: (item.recurrenceRules ?? []).map(RecurrenceRecord.init))
   }
 }
 extension AlarmRecord {
-  init(_ alarm: EKAlarm, stamp: (Date?) -> String?) {
+  init(_ alarm: EKAlarm) {
     let proximity: AlarmProximity
     switch alarm.proximity {
     case .none: proximity = .none
@@ -71,7 +71,7 @@ extension AlarmRecord {
     @unknown default: proximity = .unknown
     }
     self.init(
-      absoluteDate: stamp(alarm.absoluteDate), relativeOffset: alarm.relativeOffset,
+      absoluteDate: alarm.absoluteDate.map(timestamp), relativeOffset: alarm.relativeOffset,
       proximity: proximity,
       structuredLocation: alarm.structuredLocation.map {
         StructuredLocation(
@@ -81,7 +81,7 @@ extension AlarmRecord {
   }
 }
 extension RecurrenceRecord {
-  init(_ rule: EKRecurrenceRule, stamp: (Date?) -> String?) {
+  init(_ rule: EKRecurrenceRule) {
     let frequency: RecurrenceFrequency
     switch rule.frequency {
     case .daily: frequency = .daily
@@ -101,7 +101,7 @@ extension RecurrenceRecord {
       monthsOfTheYear: integers(rule.monthsOfTheYear),
       setPositions: integers(rule.setPositions),
       end: rule.recurrenceEnd.map {
-        RecurrenceEnd(endDate: stamp($0.endDate), occurrenceCount: $0.occurrenceCount)
+        RecurrenceEnd(endDate: $0.endDate.map(timestamp), occurrenceCount: $0.occurrenceCount)
       })
   }
 }

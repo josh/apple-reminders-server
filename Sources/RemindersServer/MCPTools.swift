@@ -53,9 +53,7 @@ private func schema(_ properties: [String: Value], required: [String] = []) -> V
     "required": .array(required.map(Value.string)), "additionalProperties": false,
   ])
 }
-private func primitive(_ type: String, nullable: Bool = false) -> Value {
-  .object(["type": nullable ? .array([.string(type), "null"]) : .string(type)])
-}
+private func primitive(_ type: String) -> Value { .object(["type": .string(type)]) }
 private func array(_ item: Value) -> Value { .object(["type": "array", "items": item]) }
 private func enumeration(_ values: [String]) -> Value {
   .object(["type": "string", "enum": .array(values.map(Value.string))])
@@ -84,10 +82,9 @@ private func toolsCatalog() -> [Tool] {
       "id", "externalId", "listId", "name", "body", "creationDate", "completionDate",
       "modificationDate", "location", "url",
     ].map { ($0, primitive("string")) })
-  for name in ["dueDate", "allDayDueDate", "startDate", "allDayStartDate", "timeZone"] {
-    reminder[name] = primitive("string", nullable: true)
+  for name in ["dueDate", "allDayDueDate", "startDate", "allDayStartDate", "timeZone", "dueDay"] {
+    reminder[name] = nullable(primitive("string"))
   }
-  reminder["dueDay"] = primitive("string", nullable: true)
   reminder["flagged"] = .object([
     "type": "boolean",
     "description":
