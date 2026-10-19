@@ -662,11 +662,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
 }
 private let tools = toolsCatalog()
 private let toolNames = Set(tools.map(\.name))
-// New tools require write access until explicitly classified as read-only.
-private let readOnlyTools: Set<String> = [
-  "accounts_get", "accounts_list", "lists_get", "defaults_get", "lists_summary",
-  "lists_list", "reminders_search", "reminders_get",
-]
+// A tool without readOnlyHint requires write access.
+private let readOnlyTools = Set(tools.filter { $0.annotations.readOnlyHint == true }.map(\.name))
 
 // Tool errors are JSON like successful results, with the code clients act on.
 private func errorText(_ error: Error) -> String {
