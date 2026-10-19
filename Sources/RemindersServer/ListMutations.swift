@@ -41,19 +41,10 @@ func remindersMutateList(_ request: ListMutation) async throws -> ListMutationPh
     list.source = source
     changes = patch
   case .update(let id, let patch):
-    guard let existing = store.calendar(withIdentifier: id),
-      existing.allowedEntityTypes.contains(.reminder)
-    else { throw ServerError.notFound("reminder list is unavailable") }
-    guard !existing.isImmutable && existing.allowsContentModifications && !existing.isSubscribed
-    else { throw ServerError.readOnly("list is not editable") }
-    list = existing
+    list = try editableList(store, id: id)
     changes = patch
   case .delete(let id, let allowNonEmpty):
-    guard let existing = store.calendar(withIdentifier: id),
-      existing.allowedEntityTypes.contains(.reminder)
-    else { throw ServerError.notFound("reminder list is unavailable") }
-    guard !existing.isImmutable && existing.allowsContentModifications && !existing.isSubscribed
-    else { throw ServerError.readOnly("list is not editable") }
+    let existing = try editableList(store, id: id)
     if !allowNonEmpty {
       let items = try await fetchReminders(
         store, matching: store.predicateForReminders(in: [existing]))
@@ -101,6 +92,17 @@ func remindersMutateList(_ request: ListMutation) async throws -> ListMutationPh
     throw ServerError.writeApplied("list \(id) was saved but is unavailable for refetch")
   }
   return .finished(.saved(try ListRecord(refreshed)))
+}
+
+@MainActor
+private func editableList(_ store: EKEventStore, id: String) throws -> EKCalendar {
+  guard let list = reminderList(store, id: id) else {
+    throw ServerError.notFound("reminder list is unavailable")
+  }
+  guard !list.isImmutable && list.allowsContentModifications && !list.isSubscribed else {
+    throw ServerError.readOnly("list is not editable")
+  }
+  return list
 }
 
 // One emblem attempt on an already-saved list. AutomationNotReady means Reminders

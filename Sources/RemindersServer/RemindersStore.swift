@@ -222,13 +222,17 @@ func readReminder(id: String) throws -> ReminderRecord? {
     try ReminderRecord($0, now: Date(), flagged: nil)
   }
 }
+// A reminder list by identifier; nil when absent or not a reminder list.
+@MainActor
+func reminderList(_ store: EKEventStore, id: String) -> EKCalendar? {
+  guard let list = store.calendar(withIdentifier: id), list.allowedEntityTypes.contains(.reminder)
+  else { return nil }
+  return list
+}
 @MainActor
 func readList(id: String) throws -> ListRecord? {
   try requireAccess()
-  guard let list = EKEventStore().calendar(withIdentifier: id),
-    list.allowedEntityTypes.contains(.reminder)
-  else { return nil }
-  return try ListRecord(list)
+  return try reminderList(EKEventStore(), id: id).map(ListRecord.init)
 }
 
 // The main run loop drains the main dispatch queue, which drives the main actor.

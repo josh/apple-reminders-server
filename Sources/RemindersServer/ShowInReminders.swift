@@ -12,9 +12,9 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
     throw ServerError.invalidArgument("show requires a UUID identifier")
   }
   if isList {
-    guard let list = store.calendar(withIdentifier: id),
-      list.allowedEntityTypes.contains(.reminder)
-    else { throw ServerError.notFound("list is unavailable") }
+    guard let list = reminderList(store, id: id) else {
+      throw ServerError.notFound("list is unavailable")
+    }
     record = .list(try ListRecord(list))
     scriptID = uuid.uuidString
   } else {

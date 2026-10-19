@@ -259,9 +259,9 @@ func clearCompletedReminders(listID: String) async throws -> ClearCompletedResul
   }
   try requireAccess()
   let store = EKEventStore()
-  guard let list = store.calendar(withIdentifier: listID),
-    list.allowedEntityTypes.contains(.reminder)
-  else { throw ServerError.notFound("reminder list is unavailable") }
+  guard let list = reminderList(store, id: listID) else {
+    throw ServerError.notFound("reminder list is unavailable")
+  }
   guard list.allowsContentModifications else {
     throw ServerError.readOnly("reminder list is not editable")
   }
