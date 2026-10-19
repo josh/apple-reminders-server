@@ -1,27 +1,24 @@
-import EventKit
 import Foundation
 
 /// UI navigation is deliberately separate from data mutations: it performs no save.
 @MainActor
 func remindersShow(id: String, isList: Bool) throws -> ShownObject {
-  try requireAccess()
-  let store = EKEventStore()
-  let record: ShownObject
-  let scriptID: String
   guard let uuid = UUID(uuidString: id) else {
     throw ServerError.invalidArgument("show requires a UUID identifier")
   }
+  let record: ShownObject
+  let scriptID: String
   if isList {
-    guard let list = reminderList(store, id: id) else {
+    guard let list = try readList(id: id) else {
       throw ServerError.notFound("list is unavailable")
     }
-    record = .list(try ListRecord(list))
+    record = .list(list)
     scriptID = uuid.uuidString
   } else {
-    guard let item = store.calendarItem(withIdentifier: id) as? EKReminder else {
+    guard let item = try readReminder(id: id) else {
       throw ServerError.notFound("reminder is unavailable")
     }
-    record = .reminder(try ReminderRecord(item, now: Date(), flagged: nil))
+    record = .reminder(item)
     scriptID = "x-apple-reminder://" + uuid.uuidString
   }
   let script = try makeShowScript()
