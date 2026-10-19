@@ -178,19 +178,14 @@ func summarize(_ inventory: Inventory, listId: String) -> ListSummary {
 }
 func validateDays(_ lower: String?, _ upper: String?) throws {
   for value in [lower, upper].compactMap({ $0 }) {
-    let parts = value.split(separator: "-", omittingEmptySubsequences: false)
-    guard value.utf8.count == 10, parts.count == 3, parts[0].count == 4, parts[1].count == 2,
-      parts[2].count == 2,
-      value.utf8.allSatisfy({ $0 == 45 || (48...57).contains($0) }),
-      let year = Int(parts[0]), (1...9999).contains(year), let month = Int(parts[1]),
-      (1...12).contains(month), let day = Int(parts[2])
+    let parts = value.split(separator: "-").map { Int($0) }
+    guard value.range(of: #"^\d{4}-\d{2}-\d{2}\z"#, options: .regularExpression) != nil,
+      parts.count == 3, let year = parts[0], let month = parts[1], let day = parts[2],
+      (1...9999).contains(year),
+      DateComponents(year: year, month: month, day: day)
+        .isValidDate(in: Calendar(identifier: .gregorian))
     else {
       throw ServerError.invalidArgument("date bounds must be valid Gregorian YYYY-MM-DD")
-    }
-    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
-    let days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    guard (1...days[month - 1]).contains(day) else {
-      throw ServerError.invalidArgument("invalid Gregorian date")
     }
   }
   if let lower, let upper, lower >= upper {
