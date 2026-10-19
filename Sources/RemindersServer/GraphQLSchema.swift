@@ -172,7 +172,7 @@ func makeSchema() throws -> GraphQLSchema {
   let localDate = try GraphQLScalarType(
     name: "LocalDate", description: "Calendar date in YYYY-MM-DD form, without a time or offset.")
   let url = try GraphQLScalarType(name: "URL", description: "Absolute URL serialized as a string.")
-  let priority = GraphQLInt
+
   let components = try GraphQLObjectType(
     name: "DateComponents",
     fields: GraphQLFieldMap(
@@ -306,7 +306,7 @@ func makeSchema() throws -> GraphQLSchema {
       "id": field(GraphQLNonNull(GraphQLID)), "name": field(GraphQLString),
       "body": field(GraphQLString),
       "completed": field(GraphQLBoolean),
-      "priority": field(priority), "creationDate": field(dateTime),
+      "priority": field(GraphQLInt), "creationDate": field(dateTime),
       "completionDate": field(dateTime),
       "modificationDate": field(dateTime),
       "location": field(GraphQLString),
