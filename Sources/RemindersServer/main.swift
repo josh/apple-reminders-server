@@ -42,56 +42,56 @@ Task.detached {
         guard option == "--allowed-origin" || seen.insert(option).inserted else {
           throw ServerError.internalError("Duplicate option: \(option)")
         }
-        switch option {
-        case "--request-access": requestAccess = true
-        case "--port", "--metrics-interval-seconds", "--log-level", "--allowed-origin",
-          "--tailscale-app-capability":
+        func next() throws -> String {
           index += 1
           guard index < arguments.count else {
             throw ServerError.internalError("Missing value for \(option)")
           }
-          if option == "--tailscale-app-capability" {
-            let value = arguments[index]
-            let parts = value.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
-            guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty,
-              !value.contains(where: { $0.isWhitespace }), !value.hasPrefix("--")
-            else { throw ServerError.internalError("Capability must be a domain/path name") }
-            tailscaleAppCapability = value
-          } else if option == "--allowed-origin" {
-            let value = arguments[index]
-            guard let url = URL(string: value),
-              let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
-              let host = url.host?.lowercased(), !host.isEmpty,
-              url.path.isEmpty, url.query == nil, url.fragment == nil,
-              url.user == nil, url.password == nil,
-              let components = URLComponents(string: value),
-              components.percentEncodedPath.isEmpty,
-              value == value.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.contains("\n"), !value.contains("\r")
-            else {
-              throw ServerError.internalError(
-                "Allowed origin must be http://host[:port] or https://host[:port], without a path, query, or fragment"
-              )
-            }
-            allowedOrigins.append("\(scheme)://\(host)" + (url.port.map { ":\($0)" } ?? ""))
-          } else if option == "--port" {
-            guard let value = UInt16(arguments[index]), value > 0 else {
-              throw ServerError.internalError("Port must be between 1 and 65535")
-            }
-            port = value
-          } else if option == "--log-level" {
-            guard let value = Logger.Level(rawValue: arguments[index]) else {
-              throw ServerError.internalError(
-                "Log level must be trace, debug, info, notice, warning, error, or critical")
-            }
-            logLevel = value
-          } else {
-            guard let value = Int(arguments[index]), (1...604800).contains(value) else {
-              throw ServerError.internalError(
-                "Metrics interval must be between 1 and 604800 seconds")
-            }
-            metricsInterval = value
+          return arguments[index]
+        }
+        switch option {
+        case "--request-access": requestAccess = true
+        case "--tailscale-app-capability":
+          let value = try next()
+          let parts = value.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
+          guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty,
+            !value.contains(where: { $0.isWhitespace }), !value.hasPrefix("--")
+          else { throw ServerError.internalError("Capability must be a domain/path name") }
+          tailscaleAppCapability = value
+        case "--allowed-origin":
+          let value = try next()
+          guard let url = URL(string: value),
+            let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+            let host = url.host?.lowercased(), !host.isEmpty,
+            url.path.isEmpty, url.query == nil, url.fragment == nil,
+            url.user == nil, url.password == nil,
+            let components = URLComponents(string: value),
+            components.percentEncodedPath.isEmpty,
+            value == value.trimmingCharacters(in: .whitespacesAndNewlines),
+            !value.contains("\n"), !value.contains("\r")
+          else {
+            throw ServerError.internalError(
+              "Allowed origin must be http://host[:port] or https://host[:port], without a path, query, or fragment"
+            )
           }
+          allowedOrigins.append("\(scheme)://\(host)" + (url.port.map { ":\($0)" } ?? ""))
+        case "--port":
+          guard let value = UInt16(try next()), value > 0 else {
+            throw ServerError.internalError("Port must be between 1 and 65535")
+          }
+          port = value
+        case "--log-level":
+          guard let value = Logger.Level(rawValue: try next()) else {
+            throw ServerError.internalError(
+              "Log level must be trace, debug, info, notice, warning, error, or critical")
+          }
+          logLevel = value
+        case "--metrics-interval-seconds":
+          guard let value = Int(try next()), (1...604800).contains(value) else {
+            throw ServerError.internalError(
+              "Metrics interval must be between 1 and 604800 seconds")
+          }
+          metricsInterval = value
         default: throw ServerError.internalError("Use --help for server options")
         }
         index += 1
