@@ -11,8 +11,24 @@ private struct ListsOutput: Encodable {
   let totalCount: Int
   let nextCursor: String?
 }
+private struct AccountOutput: Encodable {
+  let account: AccountRecord?
+  enum CodingKeys: CodingKey { case account }
+  func encode(to encoder: Encoder) throws {
+    var c = encoder.container(keyedBy: CodingKeys.self)
+    try c.encode(account, forKey: .account)
+  }
+}
 private struct AccountsOutput: Encodable { let items: [AccountRecord] }
 private struct SummaryOutput: Encodable { let items: [ListSummary] }
+private struct ListOutput: Encodable {
+  let list: MCPList?
+  enum CodingKeys: CodingKey { case list }
+  func encode(to encoder: Encoder) throws {
+    var c = encoder.container(keyedBy: CodingKeys.self)
+    try c.encode(list, forKey: .list)
+  }
+}
 private struct DefaultsOutput: Encodable {
   let list: MCPList?
   let account: AccountRecord?
@@ -23,7 +39,14 @@ private struct DefaultsOutput: Encodable {
     try c.encode(account, forKey: .account)
   }
 }
-
+private struct GetOutput: Encodable {
+  let reminder: MCPReminder?
+  enum CodingKeys: CodingKey { case reminder }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(reminder, forKey: .reminder)
+  }
+}
 private func schema(_ properties: [String: Value], required: [String] = []) -> Value {
   .object([
     "type": "object", "properties": .object(properties),
@@ -443,7 +466,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       request = .update(id: id, changes: try reminderChanges(input, creating: false))
     }
     let saved = try await mutateReminder(request).savedRecord()
-    do { return try result(["reminder": MCPReminder(record: saved)]) } catch {
+    do { return try result(GetOutput(reminder: MCPReminder(record: saved))) } catch {
       throw ServerError.writeApplied(
         "reminder \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying."
       )
@@ -466,7 +489,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       request = .update(id: id, changes: try listChanges(input, creating: false))
     }
     let saved = try await mutateList(request).savedRecord()
-    do { return try result(["list": MCPList(record: saved)]) } catch {
+    do { return try result(ListOutput(list: MCPList(record: saved))) } catch {
       throw ServerError.writeApplied(
         "list \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying"
       )
@@ -488,7 +511,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard case .reminder(let shown) = try await showRemindersObject(id, isList: false) else {
       throw ServerError.internalError("Expected a reminder")
     }
-    do { return try result(["reminder": MCPReminder(record: shown)]) } catch {
+    do { return try result(GetOutput(reminder: MCPReminder(record: shown))) } catch {
       throw ServerError.showApplied(
         "reminder \(id) was shown, but response projection failed: \(error)")
     }
@@ -500,7 +523,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard case .list(let shown) = try await showRemindersObject(id, isList: true) else {
       throw ServerError.internalError("Expected a list")
     }
-    do { return try result(["list": MCPList(record: shown)]) } catch {
+    do { return try result(ListOutput(list: MCPList(record: shown))) } catch {
       throw ServerError.showApplied(
         "list \(id) was shown, but response projection failed: \(error)")
     }
@@ -516,7 +539,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.invalidArgument("id required")
     }
-    return try result(["account": await readInventory().accounts.first { $0.id == id }])
+    return try result(AccountOutput(account: await readInventory().accounts.first { $0.id == id }))
   case "lists_list":
     try keys(["filter", "orderBy", "limit", "cursor"])
     let filter = try filters(listFilterKeys)
@@ -555,7 +578,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       throw ServerError.invalidArgument("id required")
     }
     let records = try await readInventory().lists.filter { $0.id == id }
-    return try result(["list": records.first.map(MCPList.init)])
+    return try result(ListOutput(list: records.first.map(MCPList.init)))
   case "defaults_get":
     try keys([])
     let data = try await readInventory()
@@ -579,7 +602,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       throw ServerError.invalidArgument("id required")
     }
     let records = try await readInventory().reminders.filter { $0.id == id }
-    return try result(["reminder": records.first.map(MCPReminder.init)])
+    return try result(GetOutput(reminder: records.first.map(MCPReminder.init)))
   case "reminders_search":
     try keys(["filter", "orderBy", "limit", "cursor"])
     let filter = try filters(reminderFilterKeys)
