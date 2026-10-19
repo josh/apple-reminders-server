@@ -188,10 +188,8 @@ func makeSchema() throws -> GraphQLSchema {
     ])
   let dateTime = try GraphQLScalarType(
     name: "DateTime", description: "RFC 3339 timestamp with an explicit offset, serialized in UTC.",
-    serialize: { value in
-      let raw = try (value as? Map ?? Map(any: value)).stringValue()
-      return Map(timestamp(try parseTimestamp(raw)))
-    },
+    // Every output date comes from timestamp() and is already canonical UTC.
+    serialize: { value in Map(try (value as? Map ?? Map(any: value)).stringValue()) },
     parseValue: { value in
       _ = try parseTimestamp(value.stringValue())
       return value

@@ -49,13 +49,19 @@ func projectDate(_ value: ComponentDate?) throws -> CalendarDateProjection? {
   return CalendarDateProjection(
     instant: instant, day: dayString, timed: timed, timeZone: value.timeZone)
 }
-func timestampFormatter() -> ISO8601DateFormatter {
+private let fractionalTimestamps: ISO8601DateFormatter = {
   let formatter = ISO8601DateFormatter()
   formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
   return formatter
-}
+}()
+private let wholeSecondTimestamps: ISO8601DateFormatter = {
+  let formatter = ISO8601DateFormatter()
+  formatter.formatOptions = [.withInternetDateTime]
+  return formatter
+}()
+func timestampFormatter() -> ISO8601DateFormatter { fractionalTimestamps }
 func timestamp(_ date: Date) -> String {
-  timestampFormatter().string(from: date)
+  fractionalTimestamps.string(from: date)
 }
 func parseTimestamp(_ value: String) throws -> Date {
   let pattern =
@@ -65,11 +71,8 @@ func parseTimestamp(_ value: String) throws -> Date {
       "expected RFC 3339 timestamp with an explicit offset")
   }
   try validateDays(String(value.prefix(10)), nil)
-  let formatter = ISO8601DateFormatter()
-  formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-  if let date = formatter.date(from: value) { return date }
-  formatter.formatOptions = [.withInternetDateTime]
-  guard let date = formatter.date(from: value) else {
+  if let date = fractionalTimestamps.date(from: value) { return date }
+  guard let date = wholeSecondTimestamps.date(from: value) else {
     throw ServerError.invalidArgument("invalid timestamp")
   }
   return date
