@@ -29,7 +29,7 @@ configuration interface; environment-variable configuration is not supported.
 | `--metrics-interval-seconds` | `3600` | Delay after each metrics collection, 1–604800 seconds |
 | `--log-level <level>` | `info` | Minimum log level: `trace`, `debug`, `info`, `notice`, `warning`, `error`, or `critical` |
 | `--allowed-origin <origin>` | None | Repeatable additional browser origin, `http(s)://host[:port]` |
-| `--tailscale-app-capability <name>` | Off | Apply Tailscale permissions to proxied requests; a proxied request without grants is denied, loopback stays unrestricted |
+| `--tailscale-app-capability <name>` | Off | Apply Tailscale permissions when given |
 | `--request-access` | Off | Explicitly request EventKit access at startup |
 | `--help`, `-h` | — | Show usage |
 

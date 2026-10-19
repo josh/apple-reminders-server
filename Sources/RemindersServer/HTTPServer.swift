@@ -182,13 +182,9 @@ func serve(
       {
         response = try .json(["error": "Content-Type application/json required"], status: 415)
       } else {
-        // Serve always sets X-Forwarded-For and omits the capability header for a
-        // peer without grants; only loopback requests arrive with neither.
-        var grants = headers["tailscale-app-capabilities"]
-        if grants == nil, headers["x-forwarded-for"] != nil { grants = "{}" }
         guard
           let capabilities = try? Capabilities.parse(
-            header: grants, capability: tailscaleAppCapability),
+            header: headers["tailscale-app-capabilities"], capability: tailscaleAppCapability),
           capabilities.allows(path: request.uri.path)
         else { return respond(try .json(["error": "Forbidden"], status: 403)) }
         let body: Data
