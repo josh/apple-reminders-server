@@ -9,7 +9,7 @@ func listChanges(_ input: MutationInput, creating: Bool) throws -> ListChanges {
   }
   var result = ListChanges()
   func text(_ key: String) throws -> String? {
-    input[key] == .null || input[key] == .undefined ? nil : try input[key].stringValue()
+    try input[key].isSet ? input[key].stringValue() : nil
   }
   result.name = try text("name")
   result.emblem = try text("emblem")

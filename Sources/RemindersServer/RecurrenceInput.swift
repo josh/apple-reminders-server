@@ -9,21 +9,20 @@ func parseRecurrenceInput(_ input: MutationInput) throws -> ReminderRecurrenceCh
     let frequency = ReminderRecurrenceChange.Frequency(
       rawValue: try input["frequency"].stringValue())
   else { throw ServerError.invalidArgument("unknown recurrence frequency") }
-  func present(_ value: MutationInput) -> Bool { value != .undefined && value != .null }
   func numbers(_ key: String) throws -> [Int]? {
-    guard present(input[key]) else { return nil }
+    guard input[key].isSet else { return nil }
     return try input[key].arrayValue().map { try $0.intValue() }
   }
   var days: [ReminderRecurrenceChange.Day]?
-  if present(input["daysOfWeek"]) {
+  if input["daysOfWeek"].isSet {
     days = try input["daysOfWeek"].arrayValue().map { value in
       try value.checkKeys(["day", "ordinal"])
       let names = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
       guard let index = names.firstIndex(of: try value["day"].stringValue()) else {
         throw ServerError.invalidArgument("unknown weekday")
       }
-      let ordinal = present(value["ordinal"]) ? try value["ordinal"].intValue() : 0
-      if present(value["ordinal"]) && ordinal == 0 {
+      let ordinal = value["ordinal"].isSet ? try value["ordinal"].intValue() : 0
+      if value["ordinal"].isSet && ordinal == 0 {
         throw ServerError.invalidArgument("omit ordinal instead of supplying zero")
       }
       return .init(weekday: index + 1, ordinal: ordinal)
@@ -31,15 +30,15 @@ func parseRecurrenceInput(_ input: MutationInput) throws -> ReminderRecurrenceCh
   }
   var until: Date?
   var count: Int?
-  if present(input["end"]) {
+  if input["end"].isSet {
     let end = input["end"]
     try end.checkKeys(["until", "count"])
-    guard present(end["until"]) != present(end["count"]) else {
+    guard end["until"].isSet != end["count"].isSet else {
       throw ServerError.invalidArgument(
         "recurrence end requires exactly one of until or count")
     }
-    if present(end["until"]) { until = try parseTimestamp(end["until"].stringValue()) }
-    if present(end["count"]) { count = try end["count"].intValue() }
+    if end["until"].isSet { until = try parseTimestamp(end["until"].stringValue()) }
+    if end["count"].isSet { count = try end["count"].intValue() }
   }
   return try ReminderRecurrenceChange(
     frequency: frequency, interval: input["interval"].intValue(), days: days,

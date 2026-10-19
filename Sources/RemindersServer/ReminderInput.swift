@@ -32,6 +32,7 @@ indirect enum MutationInput: Decodable, Equatable, Sendable {
     if case .object(let v) = self { return v[key] ?? .undefined }
     return .undefined
   }
+  var isSet: Bool { self != .undefined && self != .null }
   func stringValue() throws -> String {
     guard case .string(let v) = self else { throw invalid("Expected a string") }
     return v
@@ -92,9 +93,7 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     throw ServerError.invalidArgument("patch values cannot be null; use clearFields")
   }
   func text(_ key: String) throws -> String? {
-    let value = input[key]
-    if value == .undefined || value == .null { return nil }
-    return try value.stringValue()
+    try input[key].isSet ? input[key].stringValue() : nil
   }
   var result = ReminderChanges()
   result.name = try text("name")
@@ -108,15 +107,14 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     }
     result.url = url
   }
-  if input["priority"] != .undefined && input["priority"] != .null {
+  if input["priority"].isSet {
     result.priority = try input["priority"].intValue()
   }
-  if input["completed"] != .undefined && input["completed"] != .null {
+  if input["completed"].isSet {
     result.completed = try input["completed"].boolValue()
   }
-  let rawClear = input["clearFields"]
-  if rawClear != .undefined && rawClear != .null {
-    let names = try rawClear.arrayValue().map { try $0.stringValue() }
+  if input["clearFields"].isSet {
+    let names = try input["clearFields"].arrayValue().map { try $0.stringValue() }
     guard Set(names).count == names.count else {
       throw ServerError.invalidArgument("duplicate clearFields")
     }
@@ -175,16 +173,16 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     throw ServerError.invalidArgument(
       "completed and completionDate changes are mutually exclusive")
   }
-  if input["alarms"] != .undefined && input["alarms"] != .null {
+  if input["alarms"].isSet {
     result.alarms = try input["alarms"].arrayValue().map(parseAlarmInput)
   }
-  if input["recurrence"] != .undefined && input["recurrence"] != .null {
+  if input["recurrence"].isSet {
     guard !result.clear.contains(.recurrence) else {
       throw ServerError.invalidArgument("cannot set and clear recurrence")
     }
     result.recurrence = try parseRecurrenceInput(input["recurrence"])
   }
-  if input["flagged"] != .undefined && input["flagged"] != .null {
+  if input["flagged"].isSet {
     result.flagged = try input["flagged"].boolValue()
   }
   if let alert = try text("remindMeDate") { result.remindMeDate = try parseTimestamp(alert) }
@@ -230,9 +228,7 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
 
 func parseAlarmInput(_ input: MutationInput) throws -> ReminderAlarmChange {
   try input.checkKeys(["absoluteDate", "relativeOffsetSeconds", "geofence"])
-  let keys = ["absoluteDate", "relativeOffsetSeconds", "geofence"].filter {
-    input[$0] != .null && input[$0] != .undefined
-  }
+  let keys = ["absoluteDate", "relativeOffsetSeconds", "geofence"].filter { input[$0].isSet }
   guard keys.count == 1 else {
     throw ServerError.invalidArgument("each alarm requires exactly one trigger")
   }
@@ -256,8 +252,7 @@ func parseAlarmInput(_ input: MutationInput) throws -> ReminderAlarmChange {
     (-180...180).contains(longitude), radius >= 0,
     ["ARRIVE", "DEPART"].contains(proximity)
   else { throw ServerError.invalidArgument("invalid geofence") }
-  let title =
-    geo["title"] == .undefined || geo["title"] == .null ? nil : try geo["title"].stringValue()
+  let title = try geo["title"].isSet ? geo["title"].stringValue() : nil
   return .location(
     title: title, latitude: latitude, longitude: longitude, radius: radius,
     arriving: proximity == "ARRIVE")
