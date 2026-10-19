@@ -68,9 +68,7 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
         end tell
     end timeout
     """
-  guard let script = NSAppleScript(source: source) else {
-    throw ServerError.internalError("Cannot compile automation property read")
-  }
+  let script = try compiledScript(source, what: "automation property read")
   var error: NSDictionary?
   let result = script.executeAndReturnError(&error)
   if let error {
