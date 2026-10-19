@@ -15,8 +15,10 @@ let automationNotReadyCodes: Set<Int> = [-1728, -10006, -1712]
 // Match both reminder and containing list IDs before sending any set event.
 // One attempt per call: untilSynchronized retries between awaits. The short event
 // timeout bounds how long one attempt holds the main actor.
+@MainActor private var compiledReminderWriteScript: NSAppleScript?
 @MainActor
 func makeReminderWriteScript() throws -> NSAppleScript {
+  if let script = compiledReminderWriteScript { return script }
   let source = """
     on applychanges(reminderID, listID, changeFlag, flagValue, changeAlert, alertValue)
         with timeout of 3 seconds
@@ -42,6 +44,7 @@ func makeReminderWriteScript() throws -> NSAppleScript {
       "cannot compile reminder automation (code \(error?[NSAppleScript.errorNumber] as? Int ?? 0))"
     )
   }
+  compiledReminderWriteScript = script
   return script
 }
 

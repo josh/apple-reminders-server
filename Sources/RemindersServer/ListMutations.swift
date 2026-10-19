@@ -123,8 +123,10 @@ func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
 
 // One attempt per call: untilSynchronized retries between awaits. The short event
 // timeout bounds how long one attempt holds the main actor.
+@MainActor private var compiledListEmblemScript: NSAppleScript?
 @MainActor
 private func makeListEmblemScript() throws -> NSAppleScript {
+  if let script = compiledListEmblemScript { return script }
   let source = """
     on setemblem(listID, iconName)
         with timeout of 3 seconds
@@ -143,6 +145,7 @@ private func makeListEmblemScript() throws -> NSAppleScript {
   guard script.compileAndReturnError(&error) else {
     throw ServerError.internalError("Cannot compile list emblem writer")
   }
+  compiledListEmblemScript = script
   return script
 }
 @MainActor

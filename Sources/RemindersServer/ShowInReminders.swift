@@ -24,24 +24,7 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
     record = .reminder(try ReminderRecord(item, now: Date(), flagged: nil))
     scriptID = "x-apple-reminder://" + uuid.uuidString
   }
-  let source = """
-    on showitem(objectID, isList)
-        with timeout of 10 seconds
-            tell application id "com.apple.reminders"
-                if isList then
-                    set targetObject to list id objectID
-                else
-                    set targetObject to reminder id objectID
-                end if
-                show targetObject
-                return id of targetObject
-            end tell
-        end timeout
-    end showitem
-    """
-  guard let script = NSAppleScript(source: source) else {
-    throw ServerError.internalError("Cannot create navigation script")
-  }
+  let script = try makeShowScript()
   let arguments = NSAppleEventDescriptor.list()
   arguments.insert(.init(string: scriptID), at: 1)
   arguments.insert(.init(boolean: isList), at: 2)
@@ -62,4 +45,34 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
       "unexpected navigation result; the UI may already have changed")
   }
   return record
+}
+
+@MainActor private var compiledShowScript: NSAppleScript?
+@MainActor
+private func makeShowScript() throws -> NSAppleScript {
+  if let script = compiledShowScript { return script }
+  let source = """
+    on showitem(objectID, isList)
+        with timeout of 10 seconds
+            tell application id "com.apple.reminders"
+                if isList then
+                    set targetObject to list id objectID
+                else
+                    set targetObject to reminder id objectID
+                end if
+                show targetObject
+                return id of targetObject
+            end tell
+        end timeout
+    end showitem
+    """
+  guard let script = NSAppleScript(source: source) else {
+    throw ServerError.internalError("Cannot create navigation script")
+  }
+  var error: NSDictionary?
+  guard script.compileAndReturnError(&error) else {
+    throw ServerError.internalError("Cannot compile navigation script")
+  }
+  compiledShowScript = script
+  return script
 }
