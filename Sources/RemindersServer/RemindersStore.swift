@@ -3,88 +3,34 @@ import EventKit
 import Foundation
 
 // EventKit and AppleScript run on the main actor. EventKit calls back on an
-// arbitrary queue, and cancelling a fetch suppresses its callback, so the waiting
-// task settles its own continuation exactly once: on completion, cancellation, or
-// the timeout. Only Sendable records leave the main actor.
-private final class Settled<Value>: @unchecked Sendable {
-  private let lock = NSLock()
-  private var continuation: CheckedContinuation<Value, Error>?
-  private var outcome: Result<Value, Error>?
-  private var cancel: (() -> Void)?
-  private var aborted = false
-
-  func attach(_ continuation: CheckedContinuation<Value, Error>) {
-    lock.lock()
-    if let outcome {
-      lock.unlock()
-      continuation.resume(with: outcome)
-      return
-    }
-    self.continuation = continuation
-    lock.unlock()
-  }
-  func resume(_ result: Result<Value, Error>) {
-    lock.lock()
-    guard outcome == nil else { return lock.unlock() }
-    outcome = result
-    let continuation = self.continuation
-    self.continuation = nil
-    cancel = nil
-    lock.unlock()
-    continuation?.resume(with: result)
-  }
-  func onCancel(_ handler: @escaping () -> Void) {
-    lock.lock()
-    guard !aborted else {
-      lock.unlock()
-      return handler()
-    }
-    cancel = handler
-    lock.unlock()
-  }
-  func abort() {
-    lock.lock()
-    aborted = true
-    let handler = cancel
-    cancel = nil
-    lock.unlock()
-    handler?()
-    resume(.failure(CancellationError()))
-  }
-}
-@MainActor
-private func settleOnce<Value>(_ start: (Settled<Value>) -> Void) async throws -> Value {
-  let settled = Settled<Value>()
-  let timeout = Task {
-    try await Task.sleep(for: .seconds(30))
-    settled.resume(
-      .failure(ServerError.internalError("EventKit operation timed out after 30 seconds")))
-  }
-  defer { timeout.cancel() }
-  return try await withTaskCancellationHandler {
-    try await withCheckedThrowingContinuation { continuation in
-      settled.attach(continuation)
-      start(settled)
-    }
-  } onCancel: {
-    settled.abort()
-  }
-}
+// arbitrary queue, and cancelling a fetch suppresses its callback, so the stream
+// finishes exactly once: on completion, cancellation, or the timeout. Only
+// Sendable records leave the main actor.
 @MainActor
 func fetchReminders(_ store: EKEventStore, matching predicate: NSPredicate) async throws
   -> [EKReminder]
 {
-  try await settleOnce { settled in
-    let handle = store.fetchReminders(matching: predicate) { items in
-      guard let items else {
-        return settled.resume(
-          .failure(
-            ServerError.internalError("EventKit returned an indeterminate nil reminder inventory")))
-      }
-      settled.resume(.success(items))
+  let (stream, continuation) = AsyncThrowingStream<[EKReminder], Error>.makeStream()
+  let handle = store.fetchReminders(matching: predicate) { items in
+    guard let items else {
+      return continuation.finish(
+        throwing: ServerError.internalError(
+          "EventKit returned an indeterminate nil reminder inventory"))
     }
-    settled.onCancel { DispatchQueue.main.async { store.cancelFetchRequest(handle) } }
+    continuation.yield(items)
+    continuation.finish()
   }
+  continuation.onTermination = { _ in
+    DispatchQueue.main.async { store.cancelFetchRequest(handle) }
+  }
+  let timeout = Task {
+    try await Task.sleep(for: .seconds(30))
+    continuation.finish(
+      throwing: ServerError.internalError("EventKit operation timed out after 30 seconds"))
+  }
+  defer { timeout.cancel() }
+  for try await items in stream { return items }
+  throw CancellationError()
 }
 func statusName() -> String {
   switch EKEventStore.authorizationStatus(for: .reminder) {
