@@ -74,18 +74,12 @@ func executeMutation(_ request: ReminderMutation) throws -> ReminderMutationPhas
     item = EKReminder(eventStore: store)
     item.calendar = list
     changes = patch
-  case .update(let id, let patch):
+  case .update(let id, _), .delete(let id):
     guard let existing = store.calendarItem(withIdentifier: id) as? EKReminder else {
       throw ServerError.notFound("reminder is unavailable")
     }
     item = existing
-    changes = patch
-  case .delete(let id):
-    guard let existing = store.calendarItem(withIdentifier: id) as? EKReminder else {
-      throw ServerError.notFound("reminder is unavailable")
-    }
-    item = existing
-    changes = nil
+    if case .update(_, let patch) = request { changes = patch } else { changes = nil }
   }
   guard let list = item.calendar, list.allowsContentModifications else {
     throw ServerError.readOnly("reminder list is not editable")
