@@ -15,7 +15,7 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
     guard let list = store.calendar(withIdentifier: id),
       list.allowedEntityTypes.contains(.reminder)
     else { throw ServerError.notFound("list is unavailable") }
-    record = .list(ListRecord(list))
+    record = .list(try ListRecord(list))
     scriptID = uuid.uuidString
   } else {
     guard let item = store.calendarItem(withIdentifier: id) as? EKReminder else {

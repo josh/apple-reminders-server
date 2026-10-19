@@ -187,7 +187,7 @@ func readInventory() async throws -> Inventory {
   let calendars = store.calendars(for: .reminder).sorted {
     $0.calendarIdentifier < $1.calendarIdentifier
   }
-  let lists = calendars.map(ListRecord.init)
+  let lists = try calendars.map(ListRecord.init)
   let defaultID = store.defaultCalendarForNewReminders()?.calendarIdentifier
   let defaultListID = lists.contains(where: { $0.id == defaultID }) ? defaultID : nil
   let fetched =

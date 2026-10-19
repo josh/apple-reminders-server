@@ -16,7 +16,11 @@ extension ComponentDate {
   }
 }
 extension ListRecord {
-  init(_ list: EKCalendar) {
+  init(_ list: EKCalendar) throws {
+    // EventKit leaves source nil on a list whose account is gone; the IUO would trap.
+    guard let source = list.source else {
+      throw ServerError.internalError("Reminder list \(list.calendarIdentifier) has no account")
+    }
     let color = list.cgColor?.converted(
       to: CGColorSpace(name: CGColorSpace.sRGB)!, intent: .defaultIntent, options: nil)
     let hex = color?.components.flatMap { values -> String? in
@@ -29,8 +33,7 @@ extension ListRecord {
     self.init(
       id: list.calendarIdentifier, name: list.title, color: hex,
       source: SourceRecord(
-        id: list.source.sourceIdentifier, title: list.source.title,
-        type: list.source.sourceType.rawValue),
+        id: source.sourceIdentifier, title: source.title, type: source.sourceType.rawValue),
       allowsContentModifications: list.allowsContentModifications,
       isImmutable: list.isImmutable, isSubscribed: list.isSubscribed)
   }

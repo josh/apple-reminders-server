@@ -101,7 +101,7 @@ func remindersMutateList(_ request: ListMutation) async throws -> ListMutationPh
   guard let refreshed = store.calendar(withIdentifier: id) else {
     throw ServerError.writeApplied("list \(id) was saved but is unavailable for refetch")
   }
-  return .finished(.saved(ListRecord(refreshed)))
+  return .finished(.saved(try ListRecord(refreshed)))
 }
 
 // One emblem attempt on an already-saved list. AutomationNotReady means Reminders
@@ -118,7 +118,7 @@ func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
   guard let refreshed = store.calendar(withIdentifier: pending.listID) else {
     throw ServerError.internalError("saved list is not available for refetch")
   }
-  return ListRecord(refreshed)
+  return try ListRecord(refreshed)
 }
 
 // One attempt per call: untilSynchronized retries between awaits. The short event
