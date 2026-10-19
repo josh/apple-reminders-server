@@ -1,7 +1,7 @@
 import Foundation
 
 // One filter for GraphQL and MCP searches.
-struct Search: Equatable, Sendable {
+struct Search: Sendable {
   var orderField: String?
   var descending = false
   var query: String?

@@ -6,7 +6,6 @@ struct ListChanges: Sendable {
   var name: String?
   var color: [Double]?
   var emblem: String?
-  init() {}
 }
 enum ListMutation: Sendable {
   case create(accountID: String, changes: ListChanges)

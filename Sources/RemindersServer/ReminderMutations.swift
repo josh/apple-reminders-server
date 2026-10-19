@@ -34,7 +34,6 @@ struct ReminderChanges: Equatable, Sendable {
   var due: DateComponents?
   var start: DateComponents?
   var clear: Set<ReminderClearValue> = []
-  init() {}
 }
 enum ReminderMutation: Sendable {
   case create(listID: String?, changes: ReminderChanges)
