@@ -1,73 +1,21 @@
 import Foundation
 
-// Fixed read-only source; request values are never interpolated. AppleScript's
+// Fixed read-only sources; request values are never interpolated. AppleScript's
 // timeout applies to each event, not to app launch or the complete operation.
-private let flagsScript = """
-  with timeout of 10 seconds
-      tell application id "com.apple.reminders"
-          set idsBefore to id of every reminder
-          set flagValues to flagged of every reminder
-          set idsAfter to id of every reminder
-          return {idsBefore, flagValues, idsAfter}
-      end tell
-  end timeout
-  """
-
-@MainActor
-func readScriptFlags() throws -> [String: Bool] {
-  guard let script = NSAppleScript(source: flagsScript) else {
-    throw ServerError.internalError("AppleScript could not be compiled")
-  }
-  var error: NSDictionary?
-  let result = script.executeAndReturnError(&error)
-  if let error {
-    let code = error[NSAppleScript.errorNumber] as? Int ?? 0
-    throw ServerError.internalError(
-      "AppleScript Reminders read failed (code \(code)); check Automation permission and Reminders availability"
-    )
-  }
-  guard result.descriptorType == 0x6c69_7374, result.numberOfItems == 3,
-    let before = result.atIndex(1), let flags = result.atIndex(2), let after = result.atIndex(3),
-    [before, flags, after].allSatisfy({ $0.descriptorType == 0x6c69_7374 }),
-    before.numberOfItems == flags.numberOfItems, before.numberOfItems == after.numberOfItems
-  else {
-    throw ServerError.internalError("AppleScript returned an inconsistent flag inventory")
-  }
-  var output: [String: Bool] = [:]
-  for index in 0..<before.numberOfItems {
-    guard let id = before.atIndex(index + 1)?.stringValue,
-      id == after.atIndex(index + 1)?.stringValue,
-      let flag = flags.atIndex(index + 1),
-      [0x626f_6f6c, 0x7472_7565, 0x6661_6c73].contains(flag.descriptorType)
-    else {  // typeBoolean ('bool')
-      throw ServerError.internalError(
-        "AppleScript flag inventory changed or contained an invalid value")
-    }
-    // Observed macOS mapping: x-apple-reminder://UUID -> EventKit UUID.
-    // Accept an exact EventKit UUID as well, but never names or arbitrary URLs.
-    let uuid: UUID?
-    if let exact = UUID(uuidString: id) {
-      uuid = exact
-    } else if let url = URL(string: id), url.scheme == "x-apple-reminder", url.path.isEmpty,
-      url.query == nil, url.fragment == nil, url.user == nil, url.password == nil, url.port == nil
-    {
-      uuid = UUID(uuidString: url.host ?? "")
-    } else {
-      uuid = nil
-    }
-    guard let key = uuid?.uuidString, output[key] == nil else {
-      throw ServerError.internalError("AppleScript reminder ID is unsupported or duplicated")
-    }
-    output[key] = flag.booleanValue
-  }
-  return output
-}
-
 // Typed descriptors bind each fixed script expression to its result decoder.
 struct ScriptProperty<Value: Sendable>: Sendable {
   let entity: String
   let expression: String
   let decode: @Sendable (NSAppleEventDescriptor) throws -> Value
+}
+extension ScriptProperty where Value == Bool {
+  static let flags = Self(entity: "reminder", expression: "flagged of every reminder") { value in
+    // typeBoolean, typeTrue, typeFalse
+    guard [0x626f_6f6c, 0x7472_7565, 0x6661_6c73].contains(value.descriptorType) else {
+      throw ServerError.internalError("Unsupported reminder flag value")
+    }
+    return value.booleanValue
+  }
 }
 extension ScriptProperty where Value == String? {
   static let emblems = Self(entity: "list", expression: "emblem of every list") { value in

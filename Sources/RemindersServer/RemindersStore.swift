@@ -181,7 +181,7 @@ func authorizeReminders() async throws {
 }
 
 @MainActor
-func readInventory(includeFlags: Bool = false) async throws -> Inventory {
+func readInventory() async throws -> Inventory {
   try requireAccess()
   let store = EKEventStore()
   let calendars = store.calendars(for: .reminder).sorted {
@@ -190,7 +190,6 @@ func readInventory(includeFlags: Bool = false) async throws -> Inventory {
   let lists = calendars.map(ListRecord.init)
   let defaultID = store.defaultCalendarForNewReminders()?.calendarIdentifier
   let defaultListID = lists.contains(where: { $0.id == defaultID }) ? defaultID : nil
-  let flags = includeFlags ? try autoreleasepool { try readScriptFlags() } : nil
   let fetched =
     calendars.isEmpty
     ? [] : try await fetchReminders(store, matching: store.predicateForReminders(in: calendars))
@@ -206,12 +205,7 @@ func readInventory(includeFlags: Bool = false) async throws -> Inventory {
       guard let list = item.calendar,
         calendars.contains(where: { $0.calendarIdentifier == list.calendarIdentifier })
       else { throw ServerError.internalError("Reminder list inventory changed during collection") }
-      // Reminders exposes newly saved objects to scripting late; a missing match
-      // leaves only that reminder's flag unknown instead of failing the inventory.
-      let flagged = flags.flatMap { table in
-        UUID(uuidString: item.calendarItemIdentifier).flatMap { table[$0.uuidString] }
-      }
-      reminders.append(try ReminderRecord(item, now: now, flagged: flagged))
+      reminders.append(try ReminderRecord(item, now: now, flagged: nil))
     }
     return Inventory(lists: lists, reminders: reminders, defaultListId: defaultListID)
   }

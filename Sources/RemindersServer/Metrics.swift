@@ -34,7 +34,7 @@ actor MetricsCollector {
 }
 
 func collectMetrics() async throws -> String {
-  let data = try await readInventory(includeFlags: false)
+  let data = try await readInventory()
   let lists = data.lists
   let reminders = data.reminders
   let accounts = Set(lists.map { $0.source.id })
