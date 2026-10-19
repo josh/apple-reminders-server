@@ -181,7 +181,9 @@ func authorizeReminders() async throws {
 }
 
 @MainActor
-func readInventory() async throws -> Inventory {
+private func readCalendars() throws -> (
+  store: EKEventStore, calendars: [EKCalendar], lists: [ListRecord], defaultListID: String?
+) {
   try requireAccess()
   let store = EKEventStore()
   let calendars = store.calendars(for: .reminder).sorted {
@@ -190,6 +192,17 @@ func readInventory() async throws -> Inventory {
   let lists = try calendars.map(ListRecord.init)
   let defaultID = store.defaultCalendarForNewReminders()?.calendarIdentifier
   let defaultListID = lists.contains(where: { $0.id == defaultID }) ? defaultID : nil
+  return (store, calendars, lists, defaultListID)
+}
+// Lists and the default list without fetching reminders; summaries need readInventory.
+@MainActor
+func readLists() throws -> Inventory {
+  let (_, _, lists, defaultListID) = try readCalendars()
+  return Inventory(lists: lists, reminders: [], defaultListId: defaultListID)
+}
+@MainActor
+func readInventory() async throws -> Inventory {
+  let (store, calendars, lists, defaultListID) = try readCalendars()
   let fetched =
     calendars.isEmpty
     ? [] : try await fetchReminders(store, matching: store.predicateForReminders(in: calendars))

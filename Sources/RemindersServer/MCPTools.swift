@@ -539,7 +539,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.invalidArgument("id required")
     }
-    return try result(AccountOutput(account: await readInventory().accounts.first { $0.id == id }))
+    return try result(AccountOutput(account: await readLists().accounts.first { $0.id == id }))
   case "lists_list":
     try keys(["filter", "orderBy", "limit", "cursor"])
     let filter = try filters(listFilterKeys)
@@ -562,7 +562,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.descending = direction == "DESC"
     }
     let offset = try cursor()
-    let lists = try await search.lists(readInventory())
+    let lists = try await search.lists(readLists())
     let start = min(offset, lists.count)
     let end = min(start + search.limit, lists.count)
     let token = end < lists.count ? String(end) : nil
@@ -571,7 +571,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
         items: lists[start..<end].map(MCPList.init), totalCount: lists.count, nextCursor: token))
   case "accounts_list":
     try keys([])
-    return try result(AccountsOutput(items: await readInventory().accounts))
+    return try result(AccountsOutput(items: await readLists().accounts))
   case "lists_get":
     try keys(["id"])
     guard let id = try string("id"), !id.isEmpty else {
@@ -580,7 +580,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     return try result(ListOutput(list: await readList(id: id).map(MCPList.init)))
   case "defaults_get":
     try keys([])
-    let data = try await readInventory()
+    let data = try await readLists()
     return try result(
       DefaultsOutput(
         list: data.defaultList.map(MCPList.init),
