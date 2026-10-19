@@ -27,7 +27,7 @@ actor MetricsCollector {
         failure = "Metrics collection failed: \(error)"
       }
       do {
-        try await Task.sleep(for: .seconds(intervalSeconds))
+        try await Task.sleep(for: .seconds(failed ? min(60, intervalSeconds) : intervalSeconds))
       } catch { return }
     }
   }
