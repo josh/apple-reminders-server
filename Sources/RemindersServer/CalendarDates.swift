@@ -70,6 +70,13 @@ func parseTimestamp(_ value: String) throws -> Date {
       "expected RFC 3339 timestamp with an explicit offset")
   }
   try validateDays(String(value.prefix(10)), nil)
+  // ISO8601DateFormatter needs exactly three fraction digits; RFC 3339 allows any number.
+  var value = value
+  if let fraction = value.range(of: #"\.\d+"#, options: .regularExpression) {
+    let digits = String(value[fraction].dropFirst().prefix(3))
+    value.replaceSubrange(
+      fraction, with: "." + digits.padding(toLength: 3, withPad: "0", startingAt: 0))
+  }
   if let date = fractionalTimestamps.date(from: value) { return date }
   guard let date = wholeSecondTimestamps.date(from: value) else {
     throw ServerError.invalidArgument("invalid timestamp")
