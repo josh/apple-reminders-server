@@ -12,7 +12,8 @@ let usage = """
   server errors at error.
   Loopback origins are always allowed; each --allowed-origin adds a browser origin
   that may call the server cross-origin.
-  --tailscale-app-capability applies Tailscale permissions when given.
+  --tailscale-app-capability applies Tailscale permissions to proxied requests;
+  loopback requests stay unrestricted.
   --request-access explicitly requests permission in the serving process at startup.
 
   GraphQL and MCP support reminder create/update/delete in editable lists.
