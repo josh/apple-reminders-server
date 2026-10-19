@@ -4,7 +4,6 @@ import Foundation
 struct Search: Equatable, Sendable {
   var orderField: String?
   var descending = false
-  var limit = 50
   var query: String?
   var accountIds: [String]?
   // Reminder criteria.

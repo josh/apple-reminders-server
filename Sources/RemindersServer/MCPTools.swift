@@ -548,7 +548,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     search.accountIds = try ids("accountIds", from: filter)
     search.allowsContentModifications = try bool("allowsContentModifications", from: filter)
     search.subscribed = try bool("subscribed", from: filter)
-    search.limit = try limit()
+    let pageSize = try limit()
     if let rawOrder = args["orderBy"] {
       let order = try mutationInput(rawOrder)
       try order.rejectNulls()
@@ -564,7 +564,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     let offset = try cursor()
     let lists = try await search.lists(readLists())
     let start = min(offset, lists.count)
-    let end = min(start + search.limit, lists.count)
+    let end = min(start + pageSize, lists.count)
     let token = end < lists.count ? String(end) : nil
     return try result(
       ListsOutput(
@@ -630,7 +630,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.descending = direction == "DESC"
     }
     search.completed = try bool("completed", from: filter)
-    search.limit = try limit()
+    let pageSize = try limit()
     if let value = filter["priorities"] {
       guard case .array(let values) = value else {
         throw ServerError.invalidArgument("priorities must be an integer array")
@@ -651,7 +651,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     let offset = try cursor()
     let items = try search.reminders(await readInventory())
     let start = min(offset, items.count)
-    let end = min(start + search.limit, items.count)
+    let end = min(start + pageSize, items.count)
     let token = end < items.count ? String(end) : nil
     return try result(
       SearchOutput(
