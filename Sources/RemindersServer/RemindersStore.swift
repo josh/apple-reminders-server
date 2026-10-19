@@ -105,7 +105,7 @@ func requireAccess() throws {
 }
 // Classification preserves floating/date-only
 // semantics. Unsupported or non-roundtripping components are unknown, not zero.
-private func resolvedDueDate(_ components: DateComponents, reporting: Calendar) -> (
+func resolvedDueDate(_ components: DateComponents, reporting: Calendar) -> (
   date: Date, timed: Bool
 )? {
   guard let year = components.year, let month = components.month, let day = components.day,

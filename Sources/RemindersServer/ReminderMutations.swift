@@ -217,18 +217,9 @@ func applyReminderAutomation(_ pending: PendingAutomation) throws -> ReminderRec
 }
 
 private func mutationDate(_ value: DateComponents) -> Date? {
-  guard value.calendar?.identifier == nil || value.calendar?.identifier == .gregorian,
-    value.year != nil, value.month != nil, value.day != nil
-  else { return nil }
-  var calendar = Calendar(identifier: .gregorian)
-  calendar.timeZone = value.timeZone ?? .current
-  guard let date = calendar.date(from: value) else { return nil }
-  let check = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-  guard check.year == value.year, check.month == value.month, check.day == value.day,
-    check.hour == (value.hour ?? 0), check.minute == (value.minute ?? 0),
-    check.second == (value.second ?? 0)
-  else { return nil }
-  return date
+  var reporting = Calendar(identifier: .gregorian)
+  reporting.timeZone = .current
+  return resolvedDueDate(value, reporting: reporting)?.date
 }
 
 // Timed dates retain their instant; date-only values retain their calendar day.
