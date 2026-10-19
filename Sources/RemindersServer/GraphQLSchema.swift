@@ -89,9 +89,9 @@ private func searchPage(
         || (item.name ?? "").lowercased().contains(query!.lowercased()))
       && matchesDays(item.dueDay, lower, dayUpper)
   }
-  return try page(graphMaps(orderedReminders(items, args: args)), args: args)
+  return try page(orderedReminders(items, args: args), args: args)
 }
-func page(_ values: [Map], args: Map) throws -> Map {
+func page<T: Encodable>(_ values: [T], args: Map) throws -> Map {
   let limit = try args["limit"].intValue()
   let offset = try args["offset"].intValue()
   guard (1...100).contains(limit), offset >= 0 else {
@@ -100,7 +100,7 @@ func page(_ values: [Map], args: Map) throws -> Map {
   let start = min(offset, values.count)
   let end = min(start + limit, values.count)
   return [
-    "items": Map(Array(values[start..<end])), "totalCount": Map(values.count),
+    "items": Map(try graphMaps(Array(values[start..<end]))), "totalCount": Map(values.count),
     "pageInfo": [
       "offset": Map(offset), "limit": Map(limit), "hasNextPage": Map(end < values.count),
       "hasPreviousPage": Map(offset > 0 && !values.isEmpty),

@@ -37,7 +37,7 @@ func listSearchPage(_ data: Inventory, args: Map, accountID: String? = nil) thro
       return a == b ? $0.id < $1.id : descending ? a > b : a < b
     }
   }
-  return try page(graphMaps(items), args: args)
+  return try page(items, args: args)
 }
 
 func orderedReminders(_ items: [ReminderRecord], args: Map) throws -> [ReminderRecord] {
