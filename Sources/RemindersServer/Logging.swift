@@ -21,6 +21,7 @@ func logFailure(_ message: String, error: Error) {
 extension ServiceResponse {
   var failureKind: String? {
     if status >= 400 { return "http" }
+    if classified { return failure }
     guard type.hasPrefix("application/json"),
       let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
     else { return nil }

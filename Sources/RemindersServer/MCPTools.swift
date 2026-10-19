@@ -792,10 +792,16 @@ private func errorText(_ error: Error) -> String {
   return data.flatMap { String(data: $0, encoding: .utf8) } ?? String(describing: error)
 }
 
+// Records the tool outcome so the logger need not reparse large result bodies.
+private final class ToolOutcome: @unchecked Sendable {
+  var ran = false
+  var failed = false
+}
 func handleMCP(method: String, headers: [String: String], body: Data, access: Capabilities.Access)
   async throws
   -> ServiceResponse
 {
+  let outcome = ToolOutcome()
   // Each HTTP request has isolated SDK protocol state, permitting independent clients.
   // The HTTP listener enforces Origin policy for all endpoints.
   let transport = StatelessHTTPServerTransport(
@@ -810,19 +816,23 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
   do {
     await server.withMethodHandler(ListTools.self) { params in
       guard params.cursor == nil else { throw MCPError.invalidParams("Tool catalog has no cursor") }
+      outcome.ran = true
       return .init(tools: tools)
     }
     await server.withMethodHandler(CallTool.self) { params in
       guard toolNames.contains(params.name) else {
         throw MCPError.invalidParams("Unknown tool")
       }
+      outcome.ran = true
       guard access == .write || (access == .read && readOnlyTools.contains(params.name)) else {
+        outcome.failed = true
         return .init(
           content: [
             .text(text: "Forbidden: MCP write access required", annotations: nil, _meta: nil)
           ], isError: true)
       }
       do { return try await callTool(params) } catch {
+        outcome.failed = true
         return .init(
           content: [.text(text: errorText(error), annotations: nil, _meta: nil)], isError: true)
       }
@@ -833,7 +843,8 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
     await server.stop()
     return ServiceResponse(
       status: response.statusCode, type: response.headers["Content-Type"] ?? "application/json",
-      body: response.bodyData ?? Data(), headers: response.headers)
+      body: response.bodyData ?? Data(), headers: response.headers,
+      failure: outcome.failed ? "mcp_tool" : nil, classified: outcome.ran)
   } catch {
     await server.stop()
     throw error

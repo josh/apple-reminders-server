@@ -8,10 +8,16 @@ struct ServiceResponse {
   var type = "application/json"
   var body: Data
   var headers: [String: String] = [:]
-  static func json(_ object: Any, status: Int = 200) throws -> ServiceResponse {
+  // The handler that knows the outcome sets failure; unclassified bodies are inspected.
+  var failure: String? = nil
+  var classified = false
+  static func json(_ object: Any, status: Int = 200, failure: String? = nil) throws
+    -> ServiceResponse
+  {
     ServiceResponse(
       status: status,
-      body: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]))
+      body: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+      failure: failure, classified: true)
   }
 }
 func handleRequest(
@@ -69,8 +75,10 @@ func handleRequest(
       schema: schema, request: query, context: GraphQLContext(), variableValues: variables,
       operationName: operation)
     result.errors = result.errors.map(withErrorCode)
-    return ServiceResponse(body: try GraphQLJSONEncoder().encode(result))
-  } catch { return try .json(["errors": [graphQLError(error)]]) }
+    return ServiceResponse(
+      body: try GraphQLJSONEncoder().encode(result),
+      failure: result.errors.isEmpty ? nil : "graphql", classified: true)
+  } catch { return try .json(["errors": [graphQLError(error)]], failure: "graphql") }
 }
 
 // The executor wraps resolver errors; put the server's code where GraphQL clients expect it.
