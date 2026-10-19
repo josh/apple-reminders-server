@@ -5,9 +5,8 @@ func parseRecurrenceInput(_ input: MutationInput) throws -> ReminderRecurrenceCh
     "frequency", "interval", "daysOfWeek", "daysOfMonth", "monthsOfYear", "weeksOfYear",
     "daysOfYear", "setPositions", "end",
   ])
-  guard
-    let frequency = ReminderRecurrenceChange.Frequency(
-      rawValue: try input["frequency"].stringValue())
+  let name = try input["frequency"].stringValue()
+  guard let frequency = RecurrenceFrequency(rawValue: name.lowercased()), name == name.uppercased()
   else { throw ServerError.invalidArgument("unknown recurrence frequency") }
   func numbers(_ key: String) throws -> [Int]? {
     guard input[key].isSet else { return nil }

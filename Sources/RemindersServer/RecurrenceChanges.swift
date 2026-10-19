@@ -3,17 +3,11 @@ import Foundation
 
 /// Validated recurrence values; EventKit objects are constructed on the main thread.
 struct ReminderRecurrenceChange: Equatable, Sendable {
-  enum Frequency: String, Sendable {
-    case daily = "DAILY"
-    case weekly = "WEEKLY"
-    case monthly = "MONTHLY"
-    case yearly = "YEARLY"
-  }
   struct Day: Sendable, Hashable {
     let weekday: Int
     let ordinal: Int
   }
-  let frequency: Frequency
+  let frequency: RecurrenceFrequency
   let interval: Int
   let days: [Day]?
   let monthDays: [Int]?, months: [Int]?, weeks: [Int]?, yearDays: [Int]?, positions: [Int]?
@@ -21,12 +15,13 @@ struct ReminderRecurrenceChange: Equatable, Sendable {
   let count: Int?
 
   init(
-    frequency: Frequency, interval: Int, days: [Day]?, monthDays: [Int]?, months: [Int]?,
+    frequency: RecurrenceFrequency, interval: Int, days: [Day]?, monthDays: [Int]?, months: [Int]?,
     weeks: [Int]?, yearDays: [Int]?, positions: [Int]?, until: Date?, count: Int?
   ) throws {
     func require(_ condition: Bool, _ message: String) throws {
       guard condition else { throw ServerError.invalidArgument("recurrence " + message) }
     }
+    try require(frequency != .unknown, "frequency is unknown")
     try require(interval > 0 && interval <= Int(Int32.max), "interval must be 1...2147483647")
     try require(until == nil || count == nil, "end must choose until or count")
     if let count {
@@ -84,6 +79,7 @@ struct ReminderRecurrenceChange: Equatable, Sendable {
     case .weekly: eventKitFrequency = .weekly
     case .monthly: eventKitFrequency = .monthly
     case .yearly: eventKitFrequency = .yearly
+    case .unknown: fatalError("unknown frequency is rejected by init")
     }
     let end =
       until.map { EKRecurrenceEnd(end: $0) } ?? count.map { EKRecurrenceEnd(occurrenceCount: $0) }
