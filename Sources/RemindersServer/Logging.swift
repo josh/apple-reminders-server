@@ -22,14 +22,10 @@ extension ServiceResponse {
   var failureKind: String? {
     if status >= 400 { return "http" }
     if classified { return failure }
+    // Only MCP protocol replies arrive unclassified; GraphQL and tool calls classify.
     guard type.hasPrefix("application/json"),
       let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
     else { return nil }
-    if let errors = object["errors"] as? [Any], !errors.isEmpty { return "graphql" }
-    if object["error"] != nil { return "mcp_protocol" }
-    if let result = object["result"] as? [String: Any], result["isError"] as? Bool == true {
-      return "mcp_tool"
-    }
-    return nil
+    return object["error"] != nil ? "mcp_protocol" : nil
   }
 }
