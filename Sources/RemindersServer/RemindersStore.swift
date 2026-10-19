@@ -163,18 +163,10 @@ func dueDay(_ components: DateComponents?) -> String? {
 }
 @MainActor
 func authorizeReminders() async throws {
-  let store = EKEventStore()
-  let granted: Bool = try await settleOnce { settled in
-    store.requestFullAccessToReminders { granted, error in
-      if let error {
-        settled.resume(
-          .failure(
-            ServerError.internalError(
-              "EventKit authorization failed (code \((error as NSError).code))")))
-      } else {
-        settled.resume(.success(granted))
-      }
-    }
+  let granted: Bool
+  do { granted = try await EKEventStore().requestFullAccessToReminders() } catch {
+    throw ServerError.internalError(
+      "EventKit authorization failed (code \((error as NSError).code))")
   }
   guard granted else { throw ServerError.internalError("Reminders access was not granted") }
   try requireAccess()
