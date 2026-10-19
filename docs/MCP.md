@@ -14,8 +14,8 @@ curl http://127.0.0.1:8171/mcp -H 'Content-Type: application/json' \
 ```
 
 Use `tools/list` for the sixteen tools and their input/output JSON Schemas.
-The [catalog reference](mcp-tools.json) is an export of that result body, without
-the JSON-RPC envelope. It is not connection configuration. Tool annotations are
+The [catalog reference](mcp-tools.json) is an export of that result body without
+the JSON-RPC envelope, not a connection configuration file. Tool annotations are
 hints, not permission enforcement. [Writes and navigation](WRITES.md) describe
 mutation semantics and partial-save handling.
 
@@ -37,7 +37,11 @@ still write `flagged` and `remindMeDate`, and `lists_create`/`lists_update` stil
 write `emblem`, through automation after the EventKit save; a reminder write result
 echoes the `flagged` value it applied. Optional inputs must be omitted rather than null.
 
-A cursor is the next page's offset as a string. It is not bound to the search criteria: changing the filter, ordering, or limit while reusing a cursor shifts the page silently, so keep them unchanged. The selected sort with identifier tiebreaking makes a stable inventory deterministic, but each page reads live data: concurrent changes can cause omissions or repeats. Cursors do not represent snapshots.
+A cursor is the next page's offset as a string. It is not bound to the search
+criteria: changing the filter, ordering, or limit while reusing a cursor shifts
+the page silently, so keep them unchanged. The selected sort with identifier
+tiebreaking makes a stable inventory deterministic, but each page reads live data
+rather than a snapshot, so concurrent changes can cause omissions or repeats.
 
 The catalog describes stored and projected fields. Projected dates and recurrence
 use explicit nulls when absent; some optional raw fields are omitted, and `flagged`

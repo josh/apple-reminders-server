@@ -129,8 +129,7 @@ and urgent state are not exposed by the server.
 
 ## Related write calls
 
-Although retrieval is the focus here, these calls are useful references for the
-documented mutations:
+These write calls back the documented mutations:
 
 | Call | Purpose |
 | --- | --- |

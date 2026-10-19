@@ -9,14 +9,13 @@ moves are unsupported. See the [GraphQL schema](reminders.graphql) and
 
 Creation requires `name` and accepts `listId`, `body`, `priority`, `location`,
 `url`, `dueDate`, `allDayDueDate`, `startDate`, `alarms`, `recurrence`,
-`timeZone`, `flagged`, and `remindMeDate`. Omitted
-`listId` uses the EventKit default list.
-Reminders are initially incomplete. Missing optional fields use native defaults.
-GraphQL treats explicit null optional creation values as omitted; MCP rejects
-explicit null and requires omission.
+`timeZone`, `flagged`, and `remindMeDate`. Omitted `listId` uses the EventKit
+default list. Reminders are initially incomplete. Missing optional fields use
+native defaults. GraphQL treats explicit null optional creation values as
+omitted; MCP rejects explicit null and requires omission.
 
-Updates accept those reminder properties except `listId`, plus `completed`, `completionDate`, and
-`clearFields`. Omitted properties are unchanged. Explicit null patch values and
+Updates accept those reminder properties except `listId`, plus `completed`,
+`completionDate`, and `clearFields`. Omitted properties are unchanged. Explicit null patch values and
 empty patches are rejected. Names cannot be blank; an empty body removes notes.
 Priority must be an integer from 0 through 9. URLs must be absolute and contain
 no whitespace. `completed: true` sets the completion date through EventKit;
@@ -82,13 +81,14 @@ stored independently of date components. Existing non-Gregorian or unresolvable
 dates are rejected. Without a zone change, new timed inputs use UTC.
 
 `flagged` writes the native flag independently of priority. `remindMeDate` writes
-the application's alert date using typed Apple-event date arguments. It can also change the timed deadline, start components, zone, and alarms;
-inspect the resulting state. It is not an independent EventKit alarm setter. It cannot
-be combined with `alarms`, or with start, due, or time-zone changes in the same request, because Reminders
-may overwrite those components. `REMIND_ME_DATE` clearing is not supported:
-AppleScript rejects a missing date, and removing
-EventKit alarms alone leaves this property intact. Unsupported clearing is
-rejected before saving. See [automation handlers](APPLESCRIPT.md#handlers-and-identity).
+the application's alert date using typed Apple-event date arguments. Reminders
+may also change the timed deadline, start components, zone, and alarms in
+response, so inspect the resulting state instead of treating it as an EventKit
+alarm setter. It cannot be combined with `alarms`, or with start, due, or
+time-zone changes in the same request, because Reminders may overwrite those
+components. `REMIND_ME_DATE` clearing is not supported: AppleScript rejects a
+missing date, and removing EventKit alarms alone leaves this property intact.
+Unsupported clearing is rejected before saving. See [automation handlers](APPLESCRIPT.md#handlers-and-identity).
 
 ## Example
 

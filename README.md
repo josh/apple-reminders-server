@@ -11,10 +11,11 @@ swift build -c release
 ./.build/release/apple-reminders-server --request-access
 ```
 
-Omit `--request-access` once Reminders permission is granted. Automation requires
-separate permission when first used. The server listens on `127.0.0.1:8171` and
-has no built-in identity authentication or TLS; it is intended for local use. Add
-`--allowed-origin https://app.example` to allow a browser client on another origin.
+Omit `--request-access` once macOS has granted Reminders permission. Automation
+asks for its own permission the first time it runs. The server listens on
+`127.0.0.1:8171` with no built-in identity authentication or TLS, so keep it to
+local use. Add `--allowed-origin https://app.example` to allow a browser client
+on another origin.
 
 | Endpoint | Documentation |
 | --- | --- |
@@ -22,6 +23,6 @@ has no built-in identity authentication or TLS; it is intended for local use. Ad
 | `POST /mcp` | [MCP](docs/MCP.md), [tool catalog](docs/mcp-tools.json) |
 | `GET /metrics` | [Metrics](docs/METRICS.md), [example](docs/metrics.prom) |
 
-See [server configuration and permissions](docs/SERVER.md) and the
-[documentation index](docs/README.md).
-Source lives in the single executable target `Sources/RemindersServer/`.
+Server configuration and permissions are covered in [docs/SERVER.md](docs/SERVER.md),
+and [docs/README.md](docs/README.md) indexes the rest of the documentation. All
+source lives in the single executable target `Sources/RemindersServer/`.

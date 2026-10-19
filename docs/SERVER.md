@@ -61,9 +61,10 @@ Origins must have no path, query, fragment, or credentials. JSON POSTs require
 `Content-Type: application/json`; other media types return 415. Request bodies
 are limited to 1 MiB, including chunked uploads; excess returns 413.
 
-There is no built-in identity authentication or TLS. Keep the service local;
-network exposure requires a trusted proxy and access controls. GraphQL subscriptions and MCP SSE
-streams are not implemented. MCP protocol details are in [MCP.md](MCP.md).
+There is no built-in identity authentication or TLS, so keep the service local
+or put it behind a trusted proxy with its own access controls. GraphQL
+subscriptions and MCP SSE streams are not implemented. MCP protocol details are
+in [MCP.md](MCP.md).
 
 ## Limits
 
