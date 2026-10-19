@@ -442,6 +442,13 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     return number
   }
+  func descending(_ order: MutationInput) throws -> Bool {
+    let direction = try order["direction"].isSet ? order["direction"].stringValue() : "ASC"
+    guard ["ASC", "DESC"].contains(direction) else {
+      throw ServerError.invalidArgument("invalid order direction")
+    }
+    return direction == "DESC"
+  }
   switch params.name {
   case "reminders_create", "reminders_update":
     let input: MutationInput
@@ -548,13 +555,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       let order = try mutationInput(rawOrder)
       try order.rejectNulls()
       try order.checkKeys(["direction"])
-      let direction =
-        order["direction"] == .undefined ? "ASC" : try order["direction"].stringValue()
-      guard ["ASC", "DESC"].contains(direction) else {
-        throw ServerError.invalidArgument("invalid list order direction")
-      }
       search.orderField = "NAME"
-      search.descending = direction == "DESC"
+      search.descending = try descending(order)
     }
     let offset = try cursor()
     let lists = try await search.lists(readLists())
@@ -616,13 +618,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
         ["NAME", "DUE_DATE", "PRIORITY", "CREATION_DATE", "MODIFICATION_DATE", "COMPLETION_DATE"]
           .contains(field)
       else { throw ServerError.invalidArgument("invalid order field") }
-      let direction =
-        order["direction"] == .undefined ? "ASC" : try order["direction"].stringValue()
-      guard ["ASC", "DESC"].contains(direction) else {
-        throw ServerError.invalidArgument("invalid order direction")
-      }
       search.orderField = field
-      search.descending = direction == "DESC"
+      search.descending = try descending(order)
     }
     search.completed = try bool("completed", from: filter)
     let pageSize = try limit()
