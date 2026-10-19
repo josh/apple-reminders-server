@@ -217,9 +217,7 @@ func applyReminderAutomation(_ pending: PendingAutomation) throws -> ReminderRec
 }
 
 private func mutationDate(_ value: DateComponents) -> Date? {
-  var reporting = Calendar(identifier: .gregorian)
-  reporting.timeZone = .current
-  return resolvedDueDate(value, reporting: reporting)?.date
+  (try? projectDate(ComponentDate(value)))?.instant
 }
 
 // Timed dates retain their instant; date-only values retain their calendar day.

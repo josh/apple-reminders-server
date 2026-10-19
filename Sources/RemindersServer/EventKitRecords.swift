@@ -55,8 +55,7 @@ extension ReminderRecord {
       startDateComponents: item.startDateComponents.map(ComponentDate.init),
       dueDateComponents: item.dueDateComponents.map(ComponentDate.init),
       dueDay: RemindersServer.dueDay(item.dueDateComponents),
-      dueStatus: RemindersServer.dueStatus(item.dueDateComponents, now: now)
-        .flatMap(DueStatus.init(rawValue:)) ?? .unknown,
+      dueStatus: RemindersServer.dueStatus(item.dueDateComponents, now: now),
       alarms: (item.alarms ?? []).map(AlarmRecord.init),
       recurrenceRules: (item.recurrenceRules ?? []).map(RecurrenceRecord.init))
   }

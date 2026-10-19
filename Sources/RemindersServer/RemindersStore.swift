@@ -49,62 +49,26 @@ func requireAccess() throws {
     )
   }
 }
-// Classification preserves floating/date-only
-// semantics. Unsupported or non-roundtripping components are unknown, not zero.
-func resolvedDueDate(_ components: DateComponents, reporting: Calendar) -> (
-  date: Date, timed: Bool
-)? {
-  guard let year = components.year, let month = components.month, let day = components.day,
-    (1...9999).contains(year), components.era == nil || components.era == 1
-  else { return nil }
-  if let identifier = components.calendar?.identifier, identifier != .gregorian { return nil }
-  let hour = components.hour
-  if hour == nil
-    && [components.minute, components.second, components.nanosecond].contains(where: { $0 != nil })
-  {
-    return nil
-  }
-  if let hour, !(0...23).contains(hour) { return nil }
-  if let minute = components.minute, !(0...59).contains(minute) { return nil }
-  if let second = components.second, !(0...59).contains(second) { return nil }
-  if let nano = components.nanosecond, !(0...999_999_999).contains(nano) { return nil }
-  var source = Calendar(identifier: .gregorian)
-  source.timeZone = hour == nil ? reporting.timeZone : (components.timeZone ?? reporting.timeZone)
-  var parts = DateComponents(year: year, month: month, day: day)
-  if let hour {
-    parts.hour = hour
-    parts.minute = components.minute ?? 0
-    parts.second = components.second ?? 0
-    parts.nanosecond = components.nanosecond ?? 0
-  }
-  guard let date = source.date(from: parts) else { return nil }
-  let check = source.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-  guard check.year == year, check.month == month, check.day == day,
-    hour == nil
-      || (check.hour == hour && check.minute == parts.minute && check.second == parts.second)
-  else { return nil }
-  return (date, hour != nil)
-}
-func dueStatus(_ components: DateComponents?, now: Date) -> String? {
-  guard let components else { return "unscheduled" }
+// Resolution follows projectDate: unsupported or non-roundtripping components are
+// unknown, not zero.
+func dueStatus(_ components: DateComponents?, now: Date) -> DueStatus {
+  guard let components else { return .unscheduled }
+  guard let resolved = try? projectDate(ComponentDate(components)) else { return .unknown }
+  if resolved.timed && resolved.instant < now { return .overdue }
   var reporting = Calendar(identifier: .gregorian)
   reporting.timeZone = .current
-  guard let resolved = resolvedDueDate(components, reporting: reporting) else { return nil }
-  if resolved.timed && resolved.date < now { return "overdue" }
-  let comparison = reporting.compare(resolved.date, to: now, toGranularity: .day)
-  return comparison == .orderedAscending
-    ? "overdue" : comparison == .orderedSame ? "today" : "future"
+  let comparison = reporting.compare(resolved.instant, to: now, toGranularity: .day)
+  return comparison == .orderedAscending ? .overdue : comparison == .orderedSame ? .today : .future
 }
 // Calendar-day searches use the same resolution rules as deadline metrics.
 func dueDay(_ components: DateComponents?) -> String? {
-  guard let components else { return nil }
+  guard let components, let resolved = try? projectDate(ComponentDate(components)) else {
+    return nil
+  }
   var reporting = Calendar(identifier: .gregorian)
   reporting.timeZone = .current
-  guard let resolved = resolvedDueDate(components, reporting: reporting) else { return nil }
-  let parts = reporting.dateComponents([.year, .month, .day], from: resolved.date)
-  guard let year = parts.year, let month = parts.month, let day = parts.day,
-    (1...9999).contains(year)
-  else { return nil }
+  let parts = reporting.dateComponents([.year, .month, .day], from: resolved.instant)
+  guard let year = parts.year, let month = parts.month, let day = parts.day else { return nil }
   return String(format: "%04d-%02d-%02d", year, month, day)
 }
 @MainActor
