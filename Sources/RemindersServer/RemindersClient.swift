@@ -52,20 +52,15 @@ func mutateList(_ request: ListMutation) async throws -> MutationResult<ListReco
 }
 // The EventKit save succeeded; only the automation step after it failed.
 private func writeApplied(_ error: Error, saved object: String) -> ServerError {
+  let reason: String
   switch error {
   case let notReady as AutomationNotReady:
-    return .writeApplied(
-      "EventKit saved \(object), but Reminders did not expose it to automation in time (code \(notReady.code): \(notReady.message)). Refetch this ID and reapply the change with an update"
-    )
-  case is CancellationError:
-    return .writeApplied(
-      "EventKit saved \(object), but the request was cancelled before automation finished. Refetch this ID before retrying"
-    )
-  default:
-    return .writeApplied(
-      "EventKit saved \(object), but automation or refetch failed: \(error). Refetch this ID before retrying"
-    )
+    reason =
+      "Reminders did not expose it to automation in time (code \(notReady.code): \(notReady.message))"
+  case is CancellationError: reason = "the request was cancelled before automation finished"
+  default: reason = "automation or refetch failed: \(error)"
   }
+  return .writeApplied("EventKit saved \(object), but \(reason). Refetch this ID before retrying")
 }
 func showRemindersObject(_ id: String, isList: Bool) async throws -> ShownObject {
   try await onMainActor { try remindersShow(id: id, isList: isList) }
