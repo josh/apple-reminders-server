@@ -631,18 +631,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.orderField = field
       search.descending = direction == "DESC"
     }
-    if let value = filter["completed"] {
-      guard case .bool(let flag) = value else {
-        throw ServerError.invalidArgument("completed must be boolean")
-      }
-      search.completed = flag
-    }
-    if let value = args["limit"] {
-      guard case .int(let limit) = value, (1...100).contains(limit) else {
-        throw ServerError.invalidArgument("limit must be 1...100")
-      }
-      search.limit = limit
-    }
+    search.completed = try bool("completed", from: filter)
+    search.limit = try limit()
     if let value = filter["priorities"] {
       guard case .array(let values) = value else {
         throw ServerError.invalidArgument("priorities must be an integer array")
@@ -660,8 +650,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       }
       search.dueStatus = status
     }
-    let items = try search.reminders(await readInventory())
     let offset = try cursor()
+    let items = try search.reminders(await readInventory())
     let start = min(offset, items.count)
     let end = min(start + search.limit, items.count)
     let token = end < items.count ? String(end) : nil
