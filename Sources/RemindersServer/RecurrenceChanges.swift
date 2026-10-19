@@ -2,7 +2,7 @@ import EventKit
 import Foundation
 
 /// Validated recurrence values; EventKit objects are constructed on the main thread.
-struct ReminderRecurrenceChange: Sendable {
+struct ReminderRecurrenceChange: Equatable, Sendable {
   enum Frequency: String, Sendable {
     case daily = "DAILY"
     case weekly = "WEEKLY"

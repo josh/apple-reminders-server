@@ -222,16 +222,8 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
   else {
     throw ServerError.invalidArgument("cannot set and clear the same field")
   }
-  if !creating {
-    guard
-      result.name != nil || result.body != nil || result.completed != nil || result.priority != nil
-        || result.location != nil || result.url != nil || result.due != nil || result.start != nil
-        || result.completionDate != nil || result.alarms != nil || result.recurrence != nil
-        || result.timeZone != nil || result.flagged != nil || result.remindMeDate != nil
-        || !result.clear.isEmpty
-    else {
-      throw ServerError.invalidArgument("patch must contain at least one change")
-    }
+  guard creating || result != ReminderChanges() else {
+    throw ServerError.invalidArgument("patch must contain at least one change")
   }
   return result
 }

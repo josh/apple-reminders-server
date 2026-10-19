@@ -13,12 +13,12 @@ enum ReminderClearValue: String, Sendable, CaseIterable {
   case startDate = "START_DATE"
   case allDayStartDate = "ALL_DAY_START_DATE"
 }
-enum ReminderAlarmChange: Sendable {
+enum ReminderAlarmChange: Equatable, Sendable {
   case absolute(Date)
   case relative(Double)
   case location(title: String?, latitude: Double, longitude: Double, radius: Double, arriving: Bool)
 }
-struct ReminderChanges: Sendable {
+struct ReminderChanges: Equatable, Sendable {
   var name: String?
   var body: String?
   var completed: Bool?
