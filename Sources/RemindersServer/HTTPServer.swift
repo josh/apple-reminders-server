@@ -100,6 +100,23 @@ private func jsonRPCMethod(_ body: Data) -> String {
   return object is [Any] ? "batch" : "unknown"
 }
 
+private let requestDeadline: Duration = .seconds(60)
+private struct RequestTimedOut: Error {}
+private func withRequestDeadline<T: Sendable>(
+  _ operation: @Sendable @escaping () async throws -> T
+) async throws -> T {
+  try await withThrowingTaskGroup(of: T.self) { group in
+    group.addTask { try await operation() }
+    group.addTask {
+      try await Task.sleep(for: requestDeadline)
+      throw RequestTimedOut()
+    }
+    defer { group.cancelAll() }
+    guard let result = try await group.next() else { throw RequestTimedOut() }
+    return result
+  }
+}
+
 func serve(
   port: UInt16, metricsInterval: Int, allowedOrigins: [String], tailscaleAppCapability: String?
 ) async throws {
@@ -191,15 +208,26 @@ func serve(
         }
         if request.uri.path == "/mcp" {
           if request.method == .post { rpc = jsonRPCMethod(body) }
-          response = try await handleMCP(
-            method: request.method.rawValue, headers: headers, body: body, access: capabilities.mcp)
+          let requestHeaders = headers
+          response = try await withRequestDeadline {
+            try await handleMCP(
+              method: request.method.rawValue, headers: requestHeaders, body: body,
+              access: capabilities.mcp)
+          }
         } else {
-          response = try await handleRequest(
-            method: request.method.rawValue, path: request.uri.path, body: body, schema: schema,
-            metricsCollector: metricsCollector, capabilities: capabilities)
+          response = try await withRequestDeadline {
+            try await handleRequest(
+              method: request.method.rawValue, path: request.uri.path, body: body, schema: schema,
+              metricsCollector: metricsCollector, capabilities: capabilities)
+          }
         }
       }
       return respond(response)
+    } catch is RequestTimedOut {
+      return respond(
+        ServiceResponse(
+          status: 504, body: Data(#"{"error":"Request timed out"}"#.utf8),
+          failure: "timeout", classified: true))
     } catch {
       logFailure("Request failed", error: error)
       return respond(
