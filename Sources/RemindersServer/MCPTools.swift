@@ -17,7 +17,7 @@ private struct AccountOutput: Encodable {
 private struct AccountsOutput: Encodable { let items: [AccountRecord] }
 private struct SummaryOutput: Encodable { let items: [ListSummary] }
 private struct ListOutput: Encodable {
-  let list: MCPList?
+  let list: ListRecord?
   enum CodingKeys: CodingKey { case list }
   func encode(to encoder: Encoder) throws {
     var c = encoder.container(keyedBy: CodingKeys.self)
@@ -25,7 +25,7 @@ private struct ListOutput: Encodable {
   }
 }
 private struct DefaultsOutput: Encodable {
-  let list: MCPList?
+  let list: ListRecord?
   let account: AccountRecord?
   enum CodingKeys: CodingKey { case list, account }
   func encode(to encoder: Encoder) throws {
@@ -490,7 +490,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       request = .update(id: id, changes: try listChanges(input, creating: false))
     }
     let saved = try await mutateList(request).savedRecord()
-    do { return try result(ListOutput(list: MCPList(record: saved))) } catch {
+    do { return try result(ListOutput(list: saved)) } catch {
       throw ServerError.writeApplied(
         "list \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying"
       )
@@ -524,7 +524,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard case .list(let shown) = try await showRemindersObject(id, isList: true) else {
       throw ServerError.internalError("Expected a list")
     }
-    do { return try result(ListOutput(list: MCPList(record: shown))) } catch {
+    do { return try result(ListOutput(list: shown)) } catch {
       throw ServerError.showApplied(
         "list \(id) was shown, but response projection failed: \(error)")
     }
@@ -556,7 +556,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.orderField = "NAME"
       search.descending = try descending(order)
     }
-    return try await result(page(search.lists(readLists()).map(MCPList.init)))
+    return try await result(page(search.lists(readLists())))
   case "accounts_list":
     try keys([])
     return try result(AccountsOutput(items: await readLists().accounts))
@@ -565,13 +565,13 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.invalidArgument("id required")
     }
-    return try result(ListOutput(list: await readList(id: id).map(MCPList.init)))
+    return try result(ListOutput(list: await readList(id: id)))
   case "defaults_get":
     try keys([])
     let data = try await readLists()
     return try result(
       DefaultsOutput(
-        list: data.defaultList.map(MCPList.init),
+        list: data.defaultList,
         account: data.defaultAccount))
   case "lists_summary":
     try keys(["listId"])

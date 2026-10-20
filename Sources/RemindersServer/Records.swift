@@ -63,6 +63,7 @@ struct ListRecord: Codable, Sendable {
   let color: String?
   let source: SourceRecord
   let allowsContentModifications: Bool, isImmutable: Bool, isSubscribed: Bool
+  let allowsListModifications: Bool, subscribed: Bool
 }
 
 enum DueStatus: String, Codable, Sendable, CaseIterable {

@@ -35,7 +35,8 @@ extension ListRecord {
       source: SourceRecord(
         id: source.sourceIdentifier, title: source.title, type: source.sourceType.rawValue),
       allowsContentModifications: list.allowsContentModifications,
-      isImmutable: list.isImmutable, isSubscribed: list.isSubscribed)
+      isImmutable: list.isImmutable, isSubscribed: list.isSubscribed,
+      allowsListModifications: !list.isImmutable, subscribed: list.isSubscribed)
   }
 }
 extension ReminderRecord {

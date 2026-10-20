@@ -28,14 +28,3 @@ struct MCPReminder: Encodable {
     try c.encode(due?.timeZone ?? start?.timeZone, forKey: .timeZone)
   }
 }
-
-struct MCPList: Encodable {
-  let record: ListRecord
-  enum CodingKeys: CodingKey { case allowsListModifications, subscribed }
-  func encode(to encoder: Encoder) throws {
-    try record.encode(to: encoder)
-    var c = encoder.container(keyedBy: CodingKeys.self)
-    try c.encode(!record.isImmutable, forKey: .allowsListModifications)
-    try c.encode(record.isSubscribed, forKey: .subscribed)
-  }
-}

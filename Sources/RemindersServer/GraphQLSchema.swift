@@ -139,12 +139,7 @@ func makeSchema() throws -> GraphQLSchema {
     fields: [
       "id": field(GraphQLNonNull(GraphQLID)), "name": field(GraphQLString),
       "allowsContentModifications": field(GraphQLBoolean),
-      "allowsListModifications": GraphQLField(
-        type: GraphQLBoolean,
-        resolve: { source, _, _, _ in
-          guard let source = source as? Map else { return nil }
-          return try !source["isImmutable"].boolValue()
-        }), "subscribed": field(GraphQLBoolean, key: "isSubscribed"),
+      "allowsListModifications": field(GraphQLBoolean), "subscribed": field(GraphQLBoolean),
       "color": field(GraphQLString),
       "emblem": GraphQLField(
         type: GraphQLString, description: "The emblem icon name displayed beside the list.",
