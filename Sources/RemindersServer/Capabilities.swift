@@ -9,8 +9,12 @@ struct Capabilities {
   var mcp: Access = .denied
   var metrics: Access = .denied
 
-  static func parse(header: String?, capability: String?) throws -> Capabilities {
-    guard let capability, let header else {
+  static func parse(header: String?, capability: String?, proxied: Bool) throws -> Capabilities {
+    guard let capability else {
+      return Capabilities(graphql: .write, mcp: .write, metrics: .read)
+    }
+    guard let header else {
+      guard !proxied else { throw ServerError.forbidden("Forbidden") }
       return Capabilities(graphql: .write, mcp: .write, metrics: .read)
     }
     guard header.utf8.count <= 16_384,

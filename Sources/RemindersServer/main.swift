@@ -74,7 +74,9 @@ Task.detached {
               "Allowed origin must be http://host[:port] or https://host[:port], without a path, query, or fragment"
             )
           }
-          allowedOrigins.append("\(scheme)://\(host)" + (url.port.map { ":\($0)" } ?? ""))
+          let defaultPort = scheme == "https" ? 443 : 80
+          let port = url.port.flatMap { $0 == defaultPort ? nil : ":\($0)" } ?? ""
+          allowedOrigins.append("\(scheme)://\(host)\(port)")
         case "--port":
           guard let value = UInt16(try next()), value > 0 else {
             throw ServerError.internalError("Port must be between 1 and 65535")

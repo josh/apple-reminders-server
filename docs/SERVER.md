@@ -29,7 +29,7 @@ configuration interface; environment-variable configuration is not supported.
 | `--metrics-interval-seconds` | `3600` | Delay after each metrics collection, 1–604800 seconds |
 | `--log-level <level>` | `info` | Minimum log level: `trace`, `debug`, `info`, `notice`, `warning`, `error`, or `critical` |
 | `--allowed-origin <origin>` | None | Repeatable additional browser origin, `http(s)://host[:port]` |
-| `--tailscale-app-capability <name>` | Off | Apply Tailscale permissions when given |
+| `--tailscale-app-capability <name>` | Off | Authorize by Tailscale Serve app capabilities; a proxied request without them is refused |
 | `--request-access` | Off | Explicitly request EventKit access at startup |
 | `--help`, `-h` | — | Show usage |
 
@@ -55,11 +55,14 @@ Dependencies are pinned in `Package.resolved`.
 
 Host is not validated; run network access through a trusted proxy such as
 Tailscale Serve. Origin, when present, must be `http://localhost:<port>`,
-`http://127.0.0.1:<port>`, or an origin given by `--allowed-origin`; other origins
-return 403. Allowed origins receive CORS headers and OPTIONS preflight support.
-Origins must have no path, query, fragment, or credentials. JSON POSTs require
-`Content-Type: application/json`; other media types return 415. Request bodies
-are limited to 1 MiB, including chunked uploads; excess returns 413.
+`http://127.0.0.1:<port>`, or an origin given by `--allowed-origin`; other
+origins return 403. Allowed origins receive CORS headers and OPTIONS preflight
+support. Origins must have no path, query, fragment, or credentials, and a
+default port is dropped. With `--tailscale-app-capability`, a request that
+arrives through a proxy must carry the capability header; use the option only
+behind Tailscale Serve. JSON POSTs require `Content-Type: application/json`;
+other media types return 415. Request bodies are limited to 1 MiB, including
+chunked uploads; excess returns 413.
 
 There is no built-in identity authentication or TLS, so keep the service local
 or put it behind a trusted proxy with its own access controls. GraphQL

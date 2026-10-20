@@ -92,6 +92,10 @@ private func graphQLError(_ error: Error) -> [String: Any] {
 private let singleValueHeaders: Set<String> = [
   "origin", "content-type", "tailscale-app-capabilities",
 ]
+private let proxyHeaders: Set<String> = [
+  "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto", "forwarded",
+  "tailscale-funnel-request",
+]
 private let forwardedFor = HTTPField.Name("x-forwarded-for")!
 private let tailscaleUserLogin = HTTPField.Name("tailscale-user-login")!
 private func jsonRPCMethod(_ body: Data) -> String {
@@ -198,7 +202,8 @@ func serve(
       } else {
         guard
           let capabilities = try? Capabilities.parse(
-            header: headers["tailscale-app-capabilities"], capability: tailscaleAppCapability),
+            header: headers["tailscale-app-capabilities"], capability: tailscaleAppCapability,
+            proxied: headers.keys.contains(where: proxyHeaders.contains)),
           capabilities.allows(path: request.uri.path)
         else { return respond(try .json(["error": "Forbidden"], status: 403)) }
         let body: Data
