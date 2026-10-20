@@ -1,13 +1,8 @@
 import Foundation
 import MCP
 
-private struct SearchOutput: Encodable {
-  let items: [MCPReminder]
-  let totalCount: Int
-  let nextCursor: String?
-}
-private struct ListsOutput: Encodable {
-  let items: [MCPList]
+private struct PageOutput<Item: Encodable>: Encodable {
+  let items: [Item]
   let totalCount: Int
   let nextCursor: String?
 }
@@ -438,6 +433,14 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     return number
   }
+  // The page at the cursor offset; nextCursor is the following page's offset.
+  func page<Item: Encodable>(_ items: [Item]) throws -> PageOutput<Item> {
+    let start = try min(cursor(), items.count)
+    let end = try min(start + limit(), items.count)
+    return PageOutput(
+      items: Array(items[start..<end]), totalCount: items.count,
+      nextCursor: end < items.count ? String(end) : nil)
+  }
   func descending(_ order: MutationInput) throws -> Bool {
     let direction = try order["direction"].isSet ? order["direction"].stringValue() : "ASC"
     guard ["ASC", "DESC"].contains(direction) else {
@@ -546,7 +549,6 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     search.accountIds = try ids("accountIds", from: filter)
     search.allowsContentModifications = try bool("allowsContentModifications", from: filter)
     search.subscribed = try bool("subscribed", from: filter)
-    let pageSize = try limit()
     if let rawOrder = args["orderBy"] {
       let order = try mutationInput(rawOrder)
       try order.rejectNulls()
@@ -554,14 +556,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.orderField = "NAME"
       search.descending = try descending(order)
     }
-    let offset = try cursor()
-    let lists = try await search.lists(readLists())
-    let start = min(offset, lists.count)
-    let end = min(start + pageSize, lists.count)
-    let token = end < lists.count ? String(end) : nil
-    return try result(
-      ListsOutput(
-        items: lists[start..<end].map(MCPList.init), totalCount: lists.count, nextCursor: token))
+    return try await result(page(search.lists(readLists()).map(MCPList.init)))
   case "accounts_list":
     try keys([])
     return try result(AccountsOutput(items: await readLists().accounts))
@@ -617,7 +612,6 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       search.descending = try descending(order)
     }
     search.completed = try bool("completed", from: filter)
-    let pageSize = try limit()
     if let value = filter["priorities"] {
       guard case .array(let values) = value else {
         throw ServerError.invalidArgument("priorities must be an integer array")
@@ -635,15 +629,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       }
       search.dueStatus = status
     }
-    let offset = try cursor()
-    let items = try search.reminders(await readInventory())
-    let start = min(offset, items.count)
-    let end = min(start + pageSize, items.count)
-    let token = end < items.count ? String(end) : nil
-    return try result(
-      SearchOutput(
-        items: items[start..<end].map(MCPReminder.init), totalCount: items.count,
-        nextCursor: token))
+    return try await result(page(search.reminders(readInventory()).map(MCPReminder.init)))
   default: throw MCPError.invalidParams("Unknown tool")
   }
 }
