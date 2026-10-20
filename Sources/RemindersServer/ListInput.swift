@@ -8,15 +8,12 @@ func listChanges(_ input: MutationInput, creating: Bool) throws -> ListChanges {
     throw ServerError.invalidArgument("list patch values must not be null")
   }
   var result = ListChanges()
-  func text(_ key: String) throws -> String? {
-    try input[key].isSet ? input[key].stringValue() : nil
-  }
-  result.name = try text("name")
-  result.emblem = try text("emblem")
+  result.name = try input["name"].optionalString()
+  result.emblem = try input["emblem"].optionalString()
   if let emblem = result.emblem, emblem.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
     throw ServerError.invalidArgument("emblem must not be blank")
   }
-  if let color = try text("color") {
+  if let color = try input["color"].optionalString() {
     guard color.range(of: #"^#[0-9A-Fa-f]{6}([Ff]{2})?\z"#, options: .regularExpression) != nil
     else {
       throw ServerError.invalidArgument(

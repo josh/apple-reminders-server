@@ -33,6 +33,7 @@ indirect enum MutationInput: Decodable, Equatable, Sendable {
     return .undefined
   }
   var isSet: Bool { self != .undefined && self != .null }
+  func optionalString() throws -> String? { isSet ? try stringValue() : nil }
   func stringValue() throws -> String {
     guard case .string(let v) = self else { throw invalid("Expected a string") }
     return v
@@ -92,14 +93,11 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
   if !creating, values.values.contains(.null) {
     throw ServerError.invalidArgument("patch values cannot be null; use clearFields")
   }
-  func text(_ key: String) throws -> String? {
-    try input[key].isSet ? input[key].stringValue() : nil
-  }
   var result = ReminderChanges()
-  result.name = try text("name")
-  result.body = try text("body")
-  result.location = try text("location")
-  if let value = try text("url") {
+  result.name = try input["name"].optionalString()
+  result.body = try input["body"].optionalString()
+  result.location = try input["location"].optionalString()
+  if let value = try input["url"].optionalString() {
     guard let url = URL(string: value), let scheme = url.scheme, !scheme.isEmpty,
       value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil
     else {
@@ -130,8 +128,8 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     _ timedKey: String, _ dayKey: String, _ timedClear: ReminderClearValue,
     _ dayClear: ReminderClearValue
   ) throws -> DateComponents? {
-    let timed = try text(timedKey)
-    let day = try text(dayKey)
+    let timed = try input[timedKey].optionalString()
+    let day = try input[dayKey].optionalString()
     let clear = result.clear.contains(timedClear) || result.clear.contains(dayClear)
     guard !(timed != nil && day != nil), !(clear && (timed != nil || day != nil)),
       !(result.clear.contains(timedClear) && result.clear.contains(dayClear))
@@ -157,12 +155,12 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
     }
     return nil
   }
-  if try text("allDayStartDate") != nil {
+  if try input["allDayStartDate"].optionalString() != nil {
     throw ServerError.unsupportedOperation(
       "this Reminders provider normalizes date-only starts to timed midnight; use startDate explicitly"
     )
   }
-  if let completion = try text("completionDate") {
+  if let completion = try input["completionDate"].optionalString() {
     result.completionDate = try parseTimestamp(completion)
   }
   guard
@@ -185,8 +183,10 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
   if input["flagged"].isSet {
     result.flagged = try input["flagged"].boolValue()
   }
-  if let alert = try text("remindMeDate") { result.remindMeDate = try parseTimestamp(alert) }
-  if let zone = try text("timeZone") {
+  if let alert = try input["remindMeDate"].optionalString() {
+    result.remindMeDate = try parseTimestamp(alert)
+  }
+  if let zone = try input["timeZone"].optionalString() {
     guard TimeZone.knownTimeZoneIdentifiers.contains(zone) || zone == "UTC",
       let parsed = TimeZone(identifier: zone)
     else {
@@ -252,7 +252,7 @@ func parseAlarmInput(_ input: MutationInput) throws -> ReminderAlarmChange {
     (-180...180).contains(longitude), radius >= 0,
     ["ARRIVE", "DEPART"].contains(proximity)
   else { throw ServerError.invalidArgument("invalid geofence") }
-  let title = try geo["title"].isSet ? geo["title"].stringValue() : nil
+  let title = try geo["title"].optionalString()
   return .location(
     title: title, latitude: latitude, longitude: longitude, radius: radius,
     arriving: proximity == "ARRIVE")
