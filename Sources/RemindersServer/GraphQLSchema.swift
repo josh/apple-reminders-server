@@ -232,12 +232,13 @@ func makeSchema() throws -> GraphQLSchema {
     name: "RelativeAlarm", fields: ["offsetSeconds": field(GraphQLNonNull(GraphQLFloat))])
   let locationAlarm = try GraphQLObjectType(
     name: "LocationAlarm", fields: ["geofence": field(GraphQLNonNull(geofence))])
+  let resolveTypename: GraphQLTypeResolve = { value, _ in
+    guard let value = value as? Map else { throw ServerError.internalError("Invalid union member") }
+    return try value["__typename"].stringValue()
+  }
   let alarmUnion = try GraphQLUnionType(
-    name: "ReminderAlarm",
-    resolveType: { value, _ in
-      guard let value = value as? Map else { throw ServerError.internalError("Invalid alarm") }
-      return try value["__typename"].stringValue()
-    }, types: [absoluteAlarm, relativeAlarm, locationAlarm])
+    name: "ReminderAlarm", resolveType: resolveTypename,
+    types: [absoluteAlarm, relativeAlarm, locationAlarm])
   let recurrenceDay = try GraphQLObjectType(
     name: "RecurrenceDay",
     fields: [
@@ -387,14 +388,10 @@ func makeSchema() throws -> GraphQLSchema {
       uniqueKeysWithValues: [
         "total", "completed", "incomplete", "overdue", "scheduled", "recurring", "withAlarms",
       ].map { ($0, field(GraphQLNonNull(GraphQLInt))) }))
-  let resolveContainerType: GraphQLTypeResolve = { value, _ in
-    guard let value = value as? Map else { throw ServerError.internalError("Invalid container") }
-    return try value["__typename"].stringValue()
-  }
   let listContainer = try GraphQLUnionType(
-    name: "ListContainer", resolveType: resolveContainerType, types: [account, list])
+    name: "ListContainer", resolveType: resolveTypename, types: [account, list])
   let reminderContainer = try GraphQLUnionType(
-    name: "ReminderContainer", resolveType: resolveContainerType, types: [list, reminder])
+    name: "ReminderContainer", resolveType: resolveTypename, types: [list, reminder])
   func containerField(_ type: GraphQLUnionType, property: ScriptProperty<ContainerReference>)
     -> GraphQLField
   {
