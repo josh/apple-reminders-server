@@ -112,5 +112,5 @@ Task.detached {
   }
 
 }
-// The main thread runs the main actor, where EventKit and AppleScript execute.
-remindersRunMainLoop()
+// The main thread drains the main queue, which runs the main actor for EventKit and AppleScript.
+dispatchMain()

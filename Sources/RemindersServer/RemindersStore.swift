@@ -141,10 +141,3 @@ func readList(id: String) throws -> ListRecord? {
   try requireAccess()
   return try reminderList(EKEventStore(), id: id).map(ListRecord.init)
 }
-
-// The main run loop drains the main dispatch queue, which drives the main actor.
-func remindersRunMainLoop() {
-  guard Thread.isMainThread else { return }
-  _ = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in }
-  RunLoop.main.run()
-}
