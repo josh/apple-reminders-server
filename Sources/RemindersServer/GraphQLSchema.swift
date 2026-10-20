@@ -42,9 +42,7 @@ private func searchPage(
   guard search.priorities?.allSatisfy({ (0...9).contains($0) }) ?? true else {
     throw ServerError.invalidArgument("priorities must be 0...9")
   }
-  search.dueStatus = (try? criteria["dueStatus"].stringValue()).flatMap {
-    DueStatus(rawValue: $0.lowercased())
-  }
+  search.dueStatus = (try? criteria["dueStatus"].stringValue()).flatMap(DueStatus.init(rawValue:))
   search.dueOnOrAfter = try? criteria["dueOnOrAfter"].stringValue()
   search.dueBefore = try? criteria["dueBefore"].stringValue()
   search.dueFrom = try? criteria["dueFrom"].stringValue()
@@ -183,7 +181,7 @@ func makeSchema() throws -> GraphQLSchema {
       name: name,
       values: GraphQLEnumValueMap(
         uniqueKeysWithValues: values.map {
-          ($0.uppercased(), GraphQLEnumValue(value: .string($0.uppercased())))
+          ($0.uppercased(), GraphQLEnumValue(value: .string($0)))
         }))
   }
   let dueStatus = try enumeration("DueStatus", DueStatus.allCases.map(\.rawValue))
@@ -304,12 +302,8 @@ func makeSchema() throws -> GraphQLSchema {
       "location": field(GraphQLString),
       "dueDay": field(GraphQLString), "listId": field(GraphQLID), "url": field(url),
       "startDateComponents": field(components), "dueDateComponents": field(components),
-      "dueStatus": GraphQLField(
-        type: GraphQLNonNull(dueStatus),
-        resolve: { source, _, _, _ in
-          guard let item = source as? Map else { return nil }
-          return try item["dueStatus"].stringValue().uppercased()
-        }), "rawAlarms": field(GraphQLNonNull(GraphQLList(GraphQLNonNull(alarm))), key: "alarms"),
+      "dueStatus": field(GraphQLNonNull(dueStatus)),
+      "rawAlarms": field(GraphQLNonNull(GraphQLList(GraphQLNonNull(alarm))), key: "alarms"),
       "alarms": GraphQLField(
         type: GraphQLList(GraphQLNonNull(alarmUnion)),
         resolve: { source, _, _, _ in
