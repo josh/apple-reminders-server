@@ -65,11 +65,8 @@ func dueDay(_ components: DateComponents?) -> String? {
   guard let components, let resolved = try? projectDate(ComponentDate(components)) else {
     return nil
   }
-  var reporting = Calendar(identifier: .gregorian)
-  reporting.timeZone = .current
-  let parts = reporting.dateComponents([.year, .month, .day], from: resolved.instant)
-  guard let year = parts.year, let month = parts.month, let day = parts.day else { return nil }
-  return String(format: "%04d-%02d-%02d", year, month, day)
+  return resolved.instant.formatted(
+    Date.ISO8601FormatStyle(timeZone: .current).year().month().day())
 }
 @MainActor
 func authorizeReminders() async throws {
