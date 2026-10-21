@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import Logging
+import struct os.OSAllocatedUnfairLock
 
 let usage = """
   Usage: apple-reminders-server [--port 8171] [--request-access] [--metrics-interval-seconds 3600] [--log-level info] [--allowed-origin <origin>]... [--tailscale-app-capability <name>]
@@ -99,12 +100,22 @@ Task.detached {
         index += 1
       }
       serverLogger.logLevel = logLevel
+      startMainActorWatchdog()
+      let authorizing = OSAllocatedUnfairLock(initialState: requestAccess)
       if requestAccess {
-        try await authorizeReminders()
+        Task { @MainActor in
+          do {
+            try await authorizeReminders()
+            authorizing.withLock { $0 = false }
+          } catch {
+            FileHandle.standardError.write(Data("error: \(error)\n".utf8))
+            exit(1)
+          }
+        }
       }
       try await serve(
         port: port, metricsInterval: metricsInterval, allowedOrigins: allowedOrigins,
-        tailscaleAppCapability: tailscaleAppCapability)
+        tailscaleAppCapability: tailscaleAppCapability, authorizing: authorizing)
     }
 
     exit(0)

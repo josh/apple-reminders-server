@@ -3,6 +3,7 @@ import GraphQL
 import HTTPTypes
 import Hummingbird
 import Logging
+import struct os.OSAllocatedUnfairLock
 struct ServiceResponse {
   var status: Int = 200
   var type = "application/json"
@@ -106,23 +107,41 @@ private func jsonRPCMethod(_ body: Data) -> String {
 
 private let requestDeadline: Duration = .seconds(60)
 private struct RequestTimedOut: Error {}
+// A task group returns only once every child has, and cancellation cannot interrupt a
+// synchronous framework call holding the main actor, so the deadline resumes the caller
+// itself and leaves the stuck operation cancelled behind it.
 private func withRequestDeadline<T: Sendable>(
   _ operation: @Sendable @escaping () async throws -> T
 ) async throws -> T {
-  try await withThrowingTaskGroup(of: T.self) { group in
-    group.addTask { try await operation() }
-    group.addTask {
-      try await Task.sleep(for: requestDeadline)
-      throw RequestTimedOut()
+  let pending = OSAllocatedUnfairLock<CheckedContinuation<T, Error>?>(initialState: nil)
+  let work = OSAllocatedUnfairLock<Task<Void, Never>?>(initialState: nil)
+  let settle: @Sendable (Result<T, Error>) -> Void = { result in
+    pending.withLock { continuation in
+      continuation?.resume(with: result)
+      continuation = nil
     }
-    defer { group.cancelAll() }
-    guard let result = try await group.next() else { throw RequestTimedOut() }
-    return result
+  }
+  return try await withTaskCancellationHandler {
+    try await withCheckedThrowingContinuation { continuation in
+      pending.withLock { $0 = continuation }
+      let task = Task {
+        do { settle(.success(try await operation())) } catch { settle(.failure(error)) }
+      }
+      work.withLock { $0 = task }
+      Task {
+        guard (try? await Task.sleep(for: requestDeadline)) != nil else { return }
+        task.cancel()
+        settle(.failure(RequestTimedOut()))
+      }
+    }
+  } onCancel: {
+    work.withLock { $0 }?.cancel()
   }
 }
 
 func serve(
-  port: UInt16, metricsInterval: Int, allowedOrigins: [String], tailscaleAppCapability: String?
+  port: UInt16, metricsInterval: Int, allowedOrigins: [String], tailscaleAppCapability: String?,
+  authorizing: OSAllocatedUnfairLock<Bool>
 ) async throws {
   let metricsCollector = MetricsCollector()
   let collectionTask = Task { await metricsCollector.run(intervalSeconds: metricsInterval) }
@@ -206,6 +225,12 @@ func serve(
             proxied: headers.keys.contains(where: proxyHeaders.contains)),
           capabilities.allows(path: request.uri.path)
         else { return respond(try .json(["error": "Forbidden"], status: 403)) }
+        if request.uri.path != "/metrics" && authorizing.withLock({ $0 }) {
+          return respond(
+            ServiceResponse(
+              status: 503, body: Data(#"{"error":"Reminders authorization pending"}"#.utf8),
+              failure: "authorizing", classified: true))
+        }
         let body: Data
         do { body = Data(try await request.body.collect(upTo: 1_048_576).readableBytesView) } catch
         {
