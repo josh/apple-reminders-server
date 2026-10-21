@@ -149,7 +149,7 @@ one save or delete. Flag and alert-date changes also use in-process Reminders
 automation after the EventKit save. Automation/refetch and response-projection
 failures follow the [outcome table below](#client-handling-after-a-save).
 
-A GraphQL operation's root mutations execute serially. Request inventory and
+A GraphQL operation's root mutations execute serially. Request reminders data and
 lazy automation caches are invalidated after each native mutation attempt, so
 later mutation fields and nested reads do not reuse a pre-write snapshot.
 

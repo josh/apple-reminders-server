@@ -149,7 +149,7 @@ struct ReminderRecord: Codable, Sendable {
   }
 }
 
-struct Inventory: Codable, Sendable {
+struct RemindersData: Codable, Sendable {
   let lists: [ListRecord]
   let reminders: [ReminderRecord]
   let defaultListId: String?
@@ -172,8 +172,8 @@ struct ListSummary: Codable, Sendable {
   let total: Int, completed: Int, incomplete: Int, overdue: Int, scheduled: Int, recurring: Int,
     withAlarms: Int
 }
-func summarize(_ inventory: Inventory, listId: String) -> ListSummary {
-  let items = inventory.reminders.filter { $0.listId == listId }
+func summarize(_ data: RemindersData, listId: String) -> ListSummary {
+  let items = data.reminders.filter { $0.listId == listId }
   let completed = items.filter(\.completed).count
   return ListSummary(
     listId: listId, total: items.count, completed: completed, incomplete: items.count - completed,

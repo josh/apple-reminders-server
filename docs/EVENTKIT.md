@@ -1,7 +1,7 @@
 # EventKit data-access reference
 
 EventKit is Apple's public framework for reading and changing calendars and
-reminders. The server uses it for inventory, metrics, and supported writes.
+reminders. The server uses it for reads, metrics, and supported writes.
 This reference covers relevant public APIs; [DATA_ACCESS.md](DATA_ACCESS.md)
 describes the implemented call paths. Method names use Swift notation.
 
@@ -38,7 +38,7 @@ covered in [SERVER.md](SERVER.md#permissions-and-execution).
 
 | Call or property | Useful behavior |
 | --- | --- |
-| `calendars(for: .reminder)` | Enumerate accessible reminder lists. Start here for list inventory and per-list collection. |
+| `calendars(for: .reminder)` | Enumerate accessible reminder lists. Start here for listing lists and per-list reads. |
 | `sources` | Enumerate sources, including ones unrelated to reminders. |
 | `calendar.source` | Associate a list with its source/account. |
 | `sourceIdentifier`, `source.title`, `sourceType` | Identify and describe the account/source. |
@@ -74,7 +74,7 @@ explains predicate and identifier-based access. Direct references:
 [fetch](https://developer.apple.com/documentation/eventkit/ekeventstore/fetchreminders%28matching%3Acompletion%3A%29),
 and [cancellation](https://developer.apple.com/documentation/eventkit/ekeventstore/cancelfetchrequest%28_%3A%29).
 
-The server fetches one complete inventory and filters/sorts it locally. Passing
+The server fetches every reminder once and filters/sorts locally. Passing
 nil calendars means all available calendars, not an empty scope. Completed-date
 predicates constrain completion dates, not due dates. A nil fetch result is
 indeterminate, unlike an empty array.
@@ -117,7 +117,7 @@ See [local identifier](https://developer.apple.com/documentation/eventkit/ekcale
 and [external identifier](https://developer.apple.com/documentation/eventkit/ekcalendaritem/calendaritemexternalidentifier).
 
 `Notification.Name.EKEventStoreChanged` signals invalidation, not item deltas.
-The server uses fresh request inventories and timed metrics collection rather
+The server uses a fresh read per request and timed metrics collection rather
 than subscribing. See Apple's [notification guide](https://developer.apple.com/documentation/eventkit/updating-with-notifications).
 `refreshSourcesIfNecessary()` does not guarantee completed cloud synchronization.
 

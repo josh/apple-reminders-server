@@ -12,8 +12,8 @@ summaries count the whole list independently of pagination.
 
 Accounts derive from accessible lists; `defaultAccount` is the default list's
 account. Missing IDs and unavailable defaults return null. Each execution lazily
-shares one EventKit inventory across aliases and nested fields, including cached
-failures. Requests have independent inventories; introspection does not read data.
+shares one EventKit read across aliases and nested fields, including cached
+failures. Requests read independently; introspection does not read data.
 
 ## Search
 
@@ -75,8 +75,8 @@ Absent values are null; failed reads are field errors.
 
 Both `container` unions resolve actual application references. Lists can
 refer to accounts or lists; reminders can refer to lists or parent reminders.
-Identifiers are validated and joined to the accessible EventKit inventory,
-without matching names. A container outside that inventory (including a list
+Identifiers are validated and joined to the accessible EventKit lists and reminders,
+without matching names. A container outside them (including a list
 group not exposed by EventKit) returns null with a field error. Parent references
 do not imply a children enumeration feature.
 

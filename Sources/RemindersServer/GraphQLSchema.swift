@@ -20,14 +20,14 @@ func graphMap<T: Encodable>(_ value: T) throws -> Map {
   try JSONDecoder().decode(Map.self, from: JSONEncoder().encode(value))
 }
 func graphMaps<T: Encodable>(_ values: [T]) throws -> [Map] { try values.map(graphMap) }
-private func inventory(_ context: (any Sendable)?) async throws -> Inventory {
+private func remindersData(_ context: (any Sendable)?) async throws -> RemindersData {
   guard let context = context as? GraphQLContext else {
-    throw ServerError.internalError("Missing inventory resolver context")
+    throw ServerError.internalError("Missing reminders data resolver context")
   }
-  return try await context.inventory()
+  return try await context.remindersData()
 }
 private func searchPage(
-  _ data: Inventory, args: Map, context: (any Sendable)?, scope: Set<String>? = nil
+  _ data: RemindersData, args: Map, context: (any Sendable)?, scope: Set<String>? = nil
 ) async throws -> Map {
   let criteria = args["filter"]
   var search = Search()
@@ -80,7 +80,7 @@ func page<T: Encodable>(_ values: [T], args: Map) throws -> Map {
 // caches failures as well as successes and coalesces concurrent resolver calls.
 actor GraphQLContext {
   func invalidate() {
-    snapshot = nil
+    data = nil
     lookup = nil
     properties.removeAll()
   }
@@ -93,22 +93,22 @@ actor GraphQLContext {
     }
     let values = try await properties[command]!.value
     guard let key = UUID(uuidString: id)?.uuidString, let value = values[key] else {
-      throw ServerError.internalError("No matching automation object; inventory may have changed")
+      throw ServerError.internalError("No matching automation object; reminders may have changed")
     }
     return value
   }
   private var lookup: Task<[String: Bool], Error>?
-  private var snapshot: Task<Inventory, Error>?
-  func inventory() async throws -> Inventory {
-    if snapshot == nil { snapshot = Task { try await readInventory() } }
-    return try await snapshot!.value
+  private var data: Task<RemindersData, Error>?
+  func remindersData() async throws -> RemindersData {
+    if data == nil { data = Task { try await readRemindersData() } }
+    return try await data!.value
   }
   func flags() async throws -> [String: Bool] {
     if lookup == nil {
       lookup = Task {
         let table = try await readProperty(.flags)
         var flags: [String: Bool] = [:]
-        for item in try await inventory().reminders {
+        for item in try await remindersData().reminders {
           if let value = UUID(uuidString: item.id).flatMap({ table[$0.uuidString] }) {
             flags[item.id] = value
           }
@@ -404,7 +404,7 @@ func makeSchema() throws -> GraphQLSchema {
         let reference = try await context.property(property, id: source["id"].stringValue())
         let id = try reference["id"].stringValue()
         let kind = try reference["kind"].stringValue()
-        let data = try await context.inventory()
+        let data = try await context.remindersData()
         var value: Map?
         switch kind {
         case "Account":
@@ -420,7 +420,7 @@ func makeSchema() throws -> GraphQLSchema {
         }
         guard var result = value else {
           throw ServerError.internalError(
-            "Container is outside the accessible inventory or changed during the read")
+            "Container is outside the accessible reminders or changed during the read")
         }
         result["__typename"] = Map(kind)
         return result
@@ -432,14 +432,14 @@ func makeSchema() throws -> GraphQLSchema {
     resolve: { source, args, context, _ in
       guard let source = source as? Map else { return nil }
       let id = try source["id"].stringValue()
-      return try await listSearchPage(inventory(context), args: args, accountID: id)
+      return try await listSearchPage(remindersData(context), args: args, accountID: id)
     })
   accountFields["reminders"] = GraphQLField(
     type: reminderPage, args: reminderArgs,
     resolve: { source, args, context, _ in
       guard let source = source as? Map else { return nil }
       let id = try source["id"].stringValue()
-      let data = try await inventory(context)
+      let data = try await remindersData(context)
       return try await searchPage(
         data, args: args, context: context,
         scope: Set(data.lists.filter { $0.source.id == id }.map(\.id)))
@@ -452,20 +452,21 @@ func makeSchema() throws -> GraphQLSchema {
     resolve: { source, _, context, _ in
       guard let source = source as? Map else { return nil }
       let id = try source["source"]["id"].stringValue()
-      return try await inventory(context).accounts.first { $0.id == id }.map(graphMap)
+      return try await remindersData(context).accounts.first { $0.id == id }.map(graphMap)
     })
   listFields["reminders"] = GraphQLField(
     type: reminderPage, args: reminderArgs,
     resolve: { source, args, context, _ in
       guard let source = source as? Map else { return nil }
       return try await searchPage(
-        inventory(context), args: args, context: context, scope: [source["id"].stringValue()])
+        remindersData(context), args: args, context: context, scope: [source["id"].stringValue()])
     })
   listFields["summary"] = GraphQLField(
     type: summary,
     resolve: { source, _, context, _ in
       guard let source = source as? Map else { return nil }
-      return try await graphMap(summarize(inventory(context), listId: source["id"].stringValue()))
+      return try await graphMap(
+        summarize(remindersData(context), listId: source["id"].stringValue()))
     })
   list.fields = { listFields }
   var reminderFields = try reminder.fields()
@@ -477,7 +478,7 @@ func makeSchema() throws -> GraphQLSchema {
       guard let source = source as? Map, let id = try? source["listId"].stringValue() else {
         return nil
       }
-      return try await inventory(context).lists.first { $0.id == id }.map(graphMap)
+      return try await remindersData(context).lists.first { $0.id == id }.map(graphMap)
     })
   reminder.fields = { reminderFields }
   let mutation = try makeMutationType(
@@ -492,40 +493,44 @@ func makeSchema() throws -> GraphQLSchema {
       fields: [
         "accounts": GraphQLField(
           type: GraphQLList(GraphQLNonNull(account)),
-          resolve: { _, _, context, _ in try await graphMaps(inventory(context).accounts) }),
+          resolve: { _, _, context, _ in try await graphMaps(remindersData(context).accounts) }),
         "account": GraphQLField(
           type: account, args: idArg,
           resolve: { _, args, context, _ in
             let id = try args["id"].stringValue()
-            return try await inventory(context).accounts.first { $0.id == id }.map(graphMap)
+            return try await remindersData(context).accounts.first { $0.id == id }.map(graphMap)
           }),
         "lists": GraphQLField(
           type: listPage, args: listArgs,
-          resolve: { _, args, context, _ in try await listSearchPage(inventory(context), args: args)
+          resolve: { _, args, context, _ in
+            try await listSearchPage(remindersData(context), args: args)
           }),
         "list": GraphQLField(
           type: list, args: idArg,
           resolve: { _, args, context, _ in
             let id = try args["id"].stringValue()
-            return try await inventory(context).lists.first { $0.id == id }.map(graphMap)
+            return try await remindersData(context).lists.first { $0.id == id }.map(graphMap)
           }),
         "reminders": GraphQLField(
           type: reminderPage, args: reminderArgs,
           resolve: { _, args, context, _ in
-            try await searchPage(inventory(context), args: args, context: context)
+            try await searchPage(remindersData(context), args: args, context: context)
           }),
         "reminder": GraphQLField(
           type: reminder, args: idArg,
           resolve: { _, args, context, _ in
             let id = try args["id"].stringValue()
-            return try await inventory(context).reminders.first { $0.id == id }.map(graphMap)
+            return try await remindersData(context).reminders.first { $0.id == id }.map(graphMap)
           }),
         "defaultAccount": GraphQLField(
           type: account,
-          resolve: { _, _, context, _ in try await inventory(context).defaultAccount.map(graphMap) }
+          resolve: { _, _, context, _ in
+            try await remindersData(context).defaultAccount.map(graphMap)
+          }
         ),
         "defaultList": GraphQLField(
           type: list,
-          resolve: { _, _, context, _ in try await inventory(context).defaultList.map(graphMap) }),
+          resolve: { _, _, context, _ in try await remindersData(context).defaultList.map(graphMap)
+          }),
       ]), mutation: mutation)
 }

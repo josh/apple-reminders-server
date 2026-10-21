@@ -23,7 +23,7 @@ reminder without a scripting match has an unknown flag; extra scripting IDs are
 allowed. Names and enumeration positions never establish identity.
 
 Bulk scripts read identifiers before and after properties and reject changed
-inventories. This detects some concurrent edits but does not make the EventKit
+object sets. This detects some concurrent edits but does not make the EventKit
 and scripting reads atomic. Cross-interface ID matching is checked at runtime,
 not guaranteed by Apple. A present null property remains distinct from a missing
 object.

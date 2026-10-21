@@ -7,7 +7,7 @@ runtime libraries remain dynamic.
 | Source | Responsibility |
 | --- | --- |
 | `RemindersClient.swift` | Typed async reads, mutations, and UI navigation. |
-| `RemindersStore.swift` | Authorization, EventKit inventory, ownership validation, and deadline classification. |
+| `RemindersStore.swift` | Authorization, EventKit reads, ownership validation, and deadline classification. |
 | `EventKitRecords.swift` | Convert framework objects into Sendable records. |
 | `AppleScriptReads.swift` | Fixed bulk property reads with typed decoders; see [automation](APPLESCRIPT.md). |
 
@@ -17,9 +17,9 @@ checked at compile time.
 
 ## Consistency
 
-Each inventory fetch uses one EventKit store and observation time. It rejects
+Each `readRemindersData()` uses one EventKit store and observation time. It rejects
 duplicate reminder IDs, invalid priorities, and reminders outside the fetched
-lists; the default list must also belong to that inventory. Inventories are
+lists; the default list must also belong to those lists. These are
 best-effort reads, not atomic snapshots across EventKit and Reminders.app.
 
 See [server permissions](SERVER.md#permissions-and-execution),

@@ -80,13 +80,13 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
     result.numberOfItems == 3,
     [before, rows, after].allSatisfy({ $0.descriptorType == 0x6c69_7374 }),
     before.numberOfItems == rows.numberOfItems, after.numberOfItems == rows.numberOfItems
-  else { throw ServerError.internalError("Inconsistent automation inventory") }
+  else { throw ServerError.internalError("Inconsistent automation read") }
   var output: [String: Value] = [:]
   for index in 0..<rows.numberOfItems {
     guard let value = rows.atIndex(index + 1),
       let id = before.atIndex(index + 1)?.stringValue,
       id == after.atIndex(index + 1)?.stringValue
-    else { throw ServerError.internalError("Automation inventory changed during read; retry") }
+    else { throw ServerError.internalError("Automation objects changed during read; retry") }
     let key = try scriptIdentifier(id, kind: entity == "list" ? "ReminderList" : "Reminder")
     guard output[key] == nil else {
       throw ServerError.internalError("Duplicate automation identifier")

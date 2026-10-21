@@ -3,7 +3,9 @@ import GraphQL
 import HTTPTypes
 import Hummingbird
 import Logging
+
 import struct os.OSAllocatedUnfairLock
+
 struct ServiceResponse {
   var status: Int = 200
   var type = "application/json"
@@ -28,11 +30,11 @@ func handleRequest(
   -> ServiceResponse
 {
   if path == "/metrics" && method == "GET" {
-    let snapshot = await metricsCollector.cachedSnapshot()
+    let eventKit = await metricsCollector.cachedExposition()
     return ServiceResponse(
       type: "text/plain; version=0.0.4; charset=utf-8",
       body: Data(
-        (runtimeMetrics(inventoryUp: snapshot != nil, authorizing: authorizing) + (snapshot ?? ""))
+        (runtimeMetrics(eventKitUp: eventKit != nil, authorizing: authorizing) + (eventKit ?? ""))
           .utf8))
   }
   guard path == "/graphql" else { return try .json(["error": "Not found"], status: 404) }

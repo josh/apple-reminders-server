@@ -1,4 +1,5 @@
 import Foundation
+
 import struct os.OSAllocatedUnfairLock
 
 private let processStart = Date()
@@ -9,9 +10,9 @@ func recordRequest(route: String, code: Int) {
   requestCounts.withLock { $0[RequestKey(route: route, code: code), default: 0] += 1 }
 }
 
-// Served even when the inventory snapshot is not: a failed EventKit read must not
+// Served even when the EventKit gauges are not: a failed EventKit read must not
 // blank the request and liveness series that explain it.
-func runtimeMetrics(inventoryUp: Bool, authorizing: Bool) -> String {
+func runtimeMetrics(eventKitUp: Bool, authorizing: Bool) -> String {
   var lines: [String] = []
   func family(_ name: String, _ type: String, _ help: String) {
     lines += ["# HELP \(name) \(help)", "# TYPE \(name) \(type)"]
@@ -42,9 +43,9 @@ func runtimeMetrics(inventoryUp: Bool, authorizing: Bool) -> String {
     "1 while the startup Reminders access request has not finished.")
   lines.append("reminders_authorization_pending \(authorizing ? 1 : 0)")
   family(
-    "reminders_inventory_up", "gauge",
-    "1 when the last background EventKit inventory read succeeded and its gauges follow.")
-  lines.append("reminders_inventory_up \(inventoryUp ? 1 : 0)")
+    "reminders_eventkit_up", "gauge",
+    "1 when the last background EventKit read succeeded and its gauges follow.")
+  lines.append("reminders_eventkit_up \(eventKitUp ? 1 : 0)")
   return lines.joined(separator: "\n") + "\n"
 }
 
@@ -53,22 +54,22 @@ func metricEscape(_ text: String) -> String {
     .replacingOccurrences(of: "\"", with: "\\\"")
 }
 actor MetricsCollector {
-  private var snapshot: String?
+  private var exposition: String?
 
-  func cachedSnapshot() -> String? { snapshot }
+  func cachedExposition() -> String? { exposition }
 
   func run(intervalSeconds: Int) async {
     var failed = false
     var delay = intervalSeconds
     while !Task.isCancelled {
       do {
-        snapshot = try await collectMetrics()
+        exposition = try await collectMetrics()
         if failed { serverLogger.info("Metrics collection recovered") }
         failed = false
         delay = intervalSeconds
       } catch {
         logFailure("Metrics collection failed", error: error)
-        snapshot = nil
+        exposition = nil
         // Retry after a minute, doubling toward the interval so a lasting failure stays quiet.
         delay = failed ? min(delay * 2, intervalSeconds) : min(60, intervalSeconds)
         failed = true
@@ -79,7 +80,7 @@ actor MetricsCollector {
 }
 
 func collectMetrics() async throws -> String {
-  let data = try await readInventory()
+  let data = try await readRemindersData()
   let lists = data.lists
   let reminders = data.reminders
   let accounts = Set(lists.map { $0.source.id })

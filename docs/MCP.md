@@ -28,9 +28,9 @@ Empty text imposes no restriction. Priorities are integers 0–9; due statuses a
 lowercase. Missing single-object lookups return null. Accounts derive from
 accessible lists, and the default account is the default list's account.
 
-Read tools obtain one EventKit inventory and never use Reminders automation, so
+Read tools make one EventKit read and never use Reminders automation, so
 MCP clients, which cannot deselect fields, are not delayed or failed by Reminders'
-scripting inventory. Flags, alert dates, container references, and list emblems
+scripting interface. Flags, alert dates, container references, and list emblems
 are not part of MCP results; read them through [GraphQL](READ_API.md#automation-metadata-and-alarms),
 which exposes them per selected field. `reminders_create`/`reminders_update`
 still write `flagged` and `remindMeDate`, and `lists_create`/`lists_update` still
@@ -40,7 +40,7 @@ echoes the `flagged` value it applied. Optional inputs must be omitted rather th
 A cursor is the next page's offset as a string. It is not bound to the search
 criteria: changing the filter, ordering, or limit while reusing a cursor shifts
 the page silently, so keep them unchanged. The selected sort with identifier
-tiebreaking makes a stable inventory deterministic, but each page reads live data
+tiebreaking makes unchanged reminders deterministic, but each page reads live data
 rather than a snapshot, so concurrent changes can cause omissions or repeats.
 
 The catalog describes stored and projected fields. Projected dates and recurrence

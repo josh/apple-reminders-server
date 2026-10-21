@@ -1,4 +1,5 @@
 import Foundation
+
 import struct os.OSAllocatedUnfairLock
 
 private let heartbeatClock = ContinuousClock()

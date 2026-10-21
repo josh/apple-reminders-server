@@ -72,8 +72,8 @@ in [MCP.md](MCP.md).
 ## Limits
 
 Accounts are derived from accessible reminder lists. The default account is
-inferred from the default list. Inventory reads are not atomic database
-snapshots, and accessible records do not establish complete cloud synchronization.
-Identifiers may change after a full sync. Large inventories are unbounded in
-memory, and GraphQL requests fetch the full inventory even when only lists are
+inferred from the default list. Reads are not atomic across the
+Reminders database, and accessible records do not establish complete cloud synchronization.
+Identifiers may change after a full sync. Large Reminders databases are unbounded in
+memory, and GraphQL requests fetch every reminder even when only lists are
 selected; MCP account, list, and default lookups read the lists alone.

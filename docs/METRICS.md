@@ -1,7 +1,23 @@
 # Reminders metrics
 
-`GET /metrics` serves cached EventKit counts in Prometheus text format 0.0.4.
-All metrics are gauges. [metrics.prom](metrics.prom) contains a synthetic example.
+`GET /metrics` serves server health and cached EventKit counts in Prometheus
+text format 0.0.4. [metrics.prom](metrics.prom) contains a synthetic example of
+the EventKit gauges.
+
+## Server health
+
+These are served on every scrape, whether or not EventKit is readable.
+
+| Metric | Type | Labels | Meaning |
+| --- | --- | --- | --- |
+| `process_start_time_seconds` | gauge | None | Process start time; a change is a restart, including a watchdog exit. |
+| `reminders_http_requests_total` | counter | `route`, `code` | Responses by route (`/graphql`, `/mcp`, `/metrics`, `other`) and status code. |
+| `reminders_main_actor_heartbeat_age_seconds` | gauge | None | Time since the main actor ran the watchdog's heartbeat; the process exits past 120 seconds. |
+| `reminders_authorization_pending` | gauge | None | 1 while the `--request-access` startup request is unfinished; `/graphql` and `/mcp` answer 503 meanwhile. |
+| `reminders_eventkit_up` | gauge | None | 1 when the last background EventKit read succeeded and the gauges below follow. |
+
+## EventKit gauges
+
 
 | Metric | Labels | Meaning |
 | --- | --- | --- |
@@ -31,7 +47,7 @@ Each reminder contributes to exactly one `reminders_items` series:
 
 Every list emits all 40 combinations, including zeros. Sum across unwanted labels
 to obtain totals or breakdowns. Unclassifiable due components use `unknown`,
-preserving counts in every partition. Invalid priorities fail inventory validation;
+preserving counts in every partition. Invalid priorities fail the read;
 zero never substitutes for a failed read. These gauges have no `_count` or `_total`
 suffix; see [Prometheus naming conventions](https://prometheus.io/docs/practices/naming/).
 
@@ -42,7 +58,7 @@ URLs appear in labels; series cardinality grows with lists, not reminders.
 
 ## Deadline classification
 
-One observation instant and the host's local reporting zone apply to an inventory:
+One observation instant and the host's local reporting zone apply to each read:
 
 1. `unscheduled`: no due components; an alert alone is not a deadline.
 2. `overdue`: a timed deadline is before the observation instant, or an all-day
@@ -64,11 +80,12 @@ never overlap or catch up in bursts. HTTP scrapes only read cached text; GraphQL
 and MCP requests neither refresh nor share this cache. Metrics use no AppleScript
 and expose no flag counts.
 
-Before collection succeeds, or after a collection fails, `/metrics` returns 503.
-A failure clears the previous snapshot; the next attempt follows after one
+Before collection succeeds, or after a collection fails, `/metrics` omits the
+EventKit gauges and reports `reminders_eventkit_up 0`. A failure clears the
+previous result; the next attempt follows after one
 minute, then after doubling delays capped at the interval, until collection
 succeeds. During an
-in-progress refresh, the previous successful snapshot remains available. Changes,
+in-progress refresh, the previous successful result remains available. Changes,
 including removed lists, appear after a successful refresh, so counts may lag by
 the interval plus collection time. Totals describe accessible data, not confirmed
 cloud synchronization.

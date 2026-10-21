@@ -23,7 +23,7 @@ struct Search: Sendable {
 
   // Matching reminders in the requested order. `scope` restricts the list IDs;
   // `flags` is the automation flag table, required when `flagged` is set.
-  func reminders(_ data: Inventory, scope: Set<String>? = nil, flags: [String: Bool]? = nil)
+  func reminders(_ data: RemindersData, scope: Set<String>? = nil, flags: [String: Bool]? = nil)
     throws -> [ReminderRecord]
   {
     let timestampUpper = dueBefore.flatMap { $0.contains("T") ? $0 : nil }
@@ -70,7 +70,7 @@ struct Search: Sendable {
   }
 
   // Matching lists, by name when ordered; `accountID` restricts to one account.
-  func lists(_ data: Inventory, accountID: String? = nil) -> [ListRecord] {
+  func lists(_ data: RemindersData, accountID: String? = nil) -> [ListRecord] {
     let text = query?.lowercased()
     var items = data.lists.filter {
       (accountID == nil || $0.source.id == accountID)

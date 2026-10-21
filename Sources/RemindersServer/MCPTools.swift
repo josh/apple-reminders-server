@@ -577,7 +577,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     try keys(["listId"])
     let id = try string("listId")
     guard id != "" else { throw ServerError.invalidArgument("listId must not be empty") }
-    let data = try await readInventory()
+    let data = try await readRemindersData()
     return try result(
       SummaryOutput(
         items: data.lists.filter { id == nil || $0.id == id }.map {
@@ -629,7 +629,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       }
       search.dueStatus = status
     }
-    return try await result(page(search.reminders(readInventory()).map(MCPReminder.init)))
+    return try await result(page(search.reminders(readRemindersData()).map(MCPReminder.init)))
   default: throw MCPError.invalidParams("Unknown tool")
   }
 }

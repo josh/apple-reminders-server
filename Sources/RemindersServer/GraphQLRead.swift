@@ -16,7 +16,7 @@ func calendarField(_ type: GraphQLOutputType, key: String, timed: Bool) -> Graph
     })
 }
 
-func listSearchPage(_ data: Inventory, args: Map, accountID: String? = nil) throws -> Map {
+func listSearchPage(_ data: RemindersData, args: Map, accountID: String? = nil) throws -> Map {
   let filter = args["filter"]
   var search = Search()
   search.query = try? filter["query"].stringValue()

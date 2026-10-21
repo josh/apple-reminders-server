@@ -15,7 +15,7 @@ func fetchReminders(_ store: EKEventStore, matching predicate: NSPredicate) asyn
     guard let items else {
       return continuation.finish(
         throwing: ServerError.internalError(
-          "EventKit returned an indeterminate nil reminder inventory"))
+          "EventKit returned an indeterminate nil reminder list"))
     }
     continuation.yield(items)
     continuation.finish()
@@ -93,14 +93,14 @@ private func readCalendars() throws -> (
   let defaultListID = lists.contains(where: { $0.id == defaultID }) ? defaultID : nil
   return (store, calendars, lists, defaultListID)
 }
-// Lists and the default list without fetching reminders; summaries need readInventory.
+// Lists and the default list without fetching reminders; summaries need readRemindersData.
 @MainActor
-func readLists() throws -> Inventory {
+func readLists() throws -> RemindersData {
   let (_, _, lists, defaultListID) = try readCalendars()
-  return Inventory(lists: lists, reminders: [], defaultListId: defaultListID)
+  return RemindersData(lists: lists, reminders: [], defaultListId: defaultListID)
 }
 @MainActor
-func readInventory() async throws -> Inventory {
+func readRemindersData() async throws -> RemindersData {
   let (store, calendars, lists, defaultListID) = try readCalendars()
   let fetched =
     calendars.isEmpty
@@ -116,10 +116,10 @@ func readInventory() async throws -> Inventory {
       }
       guard let list = item.calendar,
         calendars.contains(where: { $0.calendarIdentifier == list.calendarIdentifier })
-      else { throw ServerError.internalError("Reminder list inventory changed during collection") }
+      else { throw ServerError.internalError("Reminder lists changed during the read") }
       reminders.append(try ReminderRecord(item, now: now, flagged: nil))
     }
-    return Inventory(lists: lists, reminders: reminders, defaultListId: defaultListID)
+    return RemindersData(lists: lists, reminders: reminders, defaultListId: defaultListID)
   }
 }
 @MainActor
