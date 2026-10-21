@@ -1,4 +1,52 @@
 import Foundation
+import struct os.OSAllocatedUnfairLock
+
+private let processStart = Date()
+private struct RequestKey: Hashable { let route: String, code: Int }
+private let requestCounts = OSAllocatedUnfairLock<[RequestKey: Int]>(initialState: [:])
+
+func recordRequest(route: String, code: Int) {
+  requestCounts.withLock { $0[RequestKey(route: route, code: code), default: 0] += 1 }
+}
+
+// Served even when the inventory snapshot is not: a failed EventKit read must not
+// blank the request and liveness series that explain it.
+func runtimeMetrics(inventoryUp: Bool, authorizing: Bool) -> String {
+  var lines: [String] = []
+  func family(_ name: String, _ type: String, _ help: String) {
+    lines += ["# HELP \(name) \(help)", "# TYPE \(name) \(type)"]
+  }
+  family(
+    "process_start_time_seconds", "gauge",
+    "Start time of the process since the Unix epoch; a change is a restart.")
+  lines.append("process_start_time_seconds \(Int(processStart.timeIntervalSince1970))")
+  family(
+    "reminders_http_requests_total", "counter", "HTTP requests answered, by route and status code.")
+  let counts = requestCounts.withLock { $0 }
+  for (key, count) in counts.sorted(by: {
+    ($0.key.route, $0.key.code) < ($1.key.route, $1.key.code)
+  }) {
+    lines.append(
+      "reminders_http_requests_total{route=\"\(metricEscape(key.route))\",code=\"\(key.code)\"} \(count)"
+    )
+  }
+  family(
+    "reminders_main_actor_heartbeat_age_seconds", "gauge",
+    "Seconds since the main actor last ran a watchdog heartbeat; the process exits past 120.")
+  let age = mainActorHeartbeatAge().components
+  lines.append(
+    "reminders_main_actor_heartbeat_age_seconds \(Double(age.seconds) + Double(age.attoseconds) / 1e18)"
+  )
+  family(
+    "reminders_authorization_pending", "gauge",
+    "1 while the startup Reminders access request has not finished.")
+  lines.append("reminders_authorization_pending \(authorizing ? 1 : 0)")
+  family(
+    "reminders_inventory_up", "gauge",
+    "1 when the last background EventKit inventory read succeeded and its gauges follow.")
+  lines.append("reminders_inventory_up \(inventoryUp ? 1 : 0)")
+  return lines.joined(separator: "\n") + "\n"
+}
 
 func metricEscape(_ text: String) -> String {
   text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\n", with: "\\n")
@@ -6,12 +54,8 @@ func metricEscape(_ text: String) -> String {
 }
 actor MetricsCollector {
   private var snapshot: String?
-  private var failure = "Metrics collection has not completed yet"
 
-  func cachedSnapshot() throws -> String {
-    guard let snapshot else { throw ServerError.internalError(failure) }
-    return snapshot
-  }
+  func cachedSnapshot() -> String? { snapshot }
 
   func run(intervalSeconds: Int) async {
     var failed = false
@@ -25,7 +69,6 @@ actor MetricsCollector {
       } catch {
         logFailure("Metrics collection failed", error: error)
         snapshot = nil
-        failure = "Metrics collection failed: \(error)"
         // Retry after a minute, doubling toward the interval so a lasting failure stays quiet.
         delay = failed ? min(delay * 2, intervalSeconds) : min(60, intervalSeconds)
         failed = true

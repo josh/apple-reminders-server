@@ -23,16 +23,17 @@ struct ServiceResponse {
 }
 func handleRequest(
   method: String, path: String, body: Data, schema: GraphQLSchema,
-  metricsCollector: MetricsCollector, capabilities: Capabilities
+  metricsCollector: MetricsCollector, capabilities: Capabilities, authorizing: Bool
 ) async throws
   -> ServiceResponse
 {
   if path == "/metrics" && method == "GET" {
-    do {
-      return ServiceResponse(
-        type: "text/plain; version=0.0.4; charset=utf-8",
-        body: Data(try await metricsCollector.cachedSnapshot().utf8))
-    } catch { return try .json(["error": String(describing: error)], status: 503) }
+    let snapshot = await metricsCollector.cachedSnapshot()
+    return ServiceResponse(
+      type: "text/plain; version=0.0.4; charset=utf-8",
+      body: Data(
+        (runtimeMetrics(inventoryUp: snapshot != nil, authorizing: authorizing) + (snapshot ?? ""))
+          .utf8))
   }
   guard path == "/graphql" else { return try .json(["error": "Not found"], status: 404) }
   guard method == "POST" else { return try .json(["error": "POST required"], status: 405) }
@@ -173,6 +174,7 @@ func serve(
       if let agent = request.headers[.userAgent] { metadata["user_agent"] = "\(agent)" }
       if let rpc { metadata["rpc"] = "\(rpc)" }
       serverLogger.log(level: level, "HTTP request", metadata: metadata)
+      recordRequest(route: route, code: response.status)
       var fields: HTTPFields = [.contentType: response.type]
       for (name, value) in response.headers {
         fields[.init(name)!] = value
@@ -248,7 +250,8 @@ func serve(
           response = try await withRequestDeadline {
             try await handleRequest(
               method: request.method.rawValue, path: request.uri.path, body: body, schema: schema,
-              metricsCollector: metricsCollector, capabilities: capabilities)
+              metricsCollector: metricsCollector, capabilities: capabilities,
+              authorizing: authorizing.withLock { $0 })
           }
         }
       }
