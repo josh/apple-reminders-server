@@ -1066,7 +1066,7 @@
             "type": "string"
           },
           "location": {
-            "description": "Descriptive location text, separate from location-triggered alarms.",
+            "description": "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm.",
             "type": "string"
           },
           "name": {
@@ -1943,7 +1943,7 @@
                 "type": "boolean"
               },
               "location": {
-                "description": "Descriptive location text, separate from location-triggered alarms.",
+                "description": "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm.",
                 "type": "string"
               },
               "name": {

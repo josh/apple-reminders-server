@@ -15,7 +15,7 @@ enum ReminderClearValue: String, Sendable, CaseIterable {
 
   var description: String {
     switch self {
-    case .location: "Remove descriptive location text."
+    case .location: "Unsupported: Reminders does not keep free-text locations."
     case .url: "Remove the associated URL."
     case .dueDate: "Remove the timed due date."
     case .allDayDueDate: "Remove the all-day due date."
@@ -43,7 +43,6 @@ struct ReminderChanges: Equatable, Sendable {
   var alarms: [ReminderAlarmChange]?
   var recurrence: ReminderRecurrenceChange?
   var priority: Int?
-  var location: String?
   var url: URL?
   var due: DateComponents?
   var start: DateComponents?
@@ -122,9 +121,7 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   if let value = patch.completed { item.isCompleted = value }
   if let date = patch.completionDate { item.completionDate = date }
   if patch.clear.contains(.completionDate) { item.completionDate = nil }
-  if let location = patch.location { item.location = location }
   if let url = patch.url { item.url = url }
-  if patch.clear.contains(.location) { item.location = nil }
   if patch.clear.contains(.url) { item.url = nil }
   if patch.clear.contains(.dueDate) || patch.clear.contains(.allDayDueDate) {
     item.dueDateComponents = nil

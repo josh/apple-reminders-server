@@ -44,7 +44,9 @@ private func searchPage(
   guard search.priorities?.allSatisfy({ (0...9).contains($0) }) ?? true else {
     throw ServerError.invalidArgument("priorities must be 0...9")
   }
-  search.dueStatus = (try? criteria["dueStatus"].stringValue()).flatMap(DueStatus.init(rawValue:))
+  search.dueStatus = (try? criteria["dueStatus"].stringValue()).flatMap {
+    DueStatus(rawValue: $0.lowercased())
+  }
   search.dueOnOrAfter = try? criteria["dueOnOrAfter"].stringValue()
   search.dueBefore = try? criteria["dueBefore"].stringValue()
   search.dueFrom = try? criteria["dueFrom"].stringValue()
@@ -210,7 +212,7 @@ func makeSchema() throws -> GraphQLSchema {
         }))
   }
   let dueStatus = try enumeration(
-    "DueStatus", DueStatus.allCases.map(\.rawValue),
+    "DueStatus", DueStatus.allCases.map { $0.rawValue.uppercased() },
     descriptions: [
       "OVERDUE": "A timed deadline has passed, or an all-day deadline is before today.",
       "TODAY": "The deadline falls today and has not passed.",
@@ -448,8 +450,12 @@ func makeSchema() throws -> GraphQLSchema {
         url, description: FieldDocs.Reminder.url),
       "startDateComponents": field(components, description: FieldDocs.Reminder.startDateComponents),
       "dueDateComponents": field(components, description: FieldDocs.Reminder.dueDateComponents),
-      "dueStatus": field(
-        GraphQLNonNull(dueStatus), description: FieldDocs.Reminder.dueStatus),
+      // Enum values match their uppercase names; records store lowercase statuses.
+      "dueStatus": GraphQLField(
+        type: GraphQLNonNull(dueStatus), description: FieldDocs.Reminder.dueStatus,
+        resolve: { source, _, _, _ in
+          (try? (source as? Map)?["dueStatus"].stringValue())?.uppercased()
+        }),
       "rawAlarms": field(
         GraphQLNonNull(GraphQLList(GraphQLNonNull(alarm))), key: "alarms",
         description: FieldDocs.Reminder.rawAlarms),

@@ -1028,7 +1028,7 @@ input CreateReminderInput {
   priority: Int
 
   """
-  Descriptive location text, separate from location-triggered alarms.
+  Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm.
   """
   location: String
 
@@ -1220,7 +1220,7 @@ input ReminderPatch {
   priority: Int
 
   """
-  Descriptive location text, separate from location-triggered alarms.
+  Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm.
   """
   location: String
 
@@ -1292,7 +1292,7 @@ input ReminderPatch {
 
 enum ReminderClearField {
   """
-  Remove descriptive location text.
+  Unsupported: Reminders does not keep free-text locations.
   """
   LOCATION
 

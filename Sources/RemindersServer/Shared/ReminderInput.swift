@@ -88,7 +88,9 @@ func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderC
   var result = ReminderChanges()
   result.name = input.name.value
   result.body = input.body.value
-  result.location = input.location.value
+  // Reminders drops free-text locations on save; reject them rather than lose data silently.
+  let noLocation = "Reminders does not keep free-text locations; use a geofence alarm instead"
+  if input.location.value != nil { throw ServerError.unsupportedOperation(noLocation) }
   if let value = input.url.value {
     guard let url = URL(string: value), let scheme = url.scheme, !scheme.isEmpty,
       value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil
@@ -111,6 +113,7 @@ func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderC
         return value
       })
   }
+  if result.clear.contains(.location) { throw ServerError.unsupportedOperation(noLocation) }
   func date(
     _ timed: String?, _ day: String?, _ timedClear: ReminderClearValue,
     _ dayClear: ReminderClearValue
@@ -197,9 +200,7 @@ func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderC
       )
     }
   }
-  guard !(result.location != nil && result.clear.contains(.location)),
-    !(result.url != nil && result.clear.contains(.url))
-  else {
+  guard !(result.url != nil && result.clear.contains(.url)) else {
     throw ServerError.invalidArgument("cannot set and clear the same field")
   }
   guard creating || result != ReminderChanges() else {

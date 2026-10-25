@@ -123,10 +123,15 @@ func readRemindersData() async throws -> RemindersData {
   }
 }
 @MainActor
+// EventKit objects lose their list and account once their store is released, so each
+// read keeps its store alive until the record is built.
 func readReminder(id: String) throws -> ReminderRecord? {
   try requireAccess()
-  return try (EKEventStore().calendarItem(withIdentifier: id) as? EKReminder).map {
-    try ReminderRecord($0, now: Date(), flagged: nil)
+  let store = EKEventStore()
+  return try withExtendedLifetime(store) {
+    try (store.calendarItem(withIdentifier: id) as? EKReminder).map {
+      try ReminderRecord($0, now: Date(), flagged: nil)
+    }
   }
 }
 // A reminder list by identifier; nil when absent or not a reminder list.
@@ -139,5 +144,6 @@ func reminderList(_ store: EKEventStore, id: String) -> EKCalendar? {
 @MainActor
 func readList(id: String) throws -> ListRecord? {
   try requireAccess()
-  return try reminderList(EKEventStore(), id: id).map(ListRecord.init)
+  let store = EKEventStore()
+  return try withExtendedLifetime(store) { try reminderList(store, id: id).map(ListRecord.init) }
 }

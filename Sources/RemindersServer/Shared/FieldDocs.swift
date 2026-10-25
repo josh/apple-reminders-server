@@ -186,7 +186,8 @@ enum FieldDocs {
     static let name = "Name of the new reminder."
     static let body = "Notes to attach to the reminder."
     static let priority = "Priority from 0 through 9."
-    static let location = "Descriptive location text, separate from location-triggered alarms."
+    static let location =
+      "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm."
     static let url =
       "An associated absolute URL; does not promise a rich-link preview in Reminders."
     static let dueDate = "A deadline including a time of day."
@@ -216,7 +217,8 @@ enum FieldDocs {
     static let name = "The new name of the reminder."
     static let body = "The new notes attached to the reminder. An empty string removes the notes."
     static let priority = "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low."
-    static let location = "Descriptive location text, separate from location-triggered alarms."
+    static let location =
+      "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm."
     static let url =
       "An associated absolute URL; does not promise a rich-link preview in Reminders."
     static let dueDate = "Set the due date and time. Cannot be combined with allDayDueDate."
