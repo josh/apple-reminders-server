@@ -700,13 +700,9 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
       )
     }
   }
+  // ListRecord holds plain values, so unlike a reminder its response cannot fail to project.
   func savedList(_ request: ListWrite) async throws -> CallTool.Result {
-    let saved = try await writeList(request)
-    do { return try result(ListOutput(list: saved)) } catch {
-      throw ServerError.writeApplied(
-        "list \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying"
-      )
-    }
+    try result(ListOutput(list: try await writeList(request)))
   }
   switch tool {
   case .remindersCreate:
@@ -740,12 +736,7 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
         "reminder \(id) was shown, but response projection failed: \(error)")
     }
   case .listsShow:
-    let id = try arguments(IDArguments.self).id
-    let shown = try await showList(id: id)
-    do { return try result(ListOutput(list: shown)) } catch {
-      throw ServerError.showApplied(
-        "list \(id) was shown, but response projection failed: \(error)")
-    }
+    return try result(ListOutput(list: try await showList(id: arguments(IDArguments.self).id)))
   case .remindersDelete:
     let deleted = try await deleteReminder(id: arguments(IDArguments.self).id)
     return try result(deleted)
