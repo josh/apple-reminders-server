@@ -42,22 +42,22 @@ private struct GetOutput: Encodable {
     try container.encode(reminder, forKey: .reminder)
   }
 }
-// Matching GraphQL types describe the same fields; makeSchema failing also stops serve.
-private let fieldDescriptions = (try? graphQLFieldDescriptions()) ?? [:]
-private func describe(_ value: Value?, _ text: String) -> Value? {
-  guard case .object(var object)? = value, object["description"] == nil else { return value }
+// Adds a description unless the property already has one.
+private func describe(_ value: Value, _ text: String) -> Value {
+  guard case .object(var object) = value, object["description"] == nil else { return value }
   object["description"] = .string(text)
   return .object(object)
 }
-// `type` names the GraphQL type whose field descriptions apply.
-private func schema(_ properties: [String: Value], required: [String] = [], as type: String? = nil)
-  -> Value
+// Describes properties built up step by step, by name.
+private func describing(_ properties: [String: Value], _ descriptions: [(String, String)])
+  -> [String: Value]
 {
   var properties = properties
-  for (key, text) in type.flatMap({ fieldDescriptions[$0] }) ?? [:] {
-    properties[key] = describe(properties[key], text)
-  }
-  return .object([
+  for (key, text) in descriptions { properties[key] = properties[key].map { describe($0, text) } }
+  return properties
+}
+private func schema(_ properties: [String: Value], required: [String] = []) -> Value {
+  .object([
     "type": "object", "properties": .object(properties),
     "required": .array(required.map(Value.string)), "additionalProperties": false,
   ])
@@ -106,35 +106,50 @@ private func toolsCatalog() -> [Tool] {
   reminder["dueStatus"] = enumeration(DueStatus.allCases.map(\.rawValue))
   let structuredLocation = schema(
     [
-      "title": primitive("string"), "latitude": primitive("number"),
-      "longitude": primitive("number"), "radius": primitive("number"),
-    ], required: ["radius"], as: "StructuredLocation")
+      "title": describe(primitive("string"), FieldDocs.StructuredLocation.title),
+      "latitude": describe(primitive("number"), FieldDocs.StructuredLocation.latitude),
+      "longitude": describe(primitive("number"), FieldDocs.StructuredLocation.longitude),
+      "radius": describe(primitive("number"), FieldDocs.StructuredLocation.radius),
+    ], required: ["radius"])
   reminder["alarms"] = array(
     schema(
       [
-        "absoluteDate": primitive("string"), "relativeOffset": primitive("number"),
-        "proximity": enumeration(["none", "enter", "leave", "unknown"]),
-        "structuredLocation": structuredLocation,
-      ], required: ["relativeOffset", "proximity"], as: "RawAlarm"))
+        "absoluteDate": describe(primitive("string"), FieldDocs.RawAlarm.absoluteDate),
+        "relativeOffset": describe(primitive("number"), FieldDocs.RawAlarm.relativeOffset),
+        "proximity": describe(
+          enumeration(["none", "enter", "leave", "unknown"]), FieldDocs.RawAlarm.proximity),
+        "structuredLocation": describe(structuredLocation, FieldDocs.RawAlarm.structuredLocation),
+      ], required: ["relativeOffset", "proximity"]))
   reminder["rawAlarms"] = reminder["alarms"]
   let geofence = schema(
     [
-      "title": primitive("string"), "latitude": primitive("number"),
-      "longitude": primitive("number"), "radiusMeters": primitive("number"),
-      "proximity": enumeration(["ARRIVE", "DEPART"]),
-    ], required: ["latitude", "longitude", "radiusMeters", "proximity"], as: "Geofence")
+      "title": describe(primitive("string"), FieldDocs.Geofence.title),
+      "latitude": describe(primitive("number"), FieldDocs.Geofence.latitude),
+      "longitude": describe(primitive("number"), FieldDocs.Geofence.longitude),
+      "radiusMeters": describe(primitive("number"), FieldDocs.Geofence.radiusMeters),
+      "proximity": describe(enumeration(["ARRIVE", "DEPART"]), FieldDocs.Geofence.proximity),
+    ], required: ["latitude", "longitude", "radiusMeters", "proximity"])
   reminder["alarms"] = array(
     .object([
       "oneOf": .array([
         schema(
-          ["kind": enumeration(["AbsoluteAlarm"]), "at": primitive("string")],
-          required: ["kind", "at"], as: "AbsoluteAlarm"),
+          [
+            "kind": enumeration(["AbsoluteAlarm"]),
+            "at": describe(primitive("string"), FieldDocs.AbsoluteAlarm.at),
+          ],
+          required: ["kind", "at"]),
         schema(
-          ["kind": enumeration(["RelativeAlarm"]), "offsetSeconds": primitive("number")],
-          required: ["kind", "offsetSeconds"], as: "RelativeAlarm"),
+          [
+            "kind": enumeration(["RelativeAlarm"]),
+            "offsetSeconds": describe(primitive("number"), FieldDocs.RelativeAlarm.offsetSeconds),
+          ],
+          required: ["kind", "offsetSeconds"]),
         schema(
-          ["kind": enumeration(["LocationAlarm"]), "geofence": geofence],
-          required: ["kind", "geofence"], as: "LocationAlarm"),
+          [
+            "kind": enumeration(["LocationAlarm"]),
+            "geofence": describe(geofence, FieldDocs.LocationAlarm.geofence),
+          ],
+          required: ["kind", "geofence"]),
       ])
     ]))
   var schedule: [String: Value] = [
@@ -143,15 +158,25 @@ private func toolsCatalog() -> [Tool] {
     "daysOfWeek": array(
       schema(
         [
-          "day": enumeration(weekdayNames), "ordinal": primitive("integer"),
-        ], required: ["day"], as: "ReminderRecurrenceDay")),
+          "day": describe(enumeration(weekdayNames), FieldDocs.ScheduleDay.day),
+          "ordinal": describe(primitive("integer"), FieldDocs.ScheduleDay.ordinal),
+        ], required: ["day"])),
     "end": schema(
-      ["until": primitive("string"), "count": primitive("integer")], as: "ReminderRecurrenceEnd"),
+      [
+        "until": describe(primitive("string"), FieldDocs.ScheduleEnd.until),
+        "count": describe(primitive("integer"), FieldDocs.ScheduleEnd.count),
+      ]),
   ]
-  for name in ["daysOfMonth", "monthsOfYear", "weeksOfYear", "daysOfYear", "setPositions"] {
-    schedule[name] = array(primitive("integer"))
+  for (name, description) in FieldDocs.Schedule.selectors {
+    schedule[name] = describe(array(primitive("integer")), description)
   }
-  let rule = schema(schedule, required: ["frequency", "interval"], as: "ReminderRecurrence")
+  schedule = describing(
+    schedule,
+    [
+      ("frequency", FieldDocs.Schedule.frequency), ("interval", FieldDocs.Schedule.interval),
+      ("daysOfWeek", FieldDocs.Schedule.daysOfWeek), ("end", FieldDocs.Schedule.end),
+    ])
+  let rule = schema(schedule, required: ["frequency", "interval"])
   reminder["recurrence"] = nullable(rule)
   var recurrence: [String: Value] = [
     "frequency": enumeration(["daily", "weekly", "monthly", "yearly", "unknown"]),
@@ -159,22 +184,43 @@ private func toolsCatalog() -> [Tool] {
     "firstDayOfTheWeek": primitive("integer"),
     "daysOfTheWeek": array(
       schema(
-        ["dayOfTheWeek": primitive("integer"), "weekNumber": primitive("integer")],
-        required: ["dayOfTheWeek", "weekNumber"], as: "RecurrenceDay")),
+        [
+          "dayOfTheWeek": describe(primitive("integer"), FieldDocs.RecurrenceDay.dayOfTheWeek),
+          "weekNumber": describe(primitive("integer"), FieldDocs.RecurrenceDay.weekNumber),
+        ],
+        required: ["dayOfTheWeek", "weekNumber"])),
     "end": schema(
-      ["endDate": primitive("string"), "occurrenceCount": primitive("integer")],
-      required: ["occurrenceCount"], as: "RecurrenceEnd"),
+      [
+        "endDate": describe(primitive("string"), FieldDocs.RecurrenceEnd.endDate),
+        "occurrenceCount": describe(primitive("integer"), FieldDocs.RecurrenceEnd.occurrenceCount),
+      ],
+      required: ["occurrenceCount"]),
   ]
   for name in [
     "daysOfTheMonth", "daysOfTheYear", "weeksOfTheYear", "monthsOfTheYear", "setPositions",
   ] { recurrence[name] = array(primitive("integer")) }
+  recurrence = describing(
+    recurrence,
+    [
+      ("frequency", FieldDocs.RecurrenceRule.frequency),
+      ("calendarIdentifier", FieldDocs.RecurrenceRule.calendarIdentifier),
+      ("interval", FieldDocs.RecurrenceRule.interval),
+      ("firstDayOfTheWeek", FieldDocs.RecurrenceRule.firstDayOfTheWeek),
+      ("daysOfTheWeek", FieldDocs.RecurrenceRule.daysOfTheWeek),
+      ("end", FieldDocs.RecurrenceRule.end),
+      ("daysOfTheMonth", FieldDocs.RecurrenceRule.daysOfTheMonth),
+      ("daysOfTheYear", FieldDocs.RecurrenceRule.daysOfTheYear),
+      ("weeksOfTheYear", FieldDocs.RecurrenceRule.weeksOfTheYear),
+      ("monthsOfTheYear", FieldDocs.RecurrenceRule.monthsOfTheYear),
+      ("setPositions", FieldDocs.RecurrenceRule.setPositions),
+    ])
   reminder["recurrenceRules"] = array(
     schema(
       recurrence,
       required: [
         "frequency", "calendarIdentifier", "interval", "firstDayOfTheWeek", "daysOfTheWeek",
         "daysOfTheMonth", "daysOfTheYear", "weeksOfTheYear", "monthsOfTheYear", "setPositions",
-      ], as: "RecurrenceRule"))
+      ]))
   // GraphQL describes projection failures as field errors; in MCP they fail the call.
   for (name, text) in [
     "dueDate": "The date and time by which the reminder is due.",
@@ -184,31 +230,54 @@ private func toolsCatalog() -> [Tool] {
       "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
     "recurrence":
       "A single repeating schedule; null when no recurrence is configured. recurrenceRules holds the stored rules.",
-  ] { reminder[name] = describe(reminder[name], text) }
+  ] { reminder[name] = reminder[name].map { describe($0, text) } }
+  reminder = describing(
+    reminder,
+    [
+      ("id", FieldDocs.Reminder.id), ("name", FieldDocs.Reminder.name),
+      ("body", FieldDocs.Reminder.body), ("completed", FieldDocs.Reminder.completed),
+      ("priority", FieldDocs.Reminder.priority), ("creationDate", FieldDocs.Reminder.creationDate),
+      ("completionDate", FieldDocs.Reminder.completionDate),
+      ("modificationDate", FieldDocs.Reminder.modificationDate),
+      ("location", FieldDocs.Reminder.location), ("dueDay", FieldDocs.Reminder.dueDay),
+      ("listId", FieldDocs.Reminder.listId), ("url", FieldDocs.Reminder.url),
+      ("startDateComponents", FieldDocs.Reminder.startDateComponents),
+      ("dueDateComponents", FieldDocs.Reminder.dueDateComponents),
+      ("dueStatus", FieldDocs.Reminder.dueStatus), ("rawAlarms", FieldDocs.Reminder.rawAlarms),
+      ("recurrenceRules", FieldDocs.Reminder.recurrenceRules),
+      ("allDayDueDate", FieldDocs.Reminder.allDayDueDate),
+      ("allDayStartDate", FieldDocs.Reminder.allDayStartDate),
+    ])
   let item = schema(
     reminder,
     required: [
       "rawAlarms", "recurrence", "dueDate", "allDayDueDate", "startDate", "allDayStartDate",
       "timeZone", "id", "completed", "priority", "dueDay", "dueStatus", "alarms",
       "recurrenceRules",
-    ], as: "Reminder")
+    ])
   let list = schema(
     [
-      "allowsListModifications": primitive("boolean"), "subscribed": primitive("boolean"),
-      "id": primitive("string"), "name": primitive("string"), "color": primitive("string"),
+      "allowsListModifications": describe(
+        primitive("boolean"), FieldDocs.ReminderList.allowsListModifications),
+      "subscribed": describe(primitive("boolean"), FieldDocs.ReminderList.subscribed),
+      "id": describe(primitive("string"), FieldDocs.ReminderList.id),
+      "name": describe(primitive("string"), FieldDocs.ReminderList.name),
+      "color": describe(primitive("string"), FieldDocs.ReminderList.color),
       "source": schema(
         ["id": primitive("string"), "title": primitive("string"), "type": primitive("integer")],
-        required: ["id", "title", "type"]), "allowsContentModifications": primitive("boolean"),
+        required: ["id", "title", "type"]),
+      "allowsContentModifications": describe(
+        primitive("boolean"), FieldDocs.ReminderList.allowsContentModifications),
       "isImmutable": primitive("boolean"), "isSubscribed": primitive("boolean"),
     ],
     required: [
       "id", "name", "source", "allowsContentModifications", "isImmutable", "isSubscribed",
-    ],
-    as: "ReminderList")
+    ])
   let order = schema(
     [
-      "field": enumeration(reminderSortFields), "direction": enumeration(["ASC", "DESC"]),
-    ], required: ["field"], as: "ReminderOrder")
+      "field": describe(enumeration(reminderSortFields), FieldDocs.ReminderOrder.field),
+      "direction": describe(enumeration(["ASC", "DESC"]), FieldDocs.ReminderOrder.direction),
+    ], required: ["field"])
   let pagination: [String: Value] = [
     "limit": .object(["type": "integer", "minimum": 1, "maximum": 100, "default": 50]),
     "cursor": .object([
@@ -222,46 +291,75 @@ private func toolsCatalog() -> [Tool] {
       "orderBy": order,
       "filter": schema(
         [
-          "dueFrom": primitive("string"), "accountIds": array(primitive("string")),
-          "listIds": array(primitive("string")), "hasDueDate": primitive("boolean"),
-          "dueOnOrAfter": primitive("string"),
-          "dueBefore": primitive("string"),
-          "priorities": array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
-          "dueStatus": enumeration(DueStatus.allCases.map(\.rawValue)),
-          "completed": primitive("boolean"), "query": primitive("string"),
-        ], as: "ReminderFilter"),
+          "dueFrom": describe(primitive("string"), FieldDocs.ReminderFilter.dueFrom),
+          "accountIds": describe(array(primitive("string")), FieldDocs.ReminderFilter.accountIds),
+          "listIds": describe(array(primitive("string")), FieldDocs.ReminderFilter.listIds),
+          "hasDueDate": describe(primitive("boolean"), FieldDocs.ReminderFilter.hasDueDate),
+          "dueOnOrAfter": describe(primitive("string"), FieldDocs.ReminderFilter.dueOnOrAfter),
+          "dueBefore": describe(primitive("string"), FieldDocs.ReminderFilter.dueBefore),
+          "priorities": describe(
+            array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
+            FieldDocs.ReminderFilter.priorities),
+          "dueStatus": describe(
+            enumeration(DueStatus.allCases.map(\.rawValue)), FieldDocs.ReminderFilter.dueStatus),
+          "completed": describe(primitive("boolean"), FieldDocs.ReminderFilter.completed),
+          "query": describe(primitive("string"), FieldDocs.ReminderFilter.query),
+        ]),
     ]) { _, new in new })
   let listSearch = schema(
     pagination.merging([
       "filter": schema(
         [
-          "query": primitive("string"), "accountIds": array(primitive("string")),
-          "allowsContentModifications": primitive("boolean"), "subscribed": primitive("boolean"),
-        ], as: "ListFilter"),
-      "orderBy": schema(["direction": enumeration(["ASC", "DESC"])], as: "ListOrder"),
+          "query": describe(primitive("string"), FieldDocs.ListFilter.query),
+          "accountIds": describe(array(primitive("string")), FieldDocs.ListFilter.accountIds),
+          "allowsContentModifications": describe(
+            primitive("boolean"), FieldDocs.ListFilter.allowsContentModifications),
+          "subscribed": describe(primitive("boolean"), FieldDocs.ListFilter.subscribed),
+        ]),
+      "orderBy": schema([
+        "direction": describe(enumeration(["ASC", "DESC"]), FieldDocs.ListOrder.direction)
+      ]),
     ]) { _, new in new })
   let account = schema(
-    ["id": primitive("string"), "name": primitive("string")], required: ["id", "name"],
-    as: "Account")
+    [
+      "id": describe(primitive("string"), FieldDocs.Account.id),
+      "name": describe(primitive("string"), FieldDocs.Account.name),
+    ], required: ["id", "name"])
   let counts = [
     "total", "completed", "incomplete", "overdue", "scheduled", "recurring", "withAlarms",
   ]
   var summary = Dictionary(uniqueKeysWithValues: counts.map { ($0, primitive("integer")) })
   summary["listId"] = primitive("string")
+  summary = describing(
+    summary,
+    [
+      ("total", FieldDocs.ListSummary.total), ("completed", FieldDocs.ListSummary.completed),
+      ("incomplete", FieldDocs.ListSummary.incomplete), ("overdue", FieldDocs.ListSummary.overdue),
+      ("scheduled", FieldDocs.ListSummary.scheduled),
+      ("recurring", FieldDocs.ListSummary.recurring),
+      ("withAlarms", FieldDocs.ListSummary.withAlarms),
+    ])
   let annotations = Tool.Annotations(
     readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false)
-  let alarmInput = schema(
-    [
-      "absoluteDate": primitive("string"), "relativeOffsetSeconds": primitive("number"),
-      "geofence": schema(
+  let alarmInput = schema([
+    "absoluteDate": describe(primitive("string"), FieldDocs.ReminderAlarmInput.absoluteDate),
+    "relativeOffsetSeconds": describe(
+      primitive("number"), FieldDocs.ReminderAlarmInput.relativeOffsetSeconds),
+    "geofence": describe(
+      schema(
         [
-          "title": primitive("string"),
-          "latitude": .object(["type": "number", "minimum": -90, "maximum": 90]),
-          "longitude": .object(["type": "number", "minimum": -180, "maximum": 180]),
-          "radiusMeters": .object(["type": "number", "minimum": 0]),
-          "proximity": enumeration(["ARRIVE", "DEPART"]),
-        ], required: ["latitude", "longitude", "radiusMeters", "proximity"], as: "GeofenceInput"),
-    ], as: "ReminderAlarmInput")
+          "title": describe(primitive("string"), FieldDocs.Geofence.title),
+          "latitude": describe(
+            .object(["type": "number", "minimum": -90, "maximum": 90]), FieldDocs.Geofence.latitude),
+          "longitude": describe(
+            .object(["type": "number", "minimum": -180, "maximum": 180]),
+            FieldDocs.Geofence.longitude),
+          "radiusMeters": describe(
+            .object(["type": "number", "minimum": 0]), FieldDocs.Geofence.radiusMeters),
+          "proximity": describe(enumeration(["ARRIVE", "DEPART"]), FieldDocs.Geofence.proximity),
+        ], required: ["latitude", "longitude", "radiusMeters", "proximity"]),
+      FieldDocs.ReminderAlarmInput.geofence),
+  ])
   var writeFields = Dictionary(
     uniqueKeysWithValues: [
       "name", "body", "location", "url", "dueDate", "allDayDueDate", "startDate", "allDayStartDate",
@@ -274,21 +372,62 @@ private func toolsCatalog() -> [Tool] {
   writeFields["recurrence"] = rule
   var createFields = writeFields
   createFields["listId"] = primitive("string")
+  createFields = describing(
+    createFields,
+    [
+      ("name", FieldDocs.CreateReminderInput.name), ("body", FieldDocs.CreateReminderInput.body),
+      ("priority", FieldDocs.CreateReminderInput.priority),
+      ("location", FieldDocs.CreateReminderInput.location),
+      ("url", FieldDocs.CreateReminderInput.url),
+      ("dueDate", FieldDocs.CreateReminderInput.dueDate),
+      ("allDayDueDate", FieldDocs.CreateReminderInput.allDayDueDate),
+      ("startDate", FieldDocs.CreateReminderInput.startDate),
+      ("allDayStartDate", FieldDocs.CreateReminderInput.allDayStartDate),
+      ("timeZone", FieldDocs.CreateReminderInput.timeZone),
+      ("flagged", FieldDocs.CreateReminderInput.flagged),
+      ("remindMeDate", FieldDocs.CreateReminderInput.remindMeDate),
+      ("alarms", FieldDocs.CreateReminderInput.alarms),
+      ("recurrence", FieldDocs.CreateReminderInput.recurrence),
+      ("listId", FieldDocs.CreateReminderInput.listId),
+    ])
   writeFields["completed"] = primitive("boolean")
   writeFields["completionDate"] = primitive("string")
   writeFields["clearFields"] = array(enumeration(ReminderClearValue.allCases.map(\.rawValue)))
+  writeFields = describing(
+    writeFields,
+    [
+      ("name", FieldDocs.ReminderPatch.name), ("body", FieldDocs.ReminderPatch.body),
+      ("priority", FieldDocs.ReminderPatch.priority),
+      ("location", FieldDocs.ReminderPatch.location), ("url", FieldDocs.ReminderPatch.url),
+      ("dueDate", FieldDocs.ReminderPatch.dueDate),
+      ("allDayDueDate", FieldDocs.ReminderPatch.allDayDueDate),
+      ("startDate", FieldDocs.ReminderPatch.startDate),
+      ("allDayStartDate", FieldDocs.ReminderPatch.allDayStartDate),
+      ("timeZone", FieldDocs.ReminderPatch.timeZone), ("flagged", FieldDocs.ReminderPatch.flagged),
+      ("remindMeDate", FieldDocs.ReminderPatch.remindMeDate),
+      ("alarms", FieldDocs.ReminderPatch.alarms),
+      ("recurrence", FieldDocs.ReminderPatch.recurrence),
+      ("completionDate", FieldDocs.ReminderPatch.completionDate),
+      ("completed", FieldDocs.ReminderPatch.completed),
+      ("clearFields", FieldDocs.ReminderPatch.clearFields),
+    ])
   let created = Tool.Annotations(
     readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
   let changed = Tool.Annotations(
     readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
   let listPatch = schema(
-    ["name": primitive("string"), "color": primitive("string"), "emblem": primitive("string")],
-    as: "ListPatch")
+    [
+      "name": describe(primitive("string"), FieldDocs.ListPatch.name),
+      "color": describe(primitive("string"), FieldDocs.ListPatch.color),
+      "emblem": describe(primitive("string"), FieldDocs.ListPatch.emblem),
+    ])
   let listCreate = schema(
     [
-      "name": primitive("string"), "accountId": primitive("string"), "color": primitive("string"),
-      "emblem": primitive("string"),
-    ], required: ["name", "accountId"], as: "CreateListInput")
+      "name": describe(primitive("string"), FieldDocs.CreateListInput.name),
+      "accountId": describe(primitive("string"), FieldDocs.CreateListInput.accountId),
+      "color": describe(primitive("string"), FieldDocs.CreateListInput.color),
+      "emblem": describe(primitive("string"), FieldDocs.CreateListInput.emblem),
+    ], required: ["name", "accountId"])
   let navigation = Tool.Annotations(
     readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
   return [
@@ -315,7 +454,8 @@ private func toolsCatalog() -> [Tool] {
           "allowNonEmpty": .object(["type": "boolean", "default": false]),
         ], required: ["id"]), annotations: changed,
       outputSchema: schema(
-        ["deletedId": primitive("string")], required: ["deletedId"], as: "DeleteResult")),
+        ["deletedId": describe(primitive("string"), FieldDocs.DeleteResult.deletedId)],
+        required: ["deletedId"])),
     Tool(
       name: "reminders_show",
       description: "Show a reminder in Reminders. Changes the application UI, not reminder data.",
@@ -330,7 +470,7 @@ private func toolsCatalog() -> [Tool] {
       name: "reminders_create",
       description:
         "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
-      inputSchema: schema(createFields, required: ["name"], as: "CreateReminderInput"),
+      inputSchema: schema(createFields, required: ["name"]),
       annotations: created,
       outputSchema: schema(["reminder": item], required: ["reminder"])),
     Tool(
@@ -338,7 +478,7 @@ private func toolsCatalog() -> [Tool] {
       description:
         "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch before retrying.",
       inputSchema: schema(
-        ["id": primitive("string"), "patch": schema(writeFields, as: "ReminderPatch")],
+        ["id": primitive("string"), "patch": schema(writeFields)],
         required: ["id", "patch"]),
       annotations: changed, outputSchema: schema(["reminder": item], required: ["reminder"])),
     Tool(
@@ -347,7 +487,8 @@ private func toolsCatalog() -> [Tool] {
         "Delete one reminder. Missing IDs return a NOT_FOUND tool error. Refetch before retrying after uncertain failures.",
       inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: changed,
       outputSchema: schema(
-        ["deletedId": primitive("string")], required: ["deletedId"], as: "DeleteResult")),
+        ["deletedId": describe(primitive("string"), FieldDocs.DeleteResult.deletedId)],
+        required: ["deletedId"])),
     Tool(
       name: "accounts_get",
       description:
@@ -379,7 +520,7 @@ private func toolsCatalog() -> [Tool] {
       inputSchema: schema(["listId": primitive("string")]), annotations: annotations,
       outputSchema: schema(
         [
-          "items": array(schema(summary, required: counts + ["listId"], as: "ListSummary"))
+          "items": array(schema(summary, required: counts + ["listId"]))
         ], required: ["items"])),
     Tool(
       name: "lists_list",
@@ -388,9 +529,10 @@ private func toolsCatalog() -> [Tool] {
       inputSchema: listSearch, annotations: annotations,
       outputSchema: schema(
         [
-          "items": array(list), "totalCount": primitive("integer"),
+          "items": describe(array(list), FieldDocs.ListPage.items),
+          "totalCount": describe(primitive("integer"), FieldDocs.ListPage.totalCount),
           "nextCursor": primitive("string"),
-        ], required: ["items", "totalCount"], as: "ListPage")),
+        ], required: ["items", "totalCount"])),
     Tool(
       name: "reminders_search",
       description:
@@ -398,9 +540,10 @@ private func toolsCatalog() -> [Tool] {
       inputSchema: search, annotations: annotations,
       outputSchema: schema(
         [
-          "items": array(item), "totalCount": primitive("integer"),
+          "items": describe(array(item), FieldDocs.ReminderPage.items),
+          "totalCount": describe(primitive("integer"), FieldDocs.ReminderPage.totalCount),
           "nextCursor": primitive("string"),
-        ], required: ["items", "totalCount"], as: "ReminderPage")),
+        ], required: ["items", "totalCount"])),
     Tool(
       name: "reminders_get",
       description:

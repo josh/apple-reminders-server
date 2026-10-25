@@ -42,14 +42,15 @@ struct Capabilities {
     return result
   }
 
-  func allows(path: String) -> Bool {
+  func access(path: String) -> Access {
     switch path {
-    case "/graphql": return graphql != .denied
-    case "/mcp": return mcp != .denied
-    case "/metrics": return metrics != .denied
-    default: return true
+    case "/graphql": return graphql
+    case "/mcp": return mcp
+    case "/metrics": return metrics
+    default: return .write
     }
   }
+  func allows(path: String) -> Bool { access(path: path) != .denied }
 
   // Serve uses RFC2047 UTF-8 Q encoding for non-ASCII capability values.
   // Adjacent encoded words may be separated by whitespace.

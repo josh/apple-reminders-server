@@ -1,5 +1,4 @@
 import Foundation
-import GraphQL
 import HTTPTypes
 import Hummingbird
 import Logging
@@ -23,73 +22,9 @@ struct ServiceResponse {
       failure: failure, classified: true)
   }
 }
-func handleRequest(
-  method: String, path: String, body: Data, schema: GraphQLSchema,
-  metricsCollector: MetricsCollector, capabilities: Capabilities, authorizing: Bool
-) async throws
-  -> ServiceResponse
-{
-  if path == "/metrics" && method == "GET" {
-    let eventKit = await metricsCollector.cachedExposition()
-    return ServiceResponse(
-      type: "text/plain; version=0.0.4; charset=utf-8",
-      body: Data(
-        (runtimeMetrics(eventKitUp: eventKit != nil, authorizing: authorizing) + (eventKit ?? ""))
-          .utf8))
-  }
-  guard path == "/graphql" else { return try .json(["error": "Not found"], status: 404) }
-  guard method == "POST" else { return try .json(["error": "POST required"], status: 405) }
-  guard let request = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
-    return try .json(["errors": [["message": "Expected one JSON object"]]], status: 400)
-  }
-  guard let query = request["query"] as? String else {
-    return try .json(["errors": [["message": "query must be a string"]]], status: 400)
-  }
-  if let variables = request["variables"], !(variables is NSNull), !(variables is [String: Any]) {
-    return try .json(["errors": [["message": "variables must be an object"]]], status: 400)
-  }
-  if let operation = request["operationName"], !(operation is NSNull), !(operation is String) {
-    return try .json(["errors": [["message": "operationName must be a string"]]], status: 400)
-  }
-  let variables = try JSONDecoder().decode(
-    [String: Map].self,
-    from: JSONSerialization.data(withJSONObject: request["variables"] as? [String: Any] ?? [:]))
-  let operation = request["operationName"] as? String
-  do {
-    if capabilities.graphql != .write {
-      let document = try parse(source: query)
-      let operations = document.definitions.compactMap { $0 as? OperationDefinition }
-      let selected = operations.filter { operation == nil || $0.name?.value == operation }
-      guard selected.count == 1 else {
-        return try .json(
-          ["errors": [["message": "Select exactly one operation with operationName"]]], status: 400)
-      }
-      guard selected[0].operation == .query else {
-        return try .json(
-          ["errors": [["message": "Forbidden: GraphQL write access required"]]], status: 403)
-      }
-    }
-    var result = try await graphql(
-      schema: schema, request: query, context: GraphQLContext(), variableValues: variables,
-      operationName: operation)
-    result.errors = result.errors.map(withErrorCode)
-    return ServiceResponse(
-      body: try GraphQLJSONEncoder().encode(result),
-      failure: result.errors.isEmpty ? nil : "graphql", classified: true)
-  } catch { return try .json(["errors": [graphQLError(error)]], failure: "graphql") }
-}
-
-// The executor wraps resolver errors; put the server's code where GraphQL clients expect it.
-private func withErrorCode(_ error: GraphQLError) -> GraphQLError {
-  guard let server = error.originalError as? ServerError else { return error }
-  return GraphQLError(
-    message: error.message, locations: error.locations, path: error.path,
-    extensions: error.extensions.merging(["code": .string(server.code.rawValue)]) { _, new in new })
-}
-private func graphQLError(_ error: Error) -> [String: Any] {
-  guard let server = error as? ServerError else { return ["message": String(describing: error)] }
-  return ["message": server.message, "extensions": ["code": server.code.rawValue]]
-}
+// One API endpoint: method, merged lowercase headers, body, and the caller's access.
+typealias APIHandler =
+  @Sendable (String, [String: String], Data, Capabilities.Access) async throws -> ServiceResponse
 
 // Headers the server reads as one value; a repeat is ambiguous. Every other header
 // may repeat per RFC 9110 and is joined with a comma, as proxies expect.
@@ -149,7 +84,10 @@ func serve(
   let metricsCollector = MetricsCollector()
   let collectionTask = Task { await metricsCollector.run(intervalSeconds: metricsInterval) }
   defer { collectionTask.cancel() }
-  let schema = try makeSchema()
+  let handlers: [String: APIHandler] = [
+    "/graphql": try makeGraphQLHandler(),
+    "/mcp": { try await handleMCP(method: $0, headers: $1, body: $2, access: $3) },
+  ]
   let origins = Set(["http://127.0.0.1:\(port)", "http://localhost:\(port)"] + allowedOrigins)
   let responder = CallbackResponder<BasicRequestContext> { request, _ in
     let started = ContinuousClock.now
@@ -240,21 +178,24 @@ func serve(
         {
           return respond(ServiceResponse(status: 413, body: Data()))
         }
-        if request.uri.path == "/mcp" {
-          if request.method == .post { rpc = jsonRPCMethod(body) }
+        let path = request.uri.path
+        if path == "/metrics" && request.method == .get {
+          let eventKit = await metricsCollector.cachedExposition()
+          let runtime = runtimeMetrics(
+            eventKitUp: eventKit != nil, authorizing: authorizing.withLock { $0 })
+          response = ServiceResponse(
+            type: "text/plain; version=0.0.4; charset=utf-8",
+            body: Data((runtime + (eventKit ?? "")).utf8))
+        } else if let handler = handlers[path] {
+          if path == "/mcp" && request.method == .post { rpc = jsonRPCMethod(body) }
+          let method = request.method.rawValue
           let requestHeaders = headers
+          let access = capabilities.access(path: path)
           response = try await withRequestDeadline {
-            try await handleMCP(
-              method: request.method.rawValue, headers: requestHeaders, body: body,
-              access: capabilities.mcp)
+            try await handler(method, requestHeaders, body, access)
           }
         } else {
-          response = try await withRequestDeadline {
-            try await handleRequest(
-              method: request.method.rawValue, path: request.uri.path, body: body, schema: schema,
-              metricsCollector: metricsCollector, capabilities: capabilities,
-              authorizing: authorizing.withLock { $0 })
-          }
+          response = try .json(["error": "Not found"], status: 404)
         }
       }
       return respond(response)
