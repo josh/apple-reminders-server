@@ -17,6 +17,12 @@ let usage = """
   See https://github.com/josh/apple-reminders-server/blob/main/docs/SERVER.md
   """
 
+// Reports a fatal error on stderr and exits.
+func fail(_ error: Error) -> Never {
+  FileHandle.standardError.write(Data("error: \(error)\n".utf8))
+  exit(1)
+}
+
 // launchd starts the server and owns its sockets; REMINDERS_* environment variables in
 // the plist configure it. The only arguments are --help and the developer dumps of the
 // API docs.
@@ -53,8 +59,7 @@ Task.detached {
             try await authorizeReminders()
             authorizing.withLock { $0 = false }
           } catch {
-            FileHandle.standardError.write(Data("error: \(error)\n".utf8))
-            exit(1)
+            fail(error)
           }
         }
       }
@@ -63,8 +68,7 @@ Task.detached {
 
     exit(0)
   } catch {
-    FileHandle.standardError.write(Data("error: \(error)\n".utf8))
-    exit(1)
+    fail(error)
   }
 
 }
