@@ -62,6 +62,16 @@ private let wholeSecondTimestamps: ISO8601DateFormatter = {
 func timestamp(_ date: Date) -> String {
   fractionalTimestamps.string(from: date)
 }
+// Timed date components for an instant, on a Gregorian calendar in the zone.
+func gregorianComponents(_ instant: Date, in zone: TimeZone) -> DateComponents {
+  var calendar = Calendar(identifier: .gregorian)
+  calendar.timeZone = zone
+  var parts = calendar.dateComponents(
+    [.year, .month, .day, .hour, .minute, .second, .nanosecond], from: instant)
+  parts.calendar = calendar
+  parts.timeZone = zone
+  return parts
+}
 func parseTimestamp(_ value: String) throws -> Date {
   let pattern =
     #"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d+)?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"#

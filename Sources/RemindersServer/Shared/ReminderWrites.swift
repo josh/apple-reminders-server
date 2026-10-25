@@ -245,13 +245,13 @@ private func changingZone(_ value: DateComponents?, to zone: TimeZone, floating:
     throw ServerError.unsupportedOperation(
       "incomplete date or clock-transition gap in time-zone change")
   }
-  var calendar = Calendar(identifier: .gregorian)
-  calendar.timeZone = zone
   if value.hour != nil {
-    value = calendar.dateComponents(
-      [.year, .month, .day, .hour, .minute, .second, .nanosecond], from: instant)
+    value = gregorianComponents(instant, in: zone)
+  } else {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = zone
+    value.calendar = calendar
   }
-  value.calendar = calendar
   value.timeZone = floating ? nil : zone
   return value
 }

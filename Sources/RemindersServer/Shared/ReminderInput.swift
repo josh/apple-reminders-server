@@ -125,14 +125,7 @@ func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderC
       throw ServerError.invalidArgument("conflicting date representations or clearFields")
     }
     if let timed {
-      let instant = try parseTimestamp(timed)
-      var calendar = Calendar(identifier: .gregorian)
-      calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-      var parts = calendar.dateComponents(
-        [.year, .month, .day, .hour, .minute, .second, .nanosecond], from: instant)
-      parts.calendar = calendar
-      parts.timeZone = calendar.timeZone
-      return parts
+      return gregorianComponents(try parseTimestamp(timed), in: TimeZone(secondsFromGMT: 0)!)
     }
     if let day {
       try validateDays(day, nil)
