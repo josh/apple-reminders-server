@@ -208,7 +208,8 @@ func serve(
             return respond(forbidden("\(error)"))
           }
         }
-        guard capabilities.allows(route) else {
+        let access = capabilities.access(route)
+        guard access != .denied else {
           return respond(forbidden("\(request.label.rawValue) access does not include this route"))
         }
         if route != .metrics && authorizing.withLock({ $0 }) {
@@ -227,7 +228,6 @@ func serve(
         } else if let route, let handler = handlers[route] {
           let method = request.head.method
           let requestHeaders = headers
-          let access = capabilities.access(route)
           response = try await withRequestDeadline {
             try await handler(method, requestHeaders, body, access)
           }

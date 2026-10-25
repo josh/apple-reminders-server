@@ -76,7 +76,6 @@ struct Capabilities {
     case nil: return .write
     }
   }
-  func allows(_ route: Route?) -> Bool { access(route) != .denied }
 
   // Serve uses RFC2047 UTF-8 Q encoding for non-ASCII capability values.
   // Adjacent encoded words may be separated by whitespace.
