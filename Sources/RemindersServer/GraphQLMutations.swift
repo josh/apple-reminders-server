@@ -150,8 +150,10 @@ func makeMutationType(
   let cleared = try GraphQLObjectType(
     name: "ClearCompletedResult",
     fields: [
-      "listId": field(GraphQLNonNull(GraphQLID)),
-      "deletedCount": field(GraphQLNonNull(GraphQLInt)),
+      "listId": field(
+        GraphQLNonNull(GraphQLID), description: "The list whose completed reminders were deleted."),
+      "deletedCount": field(
+        GraphQLNonNull(GraphQLInt), description: "Number of completed reminders deleted."),
     ])
   let listPatch = try GraphQLInputObjectType(
     name: "ListPatch",

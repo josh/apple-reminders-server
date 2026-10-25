@@ -42,8 +42,22 @@ private struct GetOutput: Encodable {
     try container.encode(reminder, forKey: .reminder)
   }
 }
-private func schema(_ properties: [String: Value], required: [String] = []) -> Value {
-  .object([
+// Matching GraphQL types describe the same fields; makeSchema failing also stops serve.
+private let fieldDescriptions = (try? graphQLFieldDescriptions()) ?? [:]
+private func describe(_ value: Value?, _ text: String) -> Value? {
+  guard case .object(var object)? = value, object["description"] == nil else { return value }
+  object["description"] = .string(text)
+  return .object(object)
+}
+// `type` names the GraphQL type whose field descriptions apply.
+private func schema(_ properties: [String: Value], required: [String] = [], as type: String? = nil)
+  -> Value
+{
+  var properties = properties
+  for (key, text) in type.flatMap({ fieldDescriptions[$0] }) ?? [:] {
+    properties[key] = describe(properties[key], text)
+  }
+  return .object([
     "type": "object", "properties": .object(properties),
     "required": .array(required.map(Value.string)), "additionalProperties": false,
   ])
@@ -94,33 +108,33 @@ private func toolsCatalog() -> [Tool] {
     [
       "title": primitive("string"), "latitude": primitive("number"),
       "longitude": primitive("number"), "radius": primitive("number"),
-    ], required: ["radius"])
+    ], required: ["radius"], as: "StructuredLocation")
   reminder["alarms"] = array(
     schema(
       [
         "absoluteDate": primitive("string"), "relativeOffset": primitive("number"),
         "proximity": enumeration(["none", "enter", "leave", "unknown"]),
         "structuredLocation": structuredLocation,
-      ], required: ["relativeOffset", "proximity"]))
+      ], required: ["relativeOffset", "proximity"], as: "RawAlarm"))
   reminder["rawAlarms"] = reminder["alarms"]
   let geofence = schema(
     [
       "title": primitive("string"), "latitude": primitive("number"),
       "longitude": primitive("number"), "radiusMeters": primitive("number"),
       "proximity": enumeration(["ARRIVE", "DEPART"]),
-    ], required: ["latitude", "longitude", "radiusMeters", "proximity"])
+    ], required: ["latitude", "longitude", "radiusMeters", "proximity"], as: "Geofence")
   reminder["alarms"] = array(
     .object([
       "oneOf": .array([
         schema(
           ["kind": enumeration(["AbsoluteAlarm"]), "at": primitive("string")],
-          required: ["kind", "at"]),
+          required: ["kind", "at"], as: "AbsoluteAlarm"),
         schema(
           ["kind": enumeration(["RelativeAlarm"]), "offsetSeconds": primitive("number")],
-          required: ["kind", "offsetSeconds"]),
+          required: ["kind", "offsetSeconds"], as: "RelativeAlarm"),
         schema(
           ["kind": enumeration(["LocationAlarm"]), "geofence": geofence],
-          required: ["kind", "geofence"]),
+          required: ["kind", "geofence"], as: "LocationAlarm"),
       ])
     ]))
   var schedule: [String: Value] = [
@@ -130,13 +144,15 @@ private func toolsCatalog() -> [Tool] {
       schema(
         [
           "day": enumeration(weekdayNames), "ordinal": primitive("integer"),
-        ], required: ["day"])),
-    "end": schema(["until": primitive("string"), "count": primitive("integer")]),
+        ], required: ["day"], as: "ReminderRecurrenceDay")),
+    "end": schema(
+      ["until": primitive("string"), "count": primitive("integer")], as: "ReminderRecurrenceEnd"),
   ]
   for name in ["daysOfMonth", "monthsOfYear", "weeksOfYear", "daysOfYear", "setPositions"] {
     schedule[name] = array(primitive("integer"))
   }
-  reminder["recurrence"] = nullable(schema(schedule, required: ["frequency", "interval"]))
+  let rule = schema(schedule, required: ["frequency", "interval"], as: "ReminderRecurrence")
+  reminder["recurrence"] = nullable(rule)
   var recurrence: [String: Value] = [
     "frequency": enumeration(["daily", "weekly", "monthly", "yearly", "unknown"]),
     "calendarIdentifier": primitive("string"), "interval": primitive("integer"),
@@ -144,10 +160,10 @@ private func toolsCatalog() -> [Tool] {
     "daysOfTheWeek": array(
       schema(
         ["dayOfTheWeek": primitive("integer"), "weekNumber": primitive("integer")],
-        required: ["dayOfTheWeek", "weekNumber"])),
+        required: ["dayOfTheWeek", "weekNumber"], as: "RecurrenceDay")),
     "end": schema(
       ["endDate": primitive("string"), "occurrenceCount": primitive("integer")],
-      required: ["occurrenceCount"]),
+      required: ["occurrenceCount"], as: "RecurrenceEnd"),
   ]
   for name in [
     "daysOfTheMonth", "daysOfTheYear", "weeksOfTheYear", "monthsOfTheYear", "setPositions",
@@ -158,14 +174,24 @@ private func toolsCatalog() -> [Tool] {
       required: [
         "frequency", "calendarIdentifier", "interval", "firstDayOfTheWeek", "daysOfTheWeek",
         "daysOfTheMonth", "daysOfTheYear", "weeksOfTheYear", "monthsOfTheYear", "setPositions",
-      ]))
+      ], as: "RecurrenceRule"))
+  // GraphQL describes projection failures as field errors; in MCP they fail the call.
+  for (name, text) in [
+    "dueDate": "The date and time by which the reminder is due.",
+    "startDate": "The date and time at which work on the reminder starts.",
+    "timeZone": "IANA time-zone identifier, or null for floating/local date interpretation.",
+    "alarms":
+      "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
+    "recurrence":
+      "A single repeating schedule; null when no recurrence is configured. recurrenceRules holds the stored rules.",
+  ] { reminder[name] = describe(reminder[name], text) }
   let item = schema(
     reminder,
     required: [
       "rawAlarms", "recurrence", "dueDate", "allDayDueDate", "startDate", "allDayStartDate",
       "timeZone", "id", "completed", "priority", "dueDay", "dueStatus", "alarms",
       "recurrenceRules",
-    ])
+    ], as: "Reminder")
   let list = schema(
     [
       "allowsListModifications": primitive("boolean"), "subscribed": primitive("boolean"),
@@ -175,11 +201,14 @@ private func toolsCatalog() -> [Tool] {
         required: ["id", "title", "type"]), "allowsContentModifications": primitive("boolean"),
       "isImmutable": primitive("boolean"), "isSubscribed": primitive("boolean"),
     ],
-    required: ["id", "name", "source", "allowsContentModifications", "isImmutable", "isSubscribed"])
+    required: [
+      "id", "name", "source", "allowsContentModifications", "isImmutable", "isSubscribed",
+    ],
+    as: "ReminderList")
   let order = schema(
     [
       "field": enumeration(reminderSortFields), "direction": enumeration(["ASC", "DESC"]),
-    ], required: ["field"])
+    ], required: ["field"], as: "ReminderOrder")
   let pagination: [String: Value] = [
     "limit": .object(["type": "integer", "minimum": 1, "maximum": 100, "default": 50]),
     "cursor": .object([
@@ -191,26 +220,29 @@ private func toolsCatalog() -> [Tool] {
   let search = schema(
     pagination.merging([
       "orderBy": order,
-      "filter": schema([
-        "dueFrom": primitive("string"), "accountIds": array(primitive("string")),
-        "listIds": array(primitive("string")), "hasDueDate": primitive("boolean"),
-        "dueOnOrAfter": primitive("string"),
-        "dueBefore": primitive("string"),
-        "priorities": array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
-        "dueStatus": enumeration(DueStatus.allCases.map(\.rawValue)),
-        "completed": primitive("boolean"), "query": primitive("string"),
-      ]),
+      "filter": schema(
+        [
+          "dueFrom": primitive("string"), "accountIds": array(primitive("string")),
+          "listIds": array(primitive("string")), "hasDueDate": primitive("boolean"),
+          "dueOnOrAfter": primitive("string"),
+          "dueBefore": primitive("string"),
+          "priorities": array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
+          "dueStatus": enumeration(DueStatus.allCases.map(\.rawValue)),
+          "completed": primitive("boolean"), "query": primitive("string"),
+        ], as: "ReminderFilter"),
     ]) { _, new in new })
   let listSearch = schema(
     pagination.merging([
-      "filter": schema([
-        "query": primitive("string"), "accountIds": array(primitive("string")),
-        "allowsContentModifications": primitive("boolean"), "subscribed": primitive("boolean"),
-      ]),
-      "orderBy": schema(["direction": enumeration(["ASC", "DESC"])]),
+      "filter": schema(
+        [
+          "query": primitive("string"), "accountIds": array(primitive("string")),
+          "allowsContentModifications": primitive("boolean"), "subscribed": primitive("boolean"),
+        ], as: "ListFilter"),
+      "orderBy": schema(["direction": enumeration(["ASC", "DESC"])], as: "ListOrder"),
     ]) { _, new in new })
   let account = schema(
-    ["id": primitive("string"), "name": primitive("string")], required: ["id", "name"])
+    ["id": primitive("string"), "name": primitive("string")], required: ["id", "name"],
+    as: "Account")
   let counts = [
     "total", "completed", "incomplete", "overdue", "scheduled", "recurring", "withAlarms",
   ]
@@ -218,17 +250,18 @@ private func toolsCatalog() -> [Tool] {
   summary["listId"] = primitive("string")
   let annotations = Tool.Annotations(
     readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false)
-  let alarmInput = schema([
-    "absoluteDate": primitive("string"), "relativeOffsetSeconds": primitive("number"),
-    "geofence": schema(
-      [
-        "title": primitive("string"),
-        "latitude": .object(["type": "number", "minimum": -90, "maximum": 90]),
-        "longitude": .object(["type": "number", "minimum": -180, "maximum": 180]),
-        "radiusMeters": .object(["type": "number", "minimum": 0]),
-        "proximity": enumeration(["ARRIVE", "DEPART"]),
-      ], required: ["latitude", "longitude", "radiusMeters", "proximity"]),
-  ])
+  let alarmInput = schema(
+    [
+      "absoluteDate": primitive("string"), "relativeOffsetSeconds": primitive("number"),
+      "geofence": schema(
+        [
+          "title": primitive("string"),
+          "latitude": .object(["type": "number", "minimum": -90, "maximum": 90]),
+          "longitude": .object(["type": "number", "minimum": -180, "maximum": 180]),
+          "radiusMeters": .object(["type": "number", "minimum": 0]),
+          "proximity": enumeration(["ARRIVE", "DEPART"]),
+        ], required: ["latitude", "longitude", "radiusMeters", "proximity"], as: "GeofenceInput"),
+    ], as: "ReminderAlarmInput")
   var writeFields = Dictionary(
     uniqueKeysWithValues: [
       "name", "body", "location", "url", "dueDate", "allDayDueDate", "startDate", "allDayStartDate",
@@ -238,7 +271,7 @@ private func toolsCatalog() -> [Tool] {
   writeFields["timeZone"] = primitive("string")
   writeFields["flagged"] = primitive("boolean")
   writeFields["remindMeDate"] = primitive("string")
-  writeFields["recurrence"] = schema(schedule, required: ["frequency", "interval"])
+  writeFields["recurrence"] = rule
   var createFields = writeFields
   createFields["listId"] = primitive("string")
   writeFields["completed"] = primitive("boolean")
@@ -248,14 +281,14 @@ private func toolsCatalog() -> [Tool] {
     readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
   let changed = Tool.Annotations(
     readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
-  let listPatch = schema([
-    "name": primitive("string"), "color": primitive("string"), "emblem": primitive("string"),
-  ])
+  let listPatch = schema(
+    ["name": primitive("string"), "color": primitive("string"), "emblem": primitive("string")],
+    as: "ListPatch")
   let listCreate = schema(
     [
       "name": primitive("string"), "accountId": primitive("string"), "color": primitive("string"),
       "emblem": primitive("string"),
-    ], required: ["name", "accountId"])
+    ], required: ["name", "accountId"], as: "CreateListInput")
   let navigation = Tool.Annotations(
     readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
   return [
@@ -281,7 +314,8 @@ private func toolsCatalog() -> [Tool] {
           "id": primitive("string"),
           "allowNonEmpty": .object(["type": "boolean", "default": false]),
         ], required: ["id"]), annotations: changed,
-      outputSchema: schema(["deletedId": primitive("string")], required: ["deletedId"])),
+      outputSchema: schema(
+        ["deletedId": primitive("string")], required: ["deletedId"], as: "DeleteResult")),
     Tool(
       name: "reminders_show",
       description: "Show a reminder in Reminders. Changes the application UI, not reminder data.",
@@ -296,21 +330,24 @@ private func toolsCatalog() -> [Tool] {
       name: "reminders_create",
       description:
         "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
-      inputSchema: schema(createFields, required: ["name"]), annotations: created,
+      inputSchema: schema(createFields, required: ["name"], as: "CreateReminderInput"),
+      annotations: created,
       outputSchema: schema(["reminder": item], required: ["reminder"])),
     Tool(
       name: "reminders_update",
       description:
         "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch before retrying.",
       inputSchema: schema(
-        ["id": primitive("string"), "patch": schema(writeFields)], required: ["id", "patch"]),
+        ["id": primitive("string"), "patch": schema(writeFields, as: "ReminderPatch")],
+        required: ["id", "patch"]),
       annotations: changed, outputSchema: schema(["reminder": item], required: ["reminder"])),
     Tool(
       name: "reminders_delete",
       description:
         "Delete one reminder. Missing IDs return a NOT_FOUND tool error. Refetch before retrying after uncertain failures.",
       inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: changed,
-      outputSchema: schema(["deletedId": primitive("string")], required: ["deletedId"])),
+      outputSchema: schema(
+        ["deletedId": primitive("string")], required: ["deletedId"], as: "DeleteResult")),
     Tool(
       name: "accounts_get",
       description:
@@ -341,7 +378,9 @@ private func toolsCatalog() -> [Tool] {
         "Count all reminders per accessible list, optionally restricted to listId. Counts overlap and include completed items except overdue.",
       inputSchema: schema(["listId": primitive("string")]), annotations: annotations,
       outputSchema: schema(
-        ["items": array(schema(summary, required: counts + ["listId"]))], required: ["items"])),
+        [
+          "items": array(schema(summary, required: counts + ["listId"], as: "ListSummary"))
+        ], required: ["items"])),
     Tool(
       name: "lists_list",
       description:
@@ -351,7 +390,7 @@ private func toolsCatalog() -> [Tool] {
         [
           "items": array(list), "totalCount": primitive("integer"),
           "nextCursor": primitive("string"),
-        ], required: ["items", "totalCount"])),
+        ], required: ["items", "totalCount"], as: "ListPage")),
     Tool(
       name: "reminders_search",
       description:
@@ -361,7 +400,7 @@ private func toolsCatalog() -> [Tool] {
         [
           "items": array(item), "totalCount": primitive("integer"),
           "nextCursor": primitive("string"),
-        ], required: ["items", "totalCount"])),
+        ], required: ["items", "totalCount"], as: "ReminderPage")),
     Tool(
       name: "reminders_get",
       description:

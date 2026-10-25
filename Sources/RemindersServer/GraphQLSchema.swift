@@ -162,6 +162,21 @@ let geofenceDescriptions = [
   "proximity": "Whether entering or leaving the region triggers the alert.",
 ]
 
+// Field descriptions by type name; the MCP catalog reuses them for matching fields.
+func graphQLFieldDescriptions() throws -> [String: [String: String]] {
+  var result: [String: [String: String]] = [:]
+  for (name, type) in try makeSchema().typeMap {
+    var fields: [String: String] = [:]
+    if let type = type as? GraphQLObjectType {
+      for (key, field) in try type.fields() { fields[key] = field.description }
+    } else if let type = type as? GraphQLInputObjectType {
+      for (key, field) in try type.fields() { fields[key] = field.description }
+    }
+    if !fields.isEmpty { result[name] = fields }
+  }
+  return result
+}
+
 func makeSchema() throws -> GraphQLSchema {
   let account = try GraphQLObjectType(
     name: "Account",
@@ -219,6 +234,8 @@ func makeSchema() throws -> GraphQLSchema {
 
   let components = try GraphQLObjectType(
     name: "DateComponents",
+    description:
+      "Stored calendar components; null fields are unset. An hour marks a timed date, and a null timeZone means floating.",
     fields: GraphQLFieldMap(
       uniqueKeysWithValues: [
         "era", "year", "month", "day", "hour", "minute", "second", "nanosecond", "weekday",
@@ -240,7 +257,14 @@ func makeSchema() throws -> GraphQLSchema {
           )
         }))
   }
-  let dueStatus = try enumeration("DueStatus", DueStatus.allCases.map(\.rawValue))
+  let dueStatus = try enumeration(
+    "DueStatus", DueStatus.allCases.map(\.rawValue),
+    descriptions: [
+      "OVERDUE": "A timed deadline has passed, or an all-day deadline is before today.",
+      "TODAY": "The deadline falls today and has not passed.",
+      "FUTURE": "The deadline falls after today.", "UNSCHEDULED": "No due date.",
+      "UNKNOWN": "The due date cannot be classified.",
+    ])
   let direction = try enumeration(
     "SortDirection", ["ASC", "DESC"],
     descriptions: ["ASC": "Smallest or earliest first.", "DESC": "Largest or latest first."])
@@ -290,15 +314,28 @@ func makeSchema() throws -> GraphQLSchema {
   let structuredLocation = try GraphQLObjectType(
     name: "StructuredLocation",
     fields: [
-      "title": field(GraphQLString), "latitude": field(GraphQLFloat),
-      "longitude": field(GraphQLFloat), "radius": field(GraphQLNonNull(GraphQLFloat)),
+      "title": field(GraphQLString, description: "Display name of the location."),
+      "latitude": field(GraphQLFloat, description: "Latitude in degrees, when set."),
+      "longitude": field(GraphQLFloat, description: "Longitude in degrees, when set."),
+      "radius": field(
+        GraphQLNonNull(GraphQLFloat),
+        description: "Radius in meters; zero means the system default."
+      ),
     ])
   let alarm = try GraphQLObjectType(
     name: "RawAlarm",
+    description: "An alarm exactly as stored.",
     fields: [
-      "absoluteDate": field(dateTime), "relativeOffset": field(GraphQLNonNull(GraphQLFloat)),
-      "proximity": field(GraphQLNonNull(GraphQLString)),
-      "structuredLocation": field(structuredLocation),
+      "absoluteDate": field(dateTime, description: "Absolute trigger time, when set."),
+      "relativeOffset": field(
+        GraphQLNonNull(GraphQLFloat),
+        description:
+          "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers."
+      ),
+      "proximity": field(
+        GraphQLNonNull(GraphQLString), description: "none, enter, leave, or unknown."),
+      "structuredLocation": field(
+        structuredLocation, description: "The location of a geofence trigger, when set."),
     ])
   let proximity = try enumeration(
     "GeofenceProximity", ["ARRIVE", "DEPART"],
@@ -347,24 +384,41 @@ func makeSchema() throws -> GraphQLSchema {
   let recurrenceDay = try GraphQLObjectType(
     name: "RecurrenceDay",
     fields: [
-      "dayOfTheWeek": field(GraphQLNonNull(GraphQLInt)),
-      "weekNumber": field(GraphQLNonNull(GraphQLInt)),
+      "dayOfTheWeek": field(GraphQLNonNull(GraphQLInt), description: "Weekday, Sunday = 1."),
+      "weekNumber": field(
+        GraphQLNonNull(GraphQLInt), description: "Signed ordinal; zero means every occurrence."),
     ])
   let recurrenceEnd = try GraphQLObjectType(
     name: "RecurrenceEnd",
-    fields: ["endDate": field(dateTime), "occurrenceCount": field(GraphQLNonNull(GraphQLInt))])
+    fields: [
+      "endDate": field(dateTime, description: "End timestamp, when set."),
+      "occurrenceCount": field(
+        GraphQLNonNull(GraphQLInt), description: "Number of occurrences; zero when unset."),
+    ])
   var recurrenceFields: GraphQLFieldMap = [
-    "frequency": field(GraphQLNonNull(GraphQLString)),
-    "calendarIdentifier": field(GraphQLNonNull(GraphQLString)),
-    "interval": field(GraphQLNonNull(GraphQLInt)),
-    "firstDayOfTheWeek": field(GraphQLNonNull(GraphQLInt)),
-    "daysOfTheWeek": field(GraphQLNonNull(GraphQLList(GraphQLNonNull(recurrenceDay)))),
-    "end": field(recurrenceEnd),
+    "frequency": field(
+      GraphQLNonNull(GraphQLString), description: "daily, weekly, monthly, yearly, or unknown."),
+    "calendarIdentifier": field(
+      GraphQLNonNull(GraphQLString), description: "Calendar the rule is evaluated in."),
+    "interval": field(
+      GraphQLNonNull(GraphQLInt), description: "Frequency units between occurrences."),
+    "firstDayOfTheWeek": field(
+      GraphQLNonNull(GraphQLInt), description: "First day of the week, Sunday = 1; zero is unset."),
+    "daysOfTheWeek": field(
+      GraphQLNonNull(GraphQLList(GraphQLNonNull(recurrenceDay))),
+      description: "Weekday constraints; empty when unconstrained."),
+    "end": field(recurrenceEnd, description: "When repetition stops; null for no end."),
   ]
   for name in [
     "daysOfTheMonth", "daysOfTheYear", "weeksOfTheYear", "monthsOfTheYear", "setPositions",
-  ] { recurrenceFields[name] = field(GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLInt)))) }
-  let recurrence = try GraphQLObjectType(name: "RecurrenceRule", fields: recurrenceFields)
+  ] {
+    recurrenceFields[name] = field(
+      GraphQLNonNull(GraphQLList(GraphQLNonNull(GraphQLInt))),
+      description: "Selector values; empty when unconstrained.")
+  }
+  let recurrence = try GraphQLObjectType(
+    name: "RecurrenceRule", description: "A recurrence rule exactly as stored.",
+    fields: recurrenceFields)
   let frequency = try enumeration(
     "RecurrenceFrequency", ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
     descriptions: [
@@ -466,14 +520,20 @@ func makeSchema() throws -> GraphQLSchema {
         description:
           "The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable."
       ),
-      "listId": field(GraphQLID),
+      "listId": field(GraphQLID, description: "Identifier of the owning list."),
       "url": field(
         url,
         description:
           "An associated absolute URL; does not promise a rich-link preview in Reminders."),
-      "startDateComponents": field(components), "dueDateComponents": field(components),
-      "dueStatus": field(GraphQLNonNull(dueStatus)),
-      "rawAlarms": field(GraphQLNonNull(GraphQLList(GraphQLNonNull(alarm))), key: "alarms"),
+      "startDateComponents": field(components, description: "The stored start date components."),
+      "dueDateComponents": field(components, description: "The stored due date components."),
+      "dueStatus": field(
+        GraphQLNonNull(dueStatus), description: "Deadline status, independent of completion."),
+      "rawAlarms": field(
+        GraphQLNonNull(GraphQLList(GraphQLNonNull(alarm))), key: "alarms",
+        description:
+          "Alarms exactly as stored, including triggers the alarms union cannot represent."
+      ),
       "alarms": GraphQLField(
         type: GraphQLList(GraphQLNonNull(alarmUnion)),
         description:
@@ -481,7 +541,10 @@ func makeSchema() throws -> GraphQLSchema {
         resolve: { source, _, _, _ in
           guard let source = source as? Map else { return nil }
           return try alarmProjections(source)
-        }), "recurrenceRules": field(GraphQLNonNull(GraphQLList(GraphQLNonNull(recurrence)))),
+        }),
+      "recurrenceRules": field(
+        GraphQLNonNull(GraphQLList(GraphQLNonNull(recurrence))),
+        description: "Recurrence rules exactly as stored; empty when none."),
       "recurrence": GraphQLField(
         type: schedule,
         description:
@@ -585,8 +648,13 @@ func makeSchema() throws -> GraphQLSchema {
     name: "ListSummary",
     fields: GraphQLFieldMap(
       uniqueKeysWithValues: [
-        "total", "completed", "incomplete", "overdue", "scheduled", "recurring", "withAlarms",
-      ].map { ($0, field(GraphQLNonNull(GraphQLInt))) }))
+        ("total", "All reminders in the list, including completed ones."),
+        ("completed", "Completed reminders."), ("incomplete", "Incomplete reminders."),
+        ("overdue", "Incomplete reminders whose deadline has passed."),
+        ("scheduled", "Reminders with a due date, including completed ones."),
+        ("recurring", "Reminders with recurrence rules, including completed ones."),
+        ("withAlarms", "Reminders with alarms, including completed ones."),
+      ].map { ($0.0, field(GraphQLNonNull(GraphQLInt), description: $0.1)) }))
   let listContainer = try GraphQLUnionType(
     name: "ListContainer", resolveType: resolveTypename, types: [account, list])
   let reminderContainer = try GraphQLUnionType(
@@ -653,7 +721,7 @@ func makeSchema() throws -> GraphQLSchema {
       "The account or parent list containing this list. \(automationNote)"
   )
   listFields["account"] = GraphQLField(
-    type: account,
+    type: account, description: "The account that owns the list.",
     resolve: { source, _, context, _ in
       guard let source = source as? Map else { return nil }
       let id = try source["source"]["id"].stringValue()
@@ -669,7 +737,7 @@ func makeSchema() throws -> GraphQLSchema {
         remindersData(context), args: args, context: context, scope: [source["id"].stringValue()])
     })
   listFields["summary"] = GraphQLField(
-    type: summary,
+    type: summary, description: "Reminder counts for the whole list, regardless of pagination.",
     resolve: { source, _, context, _ in
       guard let source = source as? Map else { return nil }
       return try await graphMap(
@@ -683,7 +751,7 @@ func makeSchema() throws -> GraphQLSchema {
       "The list or parent reminder containing this reminder. \(automationNote)"
   )
   reminderFields["list"] = GraphQLField(
-    type: list,
+    type: list, description: "The owning list.",
     resolve: { source, _, context, _ in
       guard let source = source as? Map, let id = try? source["listId"].stringValue() else {
         return nil

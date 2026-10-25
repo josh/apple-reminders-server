@@ -180,6 +180,10 @@ type ReminderList {
   The account or parent list containing this list. Read through Reminders automation, which may need Automation permission.
   """
   container: ListContainer
+
+  """
+  The account that owns the list.
+  """
   account: Account
 
   """
@@ -191,6 +195,10 @@ type ReminderList {
     orderBy: ReminderOrder
     filter: ReminderFilter
   ): ReminderPage
+
+  """
+  Reminder counts for the whole list, regardless of pagination.
+  """
   summary: ListSummary
 }
 
@@ -308,10 +316,29 @@ RFC 3339 timestamp with an explicit offset, serialized in UTC.
 scalar DateTime
 
 enum DueStatus {
+  """
+  A timed deadline has passed, or an all-day deadline is before today.
+  """
   OVERDUE
+
+  """
+  The deadline falls today and has not passed.
+  """
   TODAY
+
+  """
+  The deadline falls after today.
+  """
   FUTURE
+
+  """
+  No due date.
+  """
   UNSCHEDULED
+
+  """
+  The due date cannot be classified.
+  """
   UNKNOWN
 }
 
@@ -382,21 +409,45 @@ type Reminder {
   The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable.
   """
   dueDay: String
+
+  """
+  Identifier of the owning list.
+  """
   listId: ID
 
   """
   An associated absolute URL; does not promise a rich-link preview in Reminders.
   """
   url: URL
+
+  """
+  The stored start date components.
+  """
   startDateComponents: DateComponents
+
+  """
+  The stored due date components.
+  """
   dueDateComponents: DateComponents
+
+  """
+  Deadline status, independent of completion.
+  """
   dueStatus: DueStatus!
+
+  """
+  Alarms exactly as stored, including triggers the alarms union cannot represent.
+  """
   rawAlarms: [RawAlarm!]!
 
   """
   Configured alerts. An empty list means no alerts; null indicates a read failure or a trigger this union cannot represent, and rawAlarms holds the stored values.
   """
   alarms: [ReminderAlarm!]
+
+  """
+  Recurrence rules exactly as stored; empty when none.
+  """
   recurrenceRules: [RecurrenceRule!]!
 
   """
@@ -443,6 +494,10 @@ type Reminder {
   The list or parent reminder containing this reminder. Read through Reminders automation, which may need Automation permission.
   """
   container: ReminderContainer
+
+  """
+  The owning list.
+  """
   list: ReminderList
 }
 
@@ -451,6 +506,9 @@ Absolute URL serialized as a string.
 """
 scalar URL
 
+"""
+Stored calendar components; null fields are unset. An hour marks a timed date, and a null timeZone means floating.
+"""
 type DateComponents {
   era: Int
   year: Int
@@ -471,17 +529,50 @@ type DateComponents {
   isLeapMonth: Boolean
 }
 
+"""
+An alarm exactly as stored.
+"""
 type RawAlarm {
+  """
+  Absolute trigger time, when set.
+  """
   absoluteDate: DateTime
+
+  """
+  Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.
+  """
   relativeOffset: Float!
+
+  """
+  none, enter, leave, or unknown.
+  """
   proximity: String!
+
+  """
+  The location of a geofence trigger, when set.
+  """
   structuredLocation: StructuredLocation
 }
 
 type StructuredLocation {
+  """
+  Display name of the location.
+  """
   title: String
+
+  """
+  Latitude in degrees, when set.
+  """
   latitude: Float
+
+  """
+  Longitude in degrees, when set.
+  """
   longitude: Float
+
+  """
+  Radius in meters; zero means the system default.
+  """
   radius: Float!
 }
 
@@ -547,27 +638,87 @@ enum GeofenceProximity {
   DEPART
 }
 
+"""
+A recurrence rule exactly as stored.
+"""
 type RecurrenceRule {
+  """
+  daily, weekly, monthly, yearly, or unknown.
+  """
   frequency: String!
+
+  """
+  Calendar the rule is evaluated in.
+  """
   calendarIdentifier: String!
+
+  """
+  Frequency units between occurrences.
+  """
   interval: Int!
+
+  """
+  First day of the week, Sunday = 1; zero is unset.
+  """
   firstDayOfTheWeek: Int!
+
+  """
+  Weekday constraints; empty when unconstrained.
+  """
   daysOfTheWeek: [RecurrenceDay!]!
+
+  """
+  When repetition stops; null for no end.
+  """
   end: RecurrenceEnd
+
+  """
+  Selector values; empty when unconstrained.
+  """
   daysOfTheMonth: [Int!]!
+
+  """
+  Selector values; empty when unconstrained.
+  """
   daysOfTheYear: [Int!]!
+
+  """
+  Selector values; empty when unconstrained.
+  """
   weeksOfTheYear: [Int!]!
+
+  """
+  Selector values; empty when unconstrained.
+  """
   monthsOfTheYear: [Int!]!
+
+  """
+  Selector values; empty when unconstrained.
+  """
   setPositions: [Int!]!
 }
 
 type RecurrenceDay {
+  """
+  Weekday, Sunday = 1.
+  """
   dayOfTheWeek: Int!
+
+  """
+  Signed ordinal; zero means every occurrence.
+  """
   weekNumber: Int!
 }
 
 type RecurrenceEnd {
+  """
+  End timestamp, when set.
+  """
   endDate: DateTime
+
+  """
+  Number of occurrences; zero when unset.
+  """
   occurrenceCount: Int!
 }
 
@@ -731,12 +882,39 @@ type PageInfo {
 }
 
 type ListSummary {
+  """
+  All reminders in the list, including completed ones.
+  """
   total: Int!
+
+  """
+  Completed reminders.
+  """
   completed: Int!
+
+  """
+  Incomplete reminders.
+  """
   incomplete: Int!
+
+  """
+  Incomplete reminders whose deadline has passed.
+  """
   overdue: Int!
+
+  """
+  Reminders with a due date, including completed ones.
+  """
   scheduled: Int!
+
+  """
+  Reminders with recurrence rules, including completed ones.
+  """
   recurring: Int!
+
+  """
+  Reminders with alarms, including completed ones.
+  """
   withAlarms: Int!
 }
 
@@ -1160,6 +1338,13 @@ enum ReminderClearField {
 }
 
 type ClearCompletedResult {
+  """
+  The list whose completed reminders were deleted.
+  """
   listId: ID!
+
+  """
+  Number of completed reminders deleted.
+  """
   deletedCount: Int!
 }

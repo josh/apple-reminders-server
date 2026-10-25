@@ -12,15 +12,19 @@
         "additionalProperties": false,
         "properties": {
           "accountId": {
+            "description": "Account in which to create the list.",
             "type": "string"
           },
           "color": {
+            "description": "Opaque sRGB list color: #RRGGBB or #RRGGBBFF.",
             "type": "string"
           },
           "emblem": {
+            "description": "Emblem icon name.",
             "type": "string"
           },
           "name": {
+            "description": "Name of the new list.",
             "type": "string"
           }
         },
@@ -35,15 +39,19 @@
             "additionalProperties": false,
             "properties": {
               "allowsContentModifications": {
+                "description": "Whether reminders can be added, edited, and deleted in this list.",
                 "type": "boolean"
               },
               "allowsListModifications": {
+                "description": "Whether the list's own properties can be edited and the list deleted.",
                 "type": "boolean"
               },
               "color": {
+                "description": "The color of the list as an sRGB #RRGGBBAA hex string.",
                 "type": "string"
               },
               "id": {
+                "description": "Unique identifier of the list. Treat this value as opaque.",
                 "type": "string"
               },
               "isImmutable": {
@@ -53,6 +61,7 @@
                 "type": "boolean"
               },
               "name": {
+                "description": "The name of the list.",
                 "type": "string"
               },
               "source": {
@@ -72,6 +81,7 @@
                 "type": "object"
               },
               "subscribed": {
+                "description": "Whether the list is a subscription.",
                 "type": "boolean"
               }
             },
@@ -108,12 +118,15 @@
             "additionalProperties": false,
             "properties": {
               "color": {
+                "description": "The new opaque sRGB list color: #RRGGBB or #RRGGBBFF.",
                 "type": "string"
               },
               "emblem": {
+                "description": "The new emblem icon name for the list.",
                 "type": "string"
               },
               "name": {
+                "description": "The new name of the list.",
                 "type": "string"
               }
             },
@@ -132,15 +145,19 @@
             "additionalProperties": false,
             "properties": {
               "allowsContentModifications": {
+                "description": "Whether reminders can be added, edited, and deleted in this list.",
                 "type": "boolean"
               },
               "allowsListModifications": {
+                "description": "Whether the list's own properties can be edited and the list deleted.",
                 "type": "boolean"
               },
               "color": {
+                "description": "The color of the list as an sRGB #RRGGBBAA hex string.",
                 "type": "string"
               },
               "id": {
+                "description": "Unique identifier of the list. Treat this value as opaque.",
                 "type": "string"
               },
               "isImmutable": {
@@ -150,6 +167,7 @@
                 "type": "boolean"
               },
               "name": {
+                "description": "The name of the list.",
                 "type": "string"
               },
               "source": {
@@ -169,6 +187,7 @@
                 "type": "object"
               },
               "subscribed": {
+                "description": "Whether the list is a subscription.",
                 "type": "boolean"
               }
             },
@@ -214,6 +233,7 @@
         "additionalProperties": false,
         "properties": {
           "deletedId": {
+            "description": "The deleted object's identifier.",
             "type": "string"
           }
         },
@@ -247,12 +267,14 @@
             "additionalProperties": false,
             "properties": {
               "alarms": {
+                "description": "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
                 "items": {
                   "oneOf": [
                     {
                       "additionalProperties": false,
                       "properties": {
                         "at": {
+                          "description": "The date and time at which the alert triggers.",
                           "type": "string"
                         },
                         "kind": {
@@ -271,6 +293,7 @@
                           "type": "string"
                         },
                         "offsetSeconds": {
+                          "description": "Seconds from the start date: negative before, zero at, positive after.",
                           "type": "number"
                         }
                       },
@@ -282,21 +305,27 @@
                       "properties": {
                         "geofence": {
                           "additionalProperties": false,
+                          "description": "Region and direction that trigger the alert.",
                           "properties": {
                             "latitude": {
+                              "description": "Latitude in degrees, between -90 and 90.",
                               "type": "number"
                             },
                             "longitude": {
+                              "description": "Longitude in degrees, between -180 and 180.",
                               "type": "number"
                             },
                             "proximity": {
+                              "description": "Whether entering or leaving the region triggers the alert.",
                               "enum": ["ARRIVE", "DEPART"],
                               "type": "string"
                             },
                             "radiusMeters": {
+                              "description": "Radius in meters. Zero requests the system default; positive values request a minimum radius.",
                               "type": "number"
                             },
                             "title": {
+                              "description": "Optional display name of the location.",
                               "type": "string"
                             }
                           },
@@ -328,7 +357,8 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The calendar date on which the reminder is due, without a time of day."
               },
               "allDayStartDate": {
                 "anyOf": [
@@ -338,18 +368,23 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "A date-only start, without a time of day."
               },
               "body": {
+                "description": "The notes attached to the reminder.",
                 "type": "string"
               },
               "completed": {
+                "description": "Whether the reminder is marked completed.",
                 "type": "boolean"
               },
               "completionDate": {
+                "description": "The date and time the reminder was completed.",
                 "type": "string"
               },
               "creationDate": {
+                "description": "The date and time the reminder was created.",
                 "type": "string"
               },
               "dueDate": {
@@ -360,10 +395,12 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The date and time by which the reminder is due."
               },
               "dueDateComponents": {
                 "additionalProperties": false,
+                "description": "The stored due date components.",
                 "properties": {
                   "calendar": {
                     "type": "string"
@@ -428,9 +465,11 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable."
               },
               "dueStatus": {
+                "description": "Deadline status, independent of completion.",
                 "enum": [
                   "overdue",
                   "today",
@@ -448,50 +487,65 @@
                 "type": "boolean"
               },
               "id": {
+                "description": "Unique identifier of the reminder. Treat this value as opaque.",
                 "type": "string"
               },
               "listId": {
+                "description": "Identifier of the owning list.",
                 "type": "string"
               },
               "location": {
+                "description": "Descriptive location text, separate from location-triggered alarms.",
                 "type": "string"
               },
               "modificationDate": {
+                "description": "The date and time the reminder was last modified.",
                 "type": "string"
               },
               "name": {
+                "description": "The name of the reminder.",
                 "type": "string"
               },
               "priority": {
+                "description": "The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low.",
                 "type": "integer"
               },
               "rawAlarms": {
+                "description": "Alarms exactly as stored, including triggers the alarms union cannot represent.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "absoluteDate": {
+                      "description": "Absolute trigger time, when set.",
                       "type": "string"
                     },
                     "proximity": {
+                      "description": "none, enter, leave, or unknown.",
                       "enum": ["none", "enter", "leave", "unknown"],
                       "type": "string"
                     },
                     "relativeOffset": {
+                      "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                       "type": "number"
                     },
                     "structuredLocation": {
                       "additionalProperties": false,
+                      "description": "The location of a geofence trigger, when set.",
                       "properties": {
                         "latitude": {
+                          "description": "Latitude in degrees, when set.",
                           "type": "number"
                         },
                         "longitude": {
+                          "description": "Longitude in degrees, when set.",
                           "type": "number"
                         },
                         "radius": {
+                          "description": "Radius in meters; zero means the system default.",
                           "type": "number"
                         },
                         "title": {
+                          "description": "Display name of the location.",
                           "type": "string"
                         }
                       },
@@ -510,16 +564,19 @@
                     "additionalProperties": false,
                     "properties": {
                       "daysOfMonth": {
+                        "description": "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "daysOfWeek": {
+                        "description": "Weekday constraints. Null means unconstrained. Not allowed for daily rules.",
                         "items": {
                           "additionalProperties": false,
                           "properties": {
                             "day": {
+                              "description": "The weekday to match.",
                               "enum": [
                                 "SUNDAY",
                                 "MONDAY",
@@ -532,6 +589,7 @@
                               "type": "string"
                             },
                             "ordinal": {
+                              "description": "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.",
                               "type": "integer"
                             }
                           },
@@ -541,6 +599,7 @@
                         "type": "array"
                       },
                       "daysOfYear": {
+                        "description": "Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
@@ -548,11 +607,14 @@
                       },
                       "end": {
                         "additionalProperties": false,
+                        "description": "When repetition stops; null means no specified end.",
                         "properties": {
                           "count": {
+                            "description": "Positive number of occurrences; mutually exclusive with until.",
                             "type": "integer"
                           },
                           "until": {
+                            "description": "Inclusive end timestamp; mutually exclusive with count.",
                             "type": "string"
                           }
                         },
@@ -560,25 +622,30 @@
                         "type": "object"
                       },
                       "frequency": {
+                        "description": "The unit of repetition.",
                         "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
                         "type": "string"
                       },
                       "interval": {
+                        "description": "Positive number of frequency units between occurrences.",
                         "type": "integer"
                       },
                       "monthsOfYear": {
+                        "description": "Months 1..12. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "setPositions": {
+                        "description": "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "weeksOfYear": {
+                        "description": "Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
@@ -591,29 +658,36 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "A single repeating schedule; null when no recurrence is configured. recurrenceRules holds the stored rules."
               },
               "recurrenceRules": {
+                "description": "Recurrence rules exactly as stored; empty when none.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "calendarIdentifier": {
+                      "description": "Calendar the rule is evaluated in.",
                       "type": "string"
                     },
                     "daysOfTheMonth": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "daysOfTheWeek": {
+                      "description": "Weekday constraints; empty when unconstrained.",
                       "items": {
                         "additionalProperties": false,
                         "properties": {
                           "dayOfTheWeek": {
+                            "description": "Weekday, Sunday = 1.",
                             "type": "integer"
                           },
                           "weekNumber": {
+                            "description": "Signed ordinal; zero means every occurrence.",
                             "type": "integer"
                           }
                         },
@@ -623,6 +697,7 @@
                       "type": "array"
                     },
                     "daysOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
@@ -630,11 +705,14 @@
                     },
                     "end": {
                       "additionalProperties": false,
+                      "description": "When repetition stops; null for no end.",
                       "properties": {
                         "endDate": {
+                          "description": "End timestamp, when set.",
                           "type": "string"
                         },
                         "occurrenceCount": {
+                          "description": "Number of occurrences; zero when unset.",
                           "type": "integer"
                         }
                       },
@@ -642,9 +720,11 @@
                       "type": "object"
                     },
                     "firstDayOfTheWeek": {
+                      "description": "First day of the week, Sunday = 1; zero is unset.",
                       "type": "integer"
                     },
                     "frequency": {
+                      "description": "daily, weekly, monthly, yearly, or unknown.",
                       "enum": [
                         "daily",
                         "weekly",
@@ -655,21 +735,25 @@
                       "type": "string"
                     },
                     "interval": {
+                      "description": "Frequency units between occurrences.",
                       "type": "integer"
                     },
                     "monthsOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "setPositions": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "weeksOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
@@ -700,10 +784,12 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The date and time at which work on the reminder starts."
               },
               "startDateComponents": {
                 "additionalProperties": false,
+                "description": "The stored start date components.",
                 "properties": {
                   "calendar": {
                     "type": "string"
@@ -768,9 +854,11 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "IANA time-zone identifier, or null for floating/local date interpretation."
               },
               "url": {
+                "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
                 "type": "string"
               }
             },
@@ -823,15 +911,19 @@
             "additionalProperties": false,
             "properties": {
               "allowsContentModifications": {
+                "description": "Whether reminders can be added, edited, and deleted in this list.",
                 "type": "boolean"
               },
               "allowsListModifications": {
+                "description": "Whether the list's own properties can be edited and the list deleted.",
                 "type": "boolean"
               },
               "color": {
+                "description": "The color of the list as an sRGB #RRGGBBAA hex string.",
                 "type": "string"
               },
               "id": {
+                "description": "Unique identifier of the list. Treat this value as opaque.",
                 "type": "string"
               },
               "isImmutable": {
@@ -841,6 +933,7 @@
                 "type": "boolean"
               },
               "name": {
+                "description": "The name of the list.",
                 "type": "string"
               },
               "source": {
@@ -860,6 +953,7 @@
                 "type": "object"
               },
               "subscribed": {
+                "description": "Whether the list is a subscription.",
                 "type": "boolean"
               }
             },
@@ -890,34 +984,42 @@
         "additionalProperties": false,
         "properties": {
           "alarms": {
+            "description": "Alerts to configure; omission or an empty list configures no explicit alerts.",
             "items": {
               "additionalProperties": false,
               "properties": {
                 "absoluteDate": {
+                  "description": "Trigger at this instant.",
                   "type": "string"
                 },
                 "geofence": {
                   "additionalProperties": false,
+                  "description": "Trigger on arrival at or departure from this region.",
                   "properties": {
                     "latitude": {
+                      "description": "Latitude in degrees, between -90 and 90.",
                       "maximum": 90,
                       "minimum": -90,
                       "type": "number"
                     },
                     "longitude": {
+                      "description": "Longitude in degrees, between -180 and 180.",
                       "maximum": 180,
                       "minimum": -180,
                       "type": "number"
                     },
                     "proximity": {
+                      "description": "Whether entering or leaving the region triggers the alert.",
                       "enum": ["ARRIVE", "DEPART"],
                       "type": "string"
                     },
                     "radiusMeters": {
+                      "description": "Radius in meters. Zero requests the system default; positive values request a minimum radius.",
                       "minimum": 0,
                       "type": "number"
                     },
                     "title": {
+                      "description": "Optional display name of the location.",
                       "type": "string"
                     }
                   },
@@ -930,6 +1032,7 @@
                   "type": "object"
                 },
                 "relativeOffsetSeconds": {
+                  "description": "Seconds from the reminder's start date; negative means before. Requires a resulting start date.",
                   "type": "number"
                 }
               },
@@ -939,48 +1042,61 @@
             "type": "array"
           },
           "allDayDueDate": {
+            "description": "A date-only deadline; mutually exclusive with dueDate.",
             "type": "string"
           },
           "allDayStartDate": {
+            "description": "Unsupported: date-only start writes are rejected because storage does not preserve them. Use startDate.",
             "type": "string"
           },
           "body": {
+            "description": "Notes to attach to the reminder.",
             "type": "string"
           },
           "dueDate": {
+            "description": "A deadline including a time of day.",
             "type": "string"
           },
           "flagged": {
+            "description": "Whether to flag the new reminder.",
             "type": "boolean"
           },
           "listId": {
+            "description": "Destination list; omission uses the default list. No default produces an error.",
             "type": "string"
           },
           "location": {
+            "description": "Descriptive location text, separate from location-triggered alarms.",
             "type": "string"
           },
           "name": {
+            "description": "Name of the new reminder.",
             "type": "string"
           },
           "priority": {
+            "description": "Priority from 0 through 9.",
             "maximum": 9,
             "minimum": 0,
             "type": "integer"
           },
           "recurrence": {
             "additionalProperties": false,
+            "description": "Repeating schedule; omission creates a non-repeating reminder.",
             "properties": {
               "daysOfMonth": {
+                "description": "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.",
                 "items": {
                   "type": "integer"
                 },
                 "type": "array"
               },
               "daysOfWeek": {
+                "description": "Weekday constraints. Null means unconstrained. Not allowed for daily rules.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "day": {
+                      "description": "The weekday to match.",
                       "enum": [
                         "SUNDAY",
                         "MONDAY",
@@ -993,6 +1109,7 @@
                       "type": "string"
                     },
                     "ordinal": {
+                      "description": "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.",
                       "type": "integer"
                     }
                   },
@@ -1002,6 +1119,7 @@
                 "type": "array"
               },
               "daysOfYear": {
+                "description": "Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.",
                 "items": {
                   "type": "integer"
                 },
@@ -1009,11 +1127,14 @@
               },
               "end": {
                 "additionalProperties": false,
+                "description": "When repetition stops; null means no specified end.",
                 "properties": {
                   "count": {
+                    "description": "Positive number of occurrences; mutually exclusive with until.",
                     "type": "integer"
                   },
                   "until": {
+                    "description": "Inclusive end timestamp; mutually exclusive with count.",
                     "type": "string"
                   }
                 },
@@ -1021,25 +1142,30 @@
                 "type": "object"
               },
               "frequency": {
+                "description": "The unit of repetition.",
                 "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
                 "type": "string"
               },
               "interval": {
+                "description": "Positive number of frequency units between occurrences.",
                 "type": "integer"
               },
               "monthsOfYear": {
+                "description": "Months 1..12. Yearly rules only.",
                 "items": {
                   "type": "integer"
                 },
                 "type": "array"
               },
               "setPositions": {
+                "description": "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.",
                 "items": {
                   "type": "integer"
                 },
                 "type": "array"
               },
               "weeksOfYear": {
+                "description": "Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.",
                 "items": {
                   "type": "integer"
                 },
@@ -1050,15 +1176,19 @@
             "type": "object"
           },
           "remindMeDate": {
+            "description": "Date and time at which to remind the user; cannot be combined with alarms, start, due, or timeZone.",
             "type": "string"
           },
           "startDate": {
+            "description": "The date and time at which work on the reminder starts. It cannot be later than the due date.",
             "type": "string"
           },
           "timeZone": {
+            "description": "IANA time-zone identifier for the start and due dates, which requires at least one of them; omission stores timed dates in UTC.",
             "type": "string"
           },
           "url": {
+            "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
             "type": "string"
           }
         },
@@ -1073,12 +1203,14 @@
             "additionalProperties": false,
             "properties": {
               "alarms": {
+                "description": "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
                 "items": {
                   "oneOf": [
                     {
                       "additionalProperties": false,
                       "properties": {
                         "at": {
+                          "description": "The date and time at which the alert triggers.",
                           "type": "string"
                         },
                         "kind": {
@@ -1097,6 +1229,7 @@
                           "type": "string"
                         },
                         "offsetSeconds": {
+                          "description": "Seconds from the start date: negative before, zero at, positive after.",
                           "type": "number"
                         }
                       },
@@ -1108,21 +1241,27 @@
                       "properties": {
                         "geofence": {
                           "additionalProperties": false,
+                          "description": "Region and direction that trigger the alert.",
                           "properties": {
                             "latitude": {
+                              "description": "Latitude in degrees, between -90 and 90.",
                               "type": "number"
                             },
                             "longitude": {
+                              "description": "Longitude in degrees, between -180 and 180.",
                               "type": "number"
                             },
                             "proximity": {
+                              "description": "Whether entering or leaving the region triggers the alert.",
                               "enum": ["ARRIVE", "DEPART"],
                               "type": "string"
                             },
                             "radiusMeters": {
+                              "description": "Radius in meters. Zero requests the system default; positive values request a minimum radius.",
                               "type": "number"
                             },
                             "title": {
+                              "description": "Optional display name of the location.",
                               "type": "string"
                             }
                           },
@@ -1154,7 +1293,8 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The calendar date on which the reminder is due, without a time of day."
               },
               "allDayStartDate": {
                 "anyOf": [
@@ -1164,18 +1304,23 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "A date-only start, without a time of day."
               },
               "body": {
+                "description": "The notes attached to the reminder.",
                 "type": "string"
               },
               "completed": {
+                "description": "Whether the reminder is marked completed.",
                 "type": "boolean"
               },
               "completionDate": {
+                "description": "The date and time the reminder was completed.",
                 "type": "string"
               },
               "creationDate": {
+                "description": "The date and time the reminder was created.",
                 "type": "string"
               },
               "dueDate": {
@@ -1186,10 +1331,12 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The date and time by which the reminder is due."
               },
               "dueDateComponents": {
                 "additionalProperties": false,
+                "description": "The stored due date components.",
                 "properties": {
                   "calendar": {
                     "type": "string"
@@ -1254,9 +1401,11 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable."
               },
               "dueStatus": {
+                "description": "Deadline status, independent of completion.",
                 "enum": [
                   "overdue",
                   "today",
@@ -1274,50 +1423,65 @@
                 "type": "boolean"
               },
               "id": {
+                "description": "Unique identifier of the reminder. Treat this value as opaque.",
                 "type": "string"
               },
               "listId": {
+                "description": "Identifier of the owning list.",
                 "type": "string"
               },
               "location": {
+                "description": "Descriptive location text, separate from location-triggered alarms.",
                 "type": "string"
               },
               "modificationDate": {
+                "description": "The date and time the reminder was last modified.",
                 "type": "string"
               },
               "name": {
+                "description": "The name of the reminder.",
                 "type": "string"
               },
               "priority": {
+                "description": "The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low.",
                 "type": "integer"
               },
               "rawAlarms": {
+                "description": "Alarms exactly as stored, including triggers the alarms union cannot represent.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "absoluteDate": {
+                      "description": "Absolute trigger time, when set.",
                       "type": "string"
                     },
                     "proximity": {
+                      "description": "none, enter, leave, or unknown.",
                       "enum": ["none", "enter", "leave", "unknown"],
                       "type": "string"
                     },
                     "relativeOffset": {
+                      "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                       "type": "number"
                     },
                     "structuredLocation": {
                       "additionalProperties": false,
+                      "description": "The location of a geofence trigger, when set.",
                       "properties": {
                         "latitude": {
+                          "description": "Latitude in degrees, when set.",
                           "type": "number"
                         },
                         "longitude": {
+                          "description": "Longitude in degrees, when set.",
                           "type": "number"
                         },
                         "radius": {
+                          "description": "Radius in meters; zero means the system default.",
                           "type": "number"
                         },
                         "title": {
+                          "description": "Display name of the location.",
                           "type": "string"
                         }
                       },
@@ -1336,16 +1500,19 @@
                     "additionalProperties": false,
                     "properties": {
                       "daysOfMonth": {
+                        "description": "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "daysOfWeek": {
+                        "description": "Weekday constraints. Null means unconstrained. Not allowed for daily rules.",
                         "items": {
                           "additionalProperties": false,
                           "properties": {
                             "day": {
+                              "description": "The weekday to match.",
                               "enum": [
                                 "SUNDAY",
                                 "MONDAY",
@@ -1358,6 +1525,7 @@
                               "type": "string"
                             },
                             "ordinal": {
+                              "description": "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.",
                               "type": "integer"
                             }
                           },
@@ -1367,6 +1535,7 @@
                         "type": "array"
                       },
                       "daysOfYear": {
+                        "description": "Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
@@ -1374,11 +1543,14 @@
                       },
                       "end": {
                         "additionalProperties": false,
+                        "description": "When repetition stops; null means no specified end.",
                         "properties": {
                           "count": {
+                            "description": "Positive number of occurrences; mutually exclusive with until.",
                             "type": "integer"
                           },
                           "until": {
+                            "description": "Inclusive end timestamp; mutually exclusive with count.",
                             "type": "string"
                           }
                         },
@@ -1386,25 +1558,30 @@
                         "type": "object"
                       },
                       "frequency": {
+                        "description": "The unit of repetition.",
                         "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
                         "type": "string"
                       },
                       "interval": {
+                        "description": "Positive number of frequency units between occurrences.",
                         "type": "integer"
                       },
                       "monthsOfYear": {
+                        "description": "Months 1..12. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "setPositions": {
+                        "description": "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "weeksOfYear": {
+                        "description": "Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
@@ -1417,29 +1594,36 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "A single repeating schedule; null when no recurrence is configured. recurrenceRules holds the stored rules."
               },
               "recurrenceRules": {
+                "description": "Recurrence rules exactly as stored; empty when none.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "calendarIdentifier": {
+                      "description": "Calendar the rule is evaluated in.",
                       "type": "string"
                     },
                     "daysOfTheMonth": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "daysOfTheWeek": {
+                      "description": "Weekday constraints; empty when unconstrained.",
                       "items": {
                         "additionalProperties": false,
                         "properties": {
                           "dayOfTheWeek": {
+                            "description": "Weekday, Sunday = 1.",
                             "type": "integer"
                           },
                           "weekNumber": {
+                            "description": "Signed ordinal; zero means every occurrence.",
                             "type": "integer"
                           }
                         },
@@ -1449,6 +1633,7 @@
                       "type": "array"
                     },
                     "daysOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
@@ -1456,11 +1641,14 @@
                     },
                     "end": {
                       "additionalProperties": false,
+                      "description": "When repetition stops; null for no end.",
                       "properties": {
                         "endDate": {
+                          "description": "End timestamp, when set.",
                           "type": "string"
                         },
                         "occurrenceCount": {
+                          "description": "Number of occurrences; zero when unset.",
                           "type": "integer"
                         }
                       },
@@ -1468,9 +1656,11 @@
                       "type": "object"
                     },
                     "firstDayOfTheWeek": {
+                      "description": "First day of the week, Sunday = 1; zero is unset.",
                       "type": "integer"
                     },
                     "frequency": {
+                      "description": "daily, weekly, monthly, yearly, or unknown.",
                       "enum": [
                         "daily",
                         "weekly",
@@ -1481,21 +1671,25 @@
                       "type": "string"
                     },
                     "interval": {
+                      "description": "Frequency units between occurrences.",
                       "type": "integer"
                     },
                     "monthsOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "setPositions": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "weeksOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
@@ -1526,10 +1720,12 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The date and time at which work on the reminder starts."
               },
               "startDateComponents": {
                 "additionalProperties": false,
+                "description": "The stored start date components.",
                 "properties": {
                   "calendar": {
                     "type": "string"
@@ -1594,9 +1790,11 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "IANA time-zone identifier, or null for floating/local date interpretation."
               },
               "url": {
+                "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
                 "type": "string"
               }
             },
@@ -1641,34 +1839,42 @@
             "additionalProperties": false,
             "properties": {
               "alarms": {
+                "description": "Replace all configured alerts. An empty list removes all alerts.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "absoluteDate": {
+                      "description": "Trigger at this instant.",
                       "type": "string"
                     },
                     "geofence": {
                       "additionalProperties": false,
+                      "description": "Trigger on arrival at or departure from this region.",
                       "properties": {
                         "latitude": {
+                          "description": "Latitude in degrees, between -90 and 90.",
                           "maximum": 90,
                           "minimum": -90,
                           "type": "number"
                         },
                         "longitude": {
+                          "description": "Longitude in degrees, between -180 and 180.",
                           "maximum": 180,
                           "minimum": -180,
                           "type": "number"
                         },
                         "proximity": {
+                          "description": "Whether entering or leaving the region triggers the alert.",
                           "enum": ["ARRIVE", "DEPART"],
                           "type": "string"
                         },
                         "radiusMeters": {
+                          "description": "Radius in meters. Zero requests the system default; positive values request a minimum radius.",
                           "minimum": 0,
                           "type": "number"
                         },
                         "title": {
+                          "description": "Optional display name of the location.",
                           "type": "string"
                         }
                       },
@@ -1681,6 +1887,7 @@
                       "type": "object"
                     },
                     "relativeOffsetSeconds": {
+                      "description": "Seconds from the reminder's start date; negative means before. Requires a resulting start date.",
                       "type": "number"
                     }
                   },
@@ -1690,15 +1897,19 @@
                 "type": "array"
               },
               "allDayDueDate": {
+                "description": "Set a date-only deadline. Cannot be combined with dueDate.",
                 "type": "string"
               },
               "allDayStartDate": {
+                "description": "Unsupported: date-only start writes are rejected because storage does not preserve them. Use startDate.",
                 "type": "string"
               },
               "body": {
+                "description": "The new notes attached to the reminder. An empty string removes the notes.",
                 "type": "string"
               },
               "clearFields": {
+                "description": "Remove these values. Omission preserves them; explicit null is rejected. Do not set and clear the same field, or clear both forms of one date.",
                 "items": {
                   "enum": [
                     "LOCATION",
@@ -1716,42 +1927,53 @@
                 "type": "array"
               },
               "completed": {
+                "description": "Whether to mark the reminder completed. Cannot be combined with completionDate changes.",
                 "type": "boolean"
               },
               "completionDate": {
+                "description": "Set the date and time the reminder was completed, which marks it completed. Cannot be combined with completed.",
                 "type": "string"
               },
               "dueDate": {
+                "description": "Set the due date and time. Cannot be combined with allDayDueDate.",
                 "type": "string"
               },
               "flagged": {
+                "description": "Set whether the reminder is flagged, independently of priority.",
                 "type": "boolean"
               },
               "location": {
+                "description": "Descriptive location text, separate from location-triggered alarms.",
                 "type": "string"
               },
               "name": {
+                "description": "The new name of the reminder.",
                 "type": "string"
               },
               "priority": {
+                "description": "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low.",
                 "maximum": 9,
                 "minimum": 0,
                 "type": "integer"
               },
               "recurrence": {
                 "additionalProperties": false,
+                "description": "Replace the repeating schedule. Use clearFields to stop repetition.",
                 "properties": {
                   "daysOfMonth": {
+                    "description": "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.",
                     "items": {
                       "type": "integer"
                     },
                     "type": "array"
                   },
                   "daysOfWeek": {
+                    "description": "Weekday constraints. Null means unconstrained. Not allowed for daily rules.",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
                         "day": {
+                          "description": "The weekday to match.",
                           "enum": [
                             "SUNDAY",
                             "MONDAY",
@@ -1764,6 +1986,7 @@
                           "type": "string"
                         },
                         "ordinal": {
+                          "description": "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.",
                           "type": "integer"
                         }
                       },
@@ -1773,6 +1996,7 @@
                     "type": "array"
                   },
                   "daysOfYear": {
+                    "description": "Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.",
                     "items": {
                       "type": "integer"
                     },
@@ -1780,11 +2004,14 @@
                   },
                   "end": {
                     "additionalProperties": false,
+                    "description": "When repetition stops; null means no specified end.",
                     "properties": {
                       "count": {
+                        "description": "Positive number of occurrences; mutually exclusive with until.",
                         "type": "integer"
                       },
                       "until": {
+                        "description": "Inclusive end timestamp; mutually exclusive with count.",
                         "type": "string"
                       }
                     },
@@ -1792,25 +2019,30 @@
                     "type": "object"
                   },
                   "frequency": {
+                    "description": "The unit of repetition.",
                     "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
                     "type": "string"
                   },
                   "interval": {
+                    "description": "Positive number of frequency units between occurrences.",
                     "type": "integer"
                   },
                   "monthsOfYear": {
+                    "description": "Months 1..12. Yearly rules only.",
                     "items": {
                       "type": "integer"
                     },
                     "type": "array"
                   },
                   "setPositions": {
+                    "description": "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.",
                     "items": {
                       "type": "integer"
                     },
                     "type": "array"
                   },
                   "weeksOfYear": {
+                    "description": "Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.",
                     "items": {
                       "type": "integer"
                     },
@@ -1821,15 +2053,19 @@
                 "type": "object"
               },
               "remindMeDate": {
+                "description": "Set the date and time at which to remind the user. Cannot be combined with date, time-zone, or alarm changes, or cleared.",
                 "type": "string"
               },
               "startDate": {
+                "description": "The date and time at which work on the reminder starts. It cannot be later than the due date.",
                 "type": "string"
               },
               "timeZone": {
+                "description": "Set an IANA time-zone identifier; requires a resulting start or due date. Use clearFields for floating/local interpretation.",
                 "type": "string"
               },
               "url": {
+                "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
                 "type": "string"
               }
             },
@@ -1848,12 +2084,14 @@
             "additionalProperties": false,
             "properties": {
               "alarms": {
+                "description": "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
                 "items": {
                   "oneOf": [
                     {
                       "additionalProperties": false,
                       "properties": {
                         "at": {
+                          "description": "The date and time at which the alert triggers.",
                           "type": "string"
                         },
                         "kind": {
@@ -1872,6 +2110,7 @@
                           "type": "string"
                         },
                         "offsetSeconds": {
+                          "description": "Seconds from the start date: negative before, zero at, positive after.",
                           "type": "number"
                         }
                       },
@@ -1883,21 +2122,27 @@
                       "properties": {
                         "geofence": {
                           "additionalProperties": false,
+                          "description": "Region and direction that trigger the alert.",
                           "properties": {
                             "latitude": {
+                              "description": "Latitude in degrees, between -90 and 90.",
                               "type": "number"
                             },
                             "longitude": {
+                              "description": "Longitude in degrees, between -180 and 180.",
                               "type": "number"
                             },
                             "proximity": {
+                              "description": "Whether entering or leaving the region triggers the alert.",
                               "enum": ["ARRIVE", "DEPART"],
                               "type": "string"
                             },
                             "radiusMeters": {
+                              "description": "Radius in meters. Zero requests the system default; positive values request a minimum radius.",
                               "type": "number"
                             },
                             "title": {
+                              "description": "Optional display name of the location.",
                               "type": "string"
                             }
                           },
@@ -1929,7 +2174,8 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The calendar date on which the reminder is due, without a time of day."
               },
               "allDayStartDate": {
                 "anyOf": [
@@ -1939,18 +2185,23 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "A date-only start, without a time of day."
               },
               "body": {
+                "description": "The notes attached to the reminder.",
                 "type": "string"
               },
               "completed": {
+                "description": "Whether the reminder is marked completed.",
                 "type": "boolean"
               },
               "completionDate": {
+                "description": "The date and time the reminder was completed.",
                 "type": "string"
               },
               "creationDate": {
+                "description": "The date and time the reminder was created.",
                 "type": "string"
               },
               "dueDate": {
@@ -1961,10 +2212,12 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The date and time by which the reminder is due."
               },
               "dueDateComponents": {
                 "additionalProperties": false,
+                "description": "The stored due date components.",
                 "properties": {
                   "calendar": {
                     "type": "string"
@@ -2029,9 +2282,11 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable."
               },
               "dueStatus": {
+                "description": "Deadline status, independent of completion.",
                 "enum": [
                   "overdue",
                   "today",
@@ -2049,50 +2304,65 @@
                 "type": "boolean"
               },
               "id": {
+                "description": "Unique identifier of the reminder. Treat this value as opaque.",
                 "type": "string"
               },
               "listId": {
+                "description": "Identifier of the owning list.",
                 "type": "string"
               },
               "location": {
+                "description": "Descriptive location text, separate from location-triggered alarms.",
                 "type": "string"
               },
               "modificationDate": {
+                "description": "The date and time the reminder was last modified.",
                 "type": "string"
               },
               "name": {
+                "description": "The name of the reminder.",
                 "type": "string"
               },
               "priority": {
+                "description": "The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low.",
                 "type": "integer"
               },
               "rawAlarms": {
+                "description": "Alarms exactly as stored, including triggers the alarms union cannot represent.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "absoluteDate": {
+                      "description": "Absolute trigger time, when set.",
                       "type": "string"
                     },
                     "proximity": {
+                      "description": "none, enter, leave, or unknown.",
                       "enum": ["none", "enter", "leave", "unknown"],
                       "type": "string"
                     },
                     "relativeOffset": {
+                      "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                       "type": "number"
                     },
                     "structuredLocation": {
                       "additionalProperties": false,
+                      "description": "The location of a geofence trigger, when set.",
                       "properties": {
                         "latitude": {
+                          "description": "Latitude in degrees, when set.",
                           "type": "number"
                         },
                         "longitude": {
+                          "description": "Longitude in degrees, when set.",
                           "type": "number"
                         },
                         "radius": {
+                          "description": "Radius in meters; zero means the system default.",
                           "type": "number"
                         },
                         "title": {
+                          "description": "Display name of the location.",
                           "type": "string"
                         }
                       },
@@ -2111,16 +2381,19 @@
                     "additionalProperties": false,
                     "properties": {
                       "daysOfMonth": {
+                        "description": "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "daysOfWeek": {
+                        "description": "Weekday constraints. Null means unconstrained. Not allowed for daily rules.",
                         "items": {
                           "additionalProperties": false,
                           "properties": {
                             "day": {
+                              "description": "The weekday to match.",
                               "enum": [
                                 "SUNDAY",
                                 "MONDAY",
@@ -2133,6 +2406,7 @@
                               "type": "string"
                             },
                             "ordinal": {
+                              "description": "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.",
                               "type": "integer"
                             }
                           },
@@ -2142,6 +2416,7 @@
                         "type": "array"
                       },
                       "daysOfYear": {
+                        "description": "Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
@@ -2149,11 +2424,14 @@
                       },
                       "end": {
                         "additionalProperties": false,
+                        "description": "When repetition stops; null means no specified end.",
                         "properties": {
                           "count": {
+                            "description": "Positive number of occurrences; mutually exclusive with until.",
                             "type": "integer"
                           },
                           "until": {
+                            "description": "Inclusive end timestamp; mutually exclusive with count.",
                             "type": "string"
                           }
                         },
@@ -2161,25 +2439,30 @@
                         "type": "object"
                       },
                       "frequency": {
+                        "description": "The unit of repetition.",
                         "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
                         "type": "string"
                       },
                       "interval": {
+                        "description": "Positive number of frequency units between occurrences.",
                         "type": "integer"
                       },
                       "monthsOfYear": {
+                        "description": "Months 1..12. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "setPositions": {
+                        "description": "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "weeksOfYear": {
+                        "description": "Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.",
                         "items": {
                           "type": "integer"
                         },
@@ -2192,29 +2475,36 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "A single repeating schedule; null when no recurrence is configured. recurrenceRules holds the stored rules."
               },
               "recurrenceRules": {
+                "description": "Recurrence rules exactly as stored; empty when none.",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "calendarIdentifier": {
+                      "description": "Calendar the rule is evaluated in.",
                       "type": "string"
                     },
                     "daysOfTheMonth": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "daysOfTheWeek": {
+                      "description": "Weekday constraints; empty when unconstrained.",
                       "items": {
                         "additionalProperties": false,
                         "properties": {
                           "dayOfTheWeek": {
+                            "description": "Weekday, Sunday = 1.",
                             "type": "integer"
                           },
                           "weekNumber": {
+                            "description": "Signed ordinal; zero means every occurrence.",
                             "type": "integer"
                           }
                         },
@@ -2224,6 +2514,7 @@
                       "type": "array"
                     },
                     "daysOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
@@ -2231,11 +2522,14 @@
                     },
                     "end": {
                       "additionalProperties": false,
+                      "description": "When repetition stops; null for no end.",
                       "properties": {
                         "endDate": {
+                          "description": "End timestamp, when set.",
                           "type": "string"
                         },
                         "occurrenceCount": {
+                          "description": "Number of occurrences; zero when unset.",
                           "type": "integer"
                         }
                       },
@@ -2243,9 +2537,11 @@
                       "type": "object"
                     },
                     "firstDayOfTheWeek": {
+                      "description": "First day of the week, Sunday = 1; zero is unset.",
                       "type": "integer"
                     },
                     "frequency": {
+                      "description": "daily, weekly, monthly, yearly, or unknown.",
                       "enum": [
                         "daily",
                         "weekly",
@@ -2256,21 +2552,25 @@
                       "type": "string"
                     },
                     "interval": {
+                      "description": "Frequency units between occurrences.",
                       "type": "integer"
                     },
                     "monthsOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "setPositions": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
                       "type": "array"
                     },
                     "weeksOfTheYear": {
+                      "description": "Selector values; empty when unconstrained.",
                       "items": {
                         "type": "integer"
                       },
@@ -2301,10 +2601,12 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "The date and time at which work on the reminder starts."
               },
               "startDateComponents": {
                 "additionalProperties": false,
+                "description": "The stored start date components.",
                 "properties": {
                   "calendar": {
                     "type": "string"
@@ -2369,9 +2671,11 @@
                   {
                     "type": "null"
                   }
-                ]
+                ],
+                "description": "IANA time-zone identifier, or null for floating/local date interpretation."
               },
               "url": {
+                "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
                 "type": "string"
               }
             },
@@ -2421,6 +2725,7 @@
         "additionalProperties": false,
         "properties": {
           "deletedId": {
+            "description": "The deleted object's identifier.",
             "type": "string"
           }
         },
@@ -2456,9 +2761,11 @@
                 "additionalProperties": false,
                 "properties": {
                   "id": {
+                    "description": "Unique identifier of the account. Treat this value as opaque.",
                     "type": "string"
                   },
                   "name": {
+                    "description": "The name of the account.",
                     "type": "string"
                   }
                 },
@@ -2498,9 +2805,11 @@
               "additionalProperties": false,
               "properties": {
                 "id": {
+                  "description": "Unique identifier of the account. Treat this value as opaque.",
                   "type": "string"
                 },
                 "name": {
+                  "description": "The name of the account.",
                   "type": "string"
                 }
               },
@@ -2542,15 +2851,19 @@
                 "additionalProperties": false,
                 "properties": {
                   "allowsContentModifications": {
+                    "description": "Whether reminders can be added, edited, and deleted in this list.",
                     "type": "boolean"
                   },
                   "allowsListModifications": {
+                    "description": "Whether the list's own properties can be edited and the list deleted.",
                     "type": "boolean"
                   },
                   "color": {
+                    "description": "The color of the list as an sRGB #RRGGBBAA hex string.",
                     "type": "string"
                   },
                   "id": {
+                    "description": "Unique identifier of the list. Treat this value as opaque.",
                     "type": "string"
                   },
                   "isImmutable": {
@@ -2560,6 +2873,7 @@
                     "type": "boolean"
                   },
                   "name": {
+                    "description": "The name of the list.",
                     "type": "string"
                   },
                   "source": {
@@ -2579,6 +2893,7 @@
                     "type": "object"
                   },
                   "subscribed": {
+                    "description": "Whether the list is a subscription.",
                     "type": "boolean"
                   }
                 },
@@ -2626,9 +2941,11 @@
                 "additionalProperties": false,
                 "properties": {
                   "id": {
+                    "description": "Unique identifier of the account. Treat this value as opaque.",
                     "type": "string"
                   },
                   "name": {
+                    "description": "The name of the account.",
                     "type": "string"
                   }
                 },
@@ -2646,15 +2963,19 @@
                 "additionalProperties": false,
                 "properties": {
                   "allowsContentModifications": {
+                    "description": "Whether reminders can be added, edited, and deleted in this list.",
                     "type": "boolean"
                   },
                   "allowsListModifications": {
+                    "description": "Whether the list's own properties can be edited and the list deleted.",
                     "type": "boolean"
                   },
                   "color": {
+                    "description": "The color of the list as an sRGB #RRGGBBAA hex string.",
                     "type": "string"
                   },
                   "id": {
+                    "description": "Unique identifier of the list. Treat this value as opaque.",
                     "type": "string"
                   },
                   "isImmutable": {
@@ -2664,6 +2985,7 @@
                     "type": "boolean"
                   },
                   "name": {
+                    "description": "The name of the list.",
                     "type": "string"
                   },
                   "source": {
@@ -2683,6 +3005,7 @@
                     "type": "object"
                   },
                   "subscribed": {
+                    "description": "Whether the list is a subscription.",
                     "type": "boolean"
                   }
                 },
@@ -2733,27 +3056,34 @@
               "additionalProperties": false,
               "properties": {
                 "completed": {
+                  "description": "Completed reminders.",
                   "type": "integer"
                 },
                 "incomplete": {
+                  "description": "Incomplete reminders.",
                   "type": "integer"
                 },
                 "listId": {
                   "type": "string"
                 },
                 "overdue": {
+                  "description": "Incomplete reminders whose deadline has passed.",
                   "type": "integer"
                 },
                 "recurring": {
+                  "description": "Reminders with recurrence rules, including completed ones.",
                   "type": "integer"
                 },
                 "scheduled": {
+                  "description": "Reminders with a due date, including completed ones.",
                   "type": "integer"
                 },
                 "total": {
+                  "description": "All reminders in the list, including completed ones.",
                   "type": "integer"
                 },
                 "withAlarms": {
+                  "description": "Reminders with alarms, including completed ones.",
                   "type": "integer"
                 }
               },
@@ -2796,18 +3126,22 @@
             "additionalProperties": false,
             "properties": {
               "accountIds": {
+                "description": "Match lists in any of these accounts, intersected with the parent scope; [] matches nothing.",
                 "items": {
                   "type": "string"
                 },
                 "type": "array"
               },
               "allowsContentModifications": {
+                "description": "Match whether reminders in the list can be modified.",
                 "type": "boolean"
               },
               "query": {
+                "description": "Case-insensitive substring of the list name.",
                 "type": "string"
               },
               "subscribed": {
+                "description": "Match subscribed or unsubscribed lists.",
                 "type": "boolean"
               }
             },
@@ -2824,6 +3158,7 @@
             "additionalProperties": false,
             "properties": {
               "direction": {
+                "description": "Direction of name ordering. Ties use identifier order; without orderBy, lists use identifier order.",
                 "enum": ["ASC", "DESC"],
                 "type": "string"
               }
@@ -2840,19 +3175,24 @@
         "additionalProperties": false,
         "properties": {
           "items": {
+            "description": "Lists in this page.",
             "items": {
               "additionalProperties": false,
               "properties": {
                 "allowsContentModifications": {
+                  "description": "Whether reminders can be added, edited, and deleted in this list.",
                   "type": "boolean"
                 },
                 "allowsListModifications": {
+                  "description": "Whether the list's own properties can be edited and the list deleted.",
                   "type": "boolean"
                 },
                 "color": {
+                  "description": "The color of the list as an sRGB #RRGGBBAA hex string.",
                   "type": "string"
                 },
                 "id": {
+                  "description": "Unique identifier of the list. Treat this value as opaque.",
                   "type": "string"
                 },
                 "isImmutable": {
@@ -2862,6 +3202,7 @@
                   "type": "boolean"
                 },
                 "name": {
+                  "description": "The name of the list.",
                   "type": "string"
                 },
                 "source": {
@@ -2881,6 +3222,7 @@
                   "type": "object"
                 },
                 "subscribed": {
+                  "description": "Whether the list is a subscription.",
                   "type": "boolean"
                 }
               },
@@ -2900,6 +3242,7 @@
             "type": "string"
           },
           "totalCount": {
+            "description": "Number of matching lists before pagination.",
             "type": "integer"
           }
         },
@@ -2927,24 +3270,30 @@
             "additionalProperties": false,
             "properties": {
               "accountIds": {
+                "description": "Match reminders belonging to these accounts; [] matches nothing.",
                 "items": {
                   "type": "string"
                 },
                 "type": "array"
               },
               "completed": {
+                "description": "Match completed or incomplete reminders; omission includes both.",
                 "type": "boolean"
               },
               "dueBefore": {
+                "description": "Exclusive upper deadline bound: timestamp or YYYY-MM-DD. Do not mix timestamp and calendar-day bounds.",
                 "type": "string"
               },
               "dueFrom": {
+                "description": "Inclusive lower bound on the deadline.",
                 "type": "string"
               },
               "dueOnOrAfter": {
+                "description": "Inclusive lower deadline bound as YYYY-MM-DD, using the host zone for timed deadlines. Do not mix timestamp and calendar-day bounds.",
                 "type": "string"
               },
               "dueStatus": {
+                "description": "Match a deadline status, independent of completion.",
                 "enum": [
                   "overdue",
                   "today",
@@ -2955,15 +3304,18 @@
                 "type": "string"
               },
               "hasDueDate": {
+                "description": "Match reminders with or without a timed or all-day deadline.",
                 "type": "boolean"
               },
               "listIds": {
+                "description": "Match reminders belonging to these lists; [] matches nothing.",
                 "items": {
                   "type": "string"
                 },
                 "type": "array"
               },
               "priorities": {
+                "description": "Match any of these exact numeric priorities; [] matches nothing.",
                 "items": {
                   "maximum": 9,
                   "minimum": 0,
@@ -2972,6 +3324,7 @@
                 "type": "array"
               },
               "query": {
+                "description": "Match text in the reminder name or notes.",
                 "type": "string"
               }
             },
@@ -2988,10 +3341,12 @@
             "additionalProperties": false,
             "properties": {
               "direction": {
+                "description": "Direction of ordering. Nulls sort last either way and ties use identifier order; without orderBy, reminders use identifier order.",
                 "enum": ["ASC", "DESC"],
                 "type": "string"
               },
               "field": {
+                "description": "Property to sort by.",
                 "enum": [
                   "NAME",
                   "DUE_DATE",
@@ -3015,16 +3370,19 @@
         "additionalProperties": false,
         "properties": {
           "items": {
+            "description": "Reminders in this page.",
             "items": {
               "additionalProperties": false,
               "properties": {
                 "alarms": {
+                  "description": "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
                   "items": {
                     "oneOf": [
                       {
                         "additionalProperties": false,
                         "properties": {
                           "at": {
+                            "description": "The date and time at which the alert triggers.",
                             "type": "string"
                           },
                           "kind": {
@@ -3043,6 +3401,7 @@
                             "type": "string"
                           },
                           "offsetSeconds": {
+                            "description": "Seconds from the start date: negative before, zero at, positive after.",
                             "type": "number"
                           }
                         },
@@ -3054,21 +3413,27 @@
                         "properties": {
                           "geofence": {
                             "additionalProperties": false,
+                            "description": "Region and direction that trigger the alert.",
                             "properties": {
                               "latitude": {
+                                "description": "Latitude in degrees, between -90 and 90.",
                                 "type": "number"
                               },
                               "longitude": {
+                                "description": "Longitude in degrees, between -180 and 180.",
                                 "type": "number"
                               },
                               "proximity": {
+                                "description": "Whether entering or leaving the region triggers the alert.",
                                 "enum": ["ARRIVE", "DEPART"],
                                 "type": "string"
                               },
                               "radiusMeters": {
+                                "description": "Radius in meters. Zero requests the system default; positive values request a minimum radius.",
                                 "type": "number"
                               },
                               "title": {
+                                "description": "Optional display name of the location.",
                                 "type": "string"
                               }
                             },
@@ -3100,7 +3465,8 @@
                     {
                       "type": "null"
                     }
-                  ]
+                  ],
+                  "description": "The calendar date on which the reminder is due, without a time of day."
                 },
                 "allDayStartDate": {
                   "anyOf": [
@@ -3110,18 +3476,23 @@
                     {
                       "type": "null"
                     }
-                  ]
+                  ],
+                  "description": "A date-only start, without a time of day."
                 },
                 "body": {
+                  "description": "The notes attached to the reminder.",
                   "type": "string"
                 },
                 "completed": {
+                  "description": "Whether the reminder is marked completed.",
                   "type": "boolean"
                 },
                 "completionDate": {
+                  "description": "The date and time the reminder was completed.",
                   "type": "string"
                 },
                 "creationDate": {
+                  "description": "The date and time the reminder was created.",
                   "type": "string"
                 },
                 "dueDate": {
@@ -3132,10 +3503,12 @@
                     {
                       "type": "null"
                     }
-                  ]
+                  ],
+                  "description": "The date and time by which the reminder is due."
                 },
                 "dueDateComponents": {
                   "additionalProperties": false,
+                  "description": "The stored due date components.",
                   "properties": {
                     "calendar": {
                       "type": "string"
@@ -3200,9 +3573,11 @@
                     {
                       "type": "null"
                     }
-                  ]
+                  ],
+                  "description": "The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable."
                 },
                 "dueStatus": {
+                  "description": "Deadline status, independent of completion.",
                   "enum": [
                     "overdue",
                     "today",
@@ -3220,50 +3595,65 @@
                   "type": "boolean"
                 },
                 "id": {
+                  "description": "Unique identifier of the reminder. Treat this value as opaque.",
                   "type": "string"
                 },
                 "listId": {
+                  "description": "Identifier of the owning list.",
                   "type": "string"
                 },
                 "location": {
+                  "description": "Descriptive location text, separate from location-triggered alarms.",
                   "type": "string"
                 },
                 "modificationDate": {
+                  "description": "The date and time the reminder was last modified.",
                   "type": "string"
                 },
                 "name": {
+                  "description": "The name of the reminder.",
                   "type": "string"
                 },
                 "priority": {
+                  "description": "The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low.",
                   "type": "integer"
                 },
                 "rawAlarms": {
+                  "description": "Alarms exactly as stored, including triggers the alarms union cannot represent.",
                   "items": {
                     "additionalProperties": false,
                     "properties": {
                       "absoluteDate": {
+                        "description": "Absolute trigger time, when set.",
                         "type": "string"
                       },
                       "proximity": {
+                        "description": "none, enter, leave, or unknown.",
                         "enum": ["none", "enter", "leave", "unknown"],
                         "type": "string"
                       },
                       "relativeOffset": {
+                        "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                         "type": "number"
                       },
                       "structuredLocation": {
                         "additionalProperties": false,
+                        "description": "The location of a geofence trigger, when set.",
                         "properties": {
                           "latitude": {
+                            "description": "Latitude in degrees, when set.",
                             "type": "number"
                           },
                           "longitude": {
+                            "description": "Longitude in degrees, when set.",
                             "type": "number"
                           },
                           "radius": {
+                            "description": "Radius in meters; zero means the system default.",
                             "type": "number"
                           },
                           "title": {
+                            "description": "Display name of the location.",
                             "type": "string"
                           }
                         },
@@ -3282,16 +3672,19 @@
                       "additionalProperties": false,
                       "properties": {
                         "daysOfMonth": {
+                          "description": "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.",
                           "items": {
                             "type": "integer"
                           },
                           "type": "array"
                         },
                         "daysOfWeek": {
+                          "description": "Weekday constraints. Null means unconstrained. Not allowed for daily rules.",
                           "items": {
                             "additionalProperties": false,
                             "properties": {
                               "day": {
+                                "description": "The weekday to match.",
                                 "enum": [
                                   "SUNDAY",
                                   "MONDAY",
@@ -3304,6 +3697,7 @@
                                 "type": "string"
                               },
                               "ordinal": {
+                                "description": "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.",
                                 "type": "integer"
                               }
                             },
@@ -3313,6 +3707,7 @@
                           "type": "array"
                         },
                         "daysOfYear": {
+                          "description": "Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.",
                           "items": {
                             "type": "integer"
                           },
@@ -3320,11 +3715,14 @@
                         },
                         "end": {
                           "additionalProperties": false,
+                          "description": "When repetition stops; null means no specified end.",
                           "properties": {
                             "count": {
+                              "description": "Positive number of occurrences; mutually exclusive with until.",
                               "type": "integer"
                             },
                             "until": {
+                              "description": "Inclusive end timestamp; mutually exclusive with count.",
                               "type": "string"
                             }
                           },
@@ -3332,25 +3730,30 @@
                           "type": "object"
                         },
                         "frequency": {
+                          "description": "The unit of repetition.",
                           "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
                           "type": "string"
                         },
                         "interval": {
+                          "description": "Positive number of frequency units between occurrences.",
                           "type": "integer"
                         },
                         "monthsOfYear": {
+                          "description": "Months 1..12. Yearly rules only.",
                           "items": {
                             "type": "integer"
                           },
                           "type": "array"
                         },
                         "setPositions": {
+                          "description": "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.",
                           "items": {
                             "type": "integer"
                           },
                           "type": "array"
                         },
                         "weeksOfYear": {
+                          "description": "Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.",
                           "items": {
                             "type": "integer"
                           },
@@ -3363,29 +3766,36 @@
                     {
                       "type": "null"
                     }
-                  ]
+                  ],
+                  "description": "A single repeating schedule; null when no recurrence is configured. recurrenceRules holds the stored rules."
                 },
                 "recurrenceRules": {
+                  "description": "Recurrence rules exactly as stored; empty when none.",
                   "items": {
                     "additionalProperties": false,
                     "properties": {
                       "calendarIdentifier": {
+                        "description": "Calendar the rule is evaluated in.",
                         "type": "string"
                       },
                       "daysOfTheMonth": {
+                        "description": "Selector values; empty when unconstrained.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "daysOfTheWeek": {
+                        "description": "Weekday constraints; empty when unconstrained.",
                         "items": {
                           "additionalProperties": false,
                           "properties": {
                             "dayOfTheWeek": {
+                              "description": "Weekday, Sunday = 1.",
                               "type": "integer"
                             },
                             "weekNumber": {
+                              "description": "Signed ordinal; zero means every occurrence.",
                               "type": "integer"
                             }
                           },
@@ -3395,6 +3805,7 @@
                         "type": "array"
                       },
                       "daysOfTheYear": {
+                        "description": "Selector values; empty when unconstrained.",
                         "items": {
                           "type": "integer"
                         },
@@ -3402,11 +3813,14 @@
                       },
                       "end": {
                         "additionalProperties": false,
+                        "description": "When repetition stops; null for no end.",
                         "properties": {
                           "endDate": {
+                            "description": "End timestamp, when set.",
                             "type": "string"
                           },
                           "occurrenceCount": {
+                            "description": "Number of occurrences; zero when unset.",
                             "type": "integer"
                           }
                         },
@@ -3414,9 +3828,11 @@
                         "type": "object"
                       },
                       "firstDayOfTheWeek": {
+                        "description": "First day of the week, Sunday = 1; zero is unset.",
                         "type": "integer"
                       },
                       "frequency": {
+                        "description": "daily, weekly, monthly, yearly, or unknown.",
                         "enum": [
                           "daily",
                           "weekly",
@@ -3427,21 +3843,25 @@
                         "type": "string"
                       },
                       "interval": {
+                        "description": "Frequency units between occurrences.",
                         "type": "integer"
                       },
                       "monthsOfTheYear": {
+                        "description": "Selector values; empty when unconstrained.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "setPositions": {
+                        "description": "Selector values; empty when unconstrained.",
                         "items": {
                           "type": "integer"
                         },
                         "type": "array"
                       },
                       "weeksOfTheYear": {
+                        "description": "Selector values; empty when unconstrained.",
                         "items": {
                           "type": "integer"
                         },
@@ -3472,10 +3892,12 @@
                     {
                       "type": "null"
                     }
-                  ]
+                  ],
+                  "description": "The date and time at which work on the reminder starts."
                 },
                 "startDateComponents": {
                   "additionalProperties": false,
+                  "description": "The stored start date components.",
                   "properties": {
                     "calendar": {
                       "type": "string"
@@ -3540,9 +3962,11 @@
                     {
                       "type": "null"
                     }
-                  ]
+                  ],
+                  "description": "IANA time-zone identifier, or null for floating/local date interpretation."
                 },
                 "url": {
+                  "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
                   "type": "string"
                 }
               },
@@ -3570,6 +3994,7 @@
             "type": "string"
           },
           "totalCount": {
+            "description": "Number of matching reminders before pagination.",
             "type": "integer"
           }
         },
@@ -3605,12 +4030,14 @@
                 "additionalProperties": false,
                 "properties": {
                   "alarms": {
+                    "description": "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
                     "items": {
                       "oneOf": [
                         {
                           "additionalProperties": false,
                           "properties": {
                             "at": {
+                              "description": "The date and time at which the alert triggers.",
                               "type": "string"
                             },
                             "kind": {
@@ -3629,6 +4056,7 @@
                               "type": "string"
                             },
                             "offsetSeconds": {
+                              "description": "Seconds from the start date: negative before, zero at, positive after.",
                               "type": "number"
                             }
                           },
@@ -3640,21 +4068,27 @@
                           "properties": {
                             "geofence": {
                               "additionalProperties": false,
+                              "description": "Region and direction that trigger the alert.",
                               "properties": {
                                 "latitude": {
+                                  "description": "Latitude in degrees, between -90 and 90.",
                                   "type": "number"
                                 },
                                 "longitude": {
+                                  "description": "Longitude in degrees, between -180 and 180.",
                                   "type": "number"
                                 },
                                 "proximity": {
+                                  "description": "Whether entering or leaving the region triggers the alert.",
                                   "enum": ["ARRIVE", "DEPART"],
                                   "type": "string"
                                 },
                                 "radiusMeters": {
+                                  "description": "Radius in meters. Zero requests the system default; positive values request a minimum radius.",
                                   "type": "number"
                                 },
                                 "title": {
+                                  "description": "Optional display name of the location.",
                                   "type": "string"
                                 }
                               },
@@ -3686,7 +4120,8 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "The calendar date on which the reminder is due, without a time of day."
                   },
                   "allDayStartDate": {
                     "anyOf": [
@@ -3696,18 +4131,23 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "A date-only start, without a time of day."
                   },
                   "body": {
+                    "description": "The notes attached to the reminder.",
                     "type": "string"
                   },
                   "completed": {
+                    "description": "Whether the reminder is marked completed.",
                     "type": "boolean"
                   },
                   "completionDate": {
+                    "description": "The date and time the reminder was completed.",
                     "type": "string"
                   },
                   "creationDate": {
+                    "description": "The date and time the reminder was created.",
                     "type": "string"
                   },
                   "dueDate": {
@@ -3718,10 +4158,12 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "The date and time by which the reminder is due."
                   },
                   "dueDateComponents": {
                     "additionalProperties": false,
+                    "description": "The stored due date components.",
                     "properties": {
                       "calendar": {
                         "type": "string"
@@ -3786,9 +4228,11 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable."
                   },
                   "dueStatus": {
+                    "description": "Deadline status, independent of completion.",
                     "enum": [
                       "overdue",
                       "today",
@@ -3806,50 +4250,65 @@
                     "type": "boolean"
                   },
                   "id": {
+                    "description": "Unique identifier of the reminder. Treat this value as opaque.",
                     "type": "string"
                   },
                   "listId": {
+                    "description": "Identifier of the owning list.",
                     "type": "string"
                   },
                   "location": {
+                    "description": "Descriptive location text, separate from location-triggered alarms.",
                     "type": "string"
                   },
                   "modificationDate": {
+                    "description": "The date and time the reminder was last modified.",
                     "type": "string"
                   },
                   "name": {
+                    "description": "The name of the reminder.",
                     "type": "string"
                   },
                   "priority": {
+                    "description": "The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low.",
                     "type": "integer"
                   },
                   "rawAlarms": {
+                    "description": "Alarms exactly as stored, including triggers the alarms union cannot represent.",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
                         "absoluteDate": {
+                          "description": "Absolute trigger time, when set.",
                           "type": "string"
                         },
                         "proximity": {
+                          "description": "none, enter, leave, or unknown.",
                           "enum": ["none", "enter", "leave", "unknown"],
                           "type": "string"
                         },
                         "relativeOffset": {
+                          "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                           "type": "number"
                         },
                         "structuredLocation": {
                           "additionalProperties": false,
+                          "description": "The location of a geofence trigger, when set.",
                           "properties": {
                             "latitude": {
+                              "description": "Latitude in degrees, when set.",
                               "type": "number"
                             },
                             "longitude": {
+                              "description": "Longitude in degrees, when set.",
                               "type": "number"
                             },
                             "radius": {
+                              "description": "Radius in meters; zero means the system default.",
                               "type": "number"
                             },
                             "title": {
+                              "description": "Display name of the location.",
                               "type": "string"
                             }
                           },
@@ -3868,16 +4327,19 @@
                         "additionalProperties": false,
                         "properties": {
                           "daysOfMonth": {
+                            "description": "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.",
                             "items": {
                               "type": "integer"
                             },
                             "type": "array"
                           },
                           "daysOfWeek": {
+                            "description": "Weekday constraints. Null means unconstrained. Not allowed for daily rules.",
                             "items": {
                               "additionalProperties": false,
                               "properties": {
                                 "day": {
+                                  "description": "The weekday to match.",
                                   "enum": [
                                     "SUNDAY",
                                     "MONDAY",
@@ -3890,6 +4352,7 @@
                                   "type": "string"
                                 },
                                 "ordinal": {
+                                  "description": "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.",
                                   "type": "integer"
                                 }
                               },
@@ -3899,6 +4362,7 @@
                             "type": "array"
                           },
                           "daysOfYear": {
+                            "description": "Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.",
                             "items": {
                               "type": "integer"
                             },
@@ -3906,11 +4370,14 @@
                           },
                           "end": {
                             "additionalProperties": false,
+                            "description": "When repetition stops; null means no specified end.",
                             "properties": {
                               "count": {
+                                "description": "Positive number of occurrences; mutually exclusive with until.",
                                 "type": "integer"
                               },
                               "until": {
+                                "description": "Inclusive end timestamp; mutually exclusive with count.",
                                 "type": "string"
                               }
                             },
@@ -3918,25 +4385,30 @@
                             "type": "object"
                           },
                           "frequency": {
+                            "description": "The unit of repetition.",
                             "enum": ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
                             "type": "string"
                           },
                           "interval": {
+                            "description": "Positive number of frequency units between occurrences.",
                             "type": "integer"
                           },
                           "monthsOfYear": {
+                            "description": "Months 1..12. Yearly rules only.",
                             "items": {
                               "type": "integer"
                             },
                             "type": "array"
                           },
                           "setPositions": {
+                            "description": "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.",
                             "items": {
                               "type": "integer"
                             },
                             "type": "array"
                           },
                           "weeksOfYear": {
+                            "description": "Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.",
                             "items": {
                               "type": "integer"
                             },
@@ -3949,29 +4421,36 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "A single repeating schedule; null when no recurrence is configured. recurrenceRules holds the stored rules."
                   },
                   "recurrenceRules": {
+                    "description": "Recurrence rules exactly as stored; empty when none.",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
                         "calendarIdentifier": {
+                          "description": "Calendar the rule is evaluated in.",
                           "type": "string"
                         },
                         "daysOfTheMonth": {
+                          "description": "Selector values; empty when unconstrained.",
                           "items": {
                             "type": "integer"
                           },
                           "type": "array"
                         },
                         "daysOfTheWeek": {
+                          "description": "Weekday constraints; empty when unconstrained.",
                           "items": {
                             "additionalProperties": false,
                             "properties": {
                               "dayOfTheWeek": {
+                                "description": "Weekday, Sunday = 1.",
                                 "type": "integer"
                               },
                               "weekNumber": {
+                                "description": "Signed ordinal; zero means every occurrence.",
                                 "type": "integer"
                               }
                             },
@@ -3981,6 +4460,7 @@
                           "type": "array"
                         },
                         "daysOfTheYear": {
+                          "description": "Selector values; empty when unconstrained.",
                           "items": {
                             "type": "integer"
                           },
@@ -3988,11 +4468,14 @@
                         },
                         "end": {
                           "additionalProperties": false,
+                          "description": "When repetition stops; null for no end.",
                           "properties": {
                             "endDate": {
+                              "description": "End timestamp, when set.",
                               "type": "string"
                             },
                             "occurrenceCount": {
+                              "description": "Number of occurrences; zero when unset.",
                               "type": "integer"
                             }
                           },
@@ -4000,9 +4483,11 @@
                           "type": "object"
                         },
                         "firstDayOfTheWeek": {
+                          "description": "First day of the week, Sunday = 1; zero is unset.",
                           "type": "integer"
                         },
                         "frequency": {
+                          "description": "daily, weekly, monthly, yearly, or unknown.",
                           "enum": [
                             "daily",
                             "weekly",
@@ -4013,21 +4498,25 @@
                           "type": "string"
                         },
                         "interval": {
+                          "description": "Frequency units between occurrences.",
                           "type": "integer"
                         },
                         "monthsOfTheYear": {
+                          "description": "Selector values; empty when unconstrained.",
                           "items": {
                             "type": "integer"
                           },
                           "type": "array"
                         },
                         "setPositions": {
+                          "description": "Selector values; empty when unconstrained.",
                           "items": {
                             "type": "integer"
                           },
                           "type": "array"
                         },
                         "weeksOfTheYear": {
+                          "description": "Selector values; empty when unconstrained.",
                           "items": {
                             "type": "integer"
                           },
@@ -4058,10 +4547,12 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "The date and time at which work on the reminder starts."
                   },
                   "startDateComponents": {
                     "additionalProperties": false,
+                    "description": "The stored start date components.",
                     "properties": {
                       "calendar": {
                         "type": "string"
@@ -4126,9 +4617,11 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "IANA time-zone identifier, or null for floating/local date interpretation."
                   },
                   "url": {
+                    "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
                     "type": "string"
                   }
                 },
