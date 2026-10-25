@@ -1,7 +1,7 @@
 import Foundation
 
 // One field of decoded API input: absent, explicitly null, or present.
-enum InputField<Value: Decodable & Sendable>: Decodable, Sendable {
+enum InputField<Value: Decodable & Sendable>: Sendable {
   case absent, null
   case present(Value)
 
@@ -16,10 +16,6 @@ enum InputField<Value: Decodable & Sendable>: Decodable, Sendable {
   func required(_ name: String) throws -> Value {
     guard let value else { throw ServerError.invalidArgument("\(name) is required") }
     return value
-  }
-  init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    self = container.decodeNil() ? .null : .present(try container.decode(Value.self))
   }
 }
 
