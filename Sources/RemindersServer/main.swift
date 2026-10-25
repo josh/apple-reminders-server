@@ -4,18 +4,34 @@ import Logging
 
 import struct os.OSAllocatedUnfairLock
 
+let usage = """
+  Usage: apple-reminders-server
+
+  Serves /graphql, /mcp, and /metrics on the sockets launchd hands it. Start it from a
+  LaunchAgent plist; run directly, it exits.
+
+  Socket labels: \(SocketLabel.allCases.map(\.rawValue).joined(separator: ", "))
+  Environment variables:
+  \(ConfigVariable.allCases.map { "  \($0.rawValue)" }.joined(separator: "\n"))
+
+  See https://github.com/josh/apple-reminders-server/blob/main/docs/SERVER.md
+  """
+
 // launchd starts the server and owns its sockets; REMINDERS_* environment variables in
-// the plist configure it. The only arguments are the developer dumps of the API docs.
+// the plist configure it. The only arguments are --help and the developer dumps of the
+// API docs.
 Task.detached {
   do {
     let arguments = Array(CommandLine.arguments.dropFirst())
-    if arguments == ["--dump-mcp-tools"] {
+    if arguments == ["--help"] || arguments == ["-h"] {
+      print(usage)
+    } else if arguments == ["--dump-mcp-tools"] {
       print(try mcpToolsJSON())
     } else if arguments == ["--dump-graphql-schema"] {
       print(try graphQLSchemaSDL())
     } else if !arguments.isEmpty {
       throw ServerError.internalError(
-        "The server takes no arguments; set REMINDERS_* variables in its launchd plist")
+        "Use --help; the server is configured by REMINDERS_* variables in its launchd plist")
     } else {
       let config = try ServerConfig(environment: ProcessInfo.processInfo.environment)
       let sockets = try activateLaunchdSockets()
