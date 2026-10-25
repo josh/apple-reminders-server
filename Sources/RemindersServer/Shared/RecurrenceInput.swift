@@ -53,7 +53,7 @@ func recurrenceChange(_ input: RecurrenceInput) throws -> ReminderRecurrenceChan
     if value.ordinal.value == 0 {
       throw ServerError.invalidArgument("omit ordinal instead of supplying zero")
     }
-    return .init(weekday: value.day.number, ordinal: value.ordinal.value ?? 0)
+    return .init(weekday: value.day, ordinal: value.ordinal.value ?? 0)
   }
   var until: Date?
   var count: Int?
@@ -66,7 +66,7 @@ func recurrenceChange(_ input: RecurrenceInput) throws -> ReminderRecurrenceChan
     count = end.count.value
   }
   return try ReminderRecurrenceChange(
-    frequency: input.frequency.stored, interval: input.interval, days: days,
+    frequency: input.frequency, interval: input.interval, days: days,
     monthDays: input.daysOfMonth.value, months: input.monthsOfYear.value,
     weeks: input.weeksOfYear.value, yearDays: input.daysOfYear.value,
     positions: input.setPositions.value, until: until, count: count)

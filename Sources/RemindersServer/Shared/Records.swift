@@ -84,7 +84,6 @@ enum Weekday: String, CaseIterable, Codable, Sendable {
   case thursday = "THURSDAY"
   case friday = "FRIDAY"
   case saturday = "SATURDAY"
-  var number: Int { Self.allCases.firstIndex(of: self)! + 1 }
   init?(number: Int) {
     guard (1...7).contains(number) else { return nil }
     self = Self.allCases[number - 1]
@@ -103,14 +102,6 @@ enum ScheduleFrequency: String, CaseIterable, Codable, Sendable {
     case .monthly: self = .monthly
     case .yearly: self = .yearly
     case .unknown: return nil
-    }
-  }
-  var stored: RecurrenceFrequency {
-    switch self {
-    case .daily: .daily
-    case .weekly: .weekly
-    case .monthly: .monthly
-    case .yearly: .yearly
     }
   }
 }

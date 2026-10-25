@@ -4,10 +4,10 @@ import Foundation
 /// Validated recurrence values; EventKit objects are constructed on the main thread.
 struct ReminderRecurrenceChange: Equatable, Sendable {
   struct Day: Sendable, Hashable {
-    let weekday: Int
+    let weekday: Weekday
     let ordinal: Int
   }
-  let frequency: RecurrenceFrequency
+  let frequency: ScheduleFrequency
   let interval: Int
   let days: [Day]?
   let monthDays: [Int]?, months: [Int]?, weeks: [Int]?, yearDays: [Int]?, positions: [Int]?
@@ -15,13 +15,12 @@ struct ReminderRecurrenceChange: Equatable, Sendable {
   let count: Int?
 
   init(
-    frequency: RecurrenceFrequency, interval: Int, days: [Day]?, monthDays: [Int]?, months: [Int]?,
+    frequency: ScheduleFrequency, interval: Int, days: [Day]?, monthDays: [Int]?, months: [Int]?,
     weeks: [Int]?, yearDays: [Int]?, positions: [Int]?, until: Date?, count: Int?
   ) throws {
     func require(_ condition: Bool, _ message: String) throws {
       guard condition else { throw ServerError.invalidArgument("recurrence " + message) }
     }
-    try require(frequency != .unknown, "frequency is unknown")
     try require(interval > 0 && interval <= Int(Int32.max), "interval must be 1...2147483647")
     try require(until == nil || count == nil, "end must choose until or count")
     if let count {
@@ -46,8 +45,8 @@ struct ReminderRecurrenceChange: Equatable, Sendable {
       for day in days {
         let limit = frequency == .monthly ? 5 : 53
         try require(
-          (1...7).contains(day.weekday) && (-limit...limit).contains(day.ordinal),
-          "weekday or ordinal is outside its frequency's range")
+          (-limit...limit).contains(day.ordinal), "weekday ordinal is outside its frequency's range"
+        )
         try require(
           day.ordinal == 0 || (frequency != .weekly && weeks == nil),
           "ordinal weekdays require monthly/yearly frequency without weeksOfYear")
@@ -79,7 +78,6 @@ struct ReminderRecurrenceChange: Equatable, Sendable {
     case .weekly: eventKitFrequency = .weekly
     case .monthly: eventKitFrequency = .monthly
     case .yearly: eventKitFrequency = .yearly
-    case .unknown: fatalError("unknown frequency is rejected by init")
     }
     let end =
       until.map { EKRecurrenceEnd(end: $0) } ?? count.map { EKRecurrenceEnd(occurrenceCount: $0) }
@@ -87,10 +85,24 @@ struct ReminderRecurrenceChange: Equatable, Sendable {
     return EKRecurrenceRule(
       recurrenceWith: eventKitFrequency, interval: interval,
       daysOfTheWeek: days?.map {
-        EKRecurrenceDayOfWeek(EKWeekday(rawValue: $0.weekday)!, weekNumber: $0.ordinal)
+        EKRecurrenceDayOfWeek($0.weekday.eventKit, weekNumber: $0.ordinal)
       },
       daysOfTheMonth: numbers(monthDays), monthsOfTheYear: numbers(months),
       weeksOfTheYear: numbers(weeks),
       daysOfTheYear: numbers(yearDays), setPositions: numbers(positions), end: end)
+  }
+}
+
+extension Weekday {
+  var eventKit: EKWeekday {
+    switch self {
+    case .sunday: .sunday
+    case .monday: .monday
+    case .tuesday: .tuesday
+    case .wednesday: .wednesday
+    case .thursday: .thursday
+    case .friday: .friday
+    case .saturday: .saturday
+    }
   }
 }
