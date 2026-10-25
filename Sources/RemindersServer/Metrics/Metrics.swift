@@ -36,7 +36,8 @@ func runtimeMetrics(eventKitUp: Bool, authorizing: Bool) -> String {
   }
   lines += familyHeader(
     "reminders_main_actor_heartbeat_age_seconds", .gauge,
-    "Seconds since the main actor last ran a watchdog heartbeat; the process exits past 120.")
+    "Seconds since the main actor last ran a watchdog heartbeat; the process exits past \(mainActorWatchdogLimit.components.seconds)."
+  )
   lines.append(
     "reminders_main_actor_heartbeat_age_seconds \(mainActorHeartbeatAge() / .seconds(1))")
   lines += familyHeader(

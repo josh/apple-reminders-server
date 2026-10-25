@@ -12,12 +12,13 @@ func mainActorHeartbeatAge() -> Duration {
 // A synchronous framework call (a stalled TCC lookup) can hold the main actor for
 // minutes, and no request deadline can free it, so the process exits for launchd
 // to restart once the main queue stops draining.
-func startMainActorWatchdog(limit: Duration = .seconds(120), interval: TimeInterval = 10) {
+let mainActorWatchdogLimit: Duration = .seconds(120)
+func startMainActorWatchdog() {
   Thread.detachNewThread {
     while true {
-      Thread.sleep(forTimeInterval: interval)
+      Thread.sleep(forTimeInterval: 10)
       let silent = mainActorHeartbeatAge()
-      if silent > limit {
+      if silent > mainActorWatchdogLimit {
         serverLogger.critical(
           "Main actor unresponsive; exiting",
           metadata: ["silent_seconds": "\(silent.components.seconds)"])
