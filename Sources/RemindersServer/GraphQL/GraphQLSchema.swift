@@ -38,12 +38,7 @@ private func searchPage(
     search.listIds = filter.listIds.value
     search.hasDueDate = filter.hasDueDate.value
     search.completed = filter.completed.value
-    if let priorities = filter.priorities.value {
-      guard priorities.allSatisfy((0...9).contains) else {
-        throw ServerError.invalidArgument("priorities must be 0...9")
-      }
-      search.priorities = priorities
-    }
+    search.priorities = filter.priorities.value
     // Enum values are the uppercase names; records store lowercase statuses.
     search.dueStatus = filter.dueStatus.value.flatMap { DueStatus(rawValue: $0.lowercased()) }
     search.dueOnOrAfter = filter.dueOnOrAfter.value

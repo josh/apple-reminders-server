@@ -36,6 +36,9 @@ struct Search: Sendable {
       throw ServerError.invalidArgument("do not mix calendar-day and timestamp bounds")
     }
     try validateDays(dueOnOrAfter, dayUpper)
+    guard priorities?.allSatisfy((0...9).contains) ?? true else {
+      throw ServerError.invalidArgument("priorities must be 0...9")
+    }
     let fromDate = try dueFrom.map(parseTimestamp)
     let beforeDate = try timestampUpper.map(parseTimestamp)
     if let fromDate, let beforeDate, fromDate >= beforeDate {

@@ -791,12 +791,7 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
       criteria.listIds = try ids(filter.listIds, "listIds")
       criteria.hasDueDate = filter.hasDueDate.value
       criteria.completed = filter.completed.value
-      if let priorities = filter.priorities.value {
-        guard priorities.allSatisfy((0...9).contains) else {
-          throw ServerError.invalidArgument("priorities must be 0...9")
-        }
-        criteria.priorities = priorities
-      }
+      criteria.priorities = filter.priorities.value
       if let value = filter.dueStatus.value {
         guard let status = DueStatus(rawValue: value) else {
           throw ServerError.invalidArgument("invalid dueStatus")
