@@ -849,7 +849,10 @@ private func errorText(_ error: Error) -> String {
   let payload = ToolError(
     error: .init(
       code: server?.code ?? .internalError, message: server?.message ?? String(describing: error)))
-  let data = try? JSONEncoder().encode(payload)
+  // Sorted keys put code before message; JSONEncoder does not keep declaration order.
+  let encoder = JSONEncoder()
+  encoder.outputFormatting = .sortedKeys
+  let data = try? encoder.encode(payload)
   return data.flatMap { String(data: $0, encoding: .utf8) } ?? String(describing: error)
 }
 
