@@ -22,15 +22,22 @@ struct ServiceResponse {
   var failure: Failure? = nil
   // Extra request details the handler wants logged.
   var logMetadata: [String: String] = [:]
-  static func json(_ object: Any, status: Int = 200, failure: Failure? = nil) throws
+  // A JSON body with sorted keys.
+  static func json<Body: Encodable>(_ body: Body, status: Int = 200, failure: Failure? = nil)
     -> ServiceResponse
   {
-    ServiceResponse(
-      status: status,
-      body: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
-      failure: failure)
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    // Bodies here are plain structs of strings, which always encode.
+    return ServiceResponse(status: status, body: try! encoder.encode(body), failure: failure)
+  }
+  // {"error": message}, the body of every failure outside GraphQL's own error format.
+  static func error(_ message: String, status: Int) -> ServiceResponse {
+    .json(ErrorBody(error: message), status: status)
   }
 }
+private struct ErrorBody: Encodable { let error: String }
+
 // The served endpoints; any other path is logged and counted as "other".
 enum Route: String {
   case graphql = "/graphql"
@@ -145,10 +152,10 @@ func serve(
     do {
       let response: ServiceResponse
       if let key = repeated {
-        return respond(try .json(["error": "Repeated \(key) header"], status: 400))
+        return respond(.error("Repeated \(key) header", status: 400))
       }
       if let origin = headers["origin"], !origins.contains(origin.lowercased()) {
-        response = try .json(["error": "Untrusted origin"], status: 403)
+        response = .error("Untrusted origin", status: 403)
       } else if request.head.method == .OPTIONS {
         var preflightHeaders = ["Allow": "GET, POST, OPTIONS"]
         if headers["origin"] != nil {
@@ -165,18 +172,16 @@ func serve(
         )
         .lowercased() != "application/json"
       {
-        response = try .json(["error": "Content-Type application/json required"], status: 415)
+        response = .error("Content-Type application/json required", status: 415)
       } else {
         guard
           let capabilities = try? Capabilities.parse(
             header: headers["tailscale-app-capabilities"], capability: tailscaleAppCapability,
             proxied: headers.keys.contains(where: proxyHeaders.contains)),
           capabilities.allows(route)
-        else { return respond(try .json(["error": "Forbidden"], status: 403)) }
+        else { return respond(.error("Forbidden", status: 403)) }
         if route != .metrics && authorizing.withLock({ $0 }) {
-          return respond(
-            ServiceResponse(
-              status: 503, body: Data(#"{"error":"Reminders authorization pending"}"#.utf8)))
+          return respond(.error("Reminders authorization pending", status: 503))
         }
         guard let body = request.body else {
           return respond(ServiceResponse(status: 413, body: Data()))
@@ -196,17 +201,15 @@ func serve(
             try await handler(method, requestHeaders, body, access)
           }
         } else {
-          response = try .json(["error": "Not found"], status: 404)
+          response = .error("Not found", status: 404)
         }
       }
       return respond(response)
     } catch is RequestTimedOut {
-      return respond(
-        ServiceResponse(status: 504, body: Data(#"{"error":"Request timed out"}"#.utf8)))
+      return respond(.error("Request timed out", status: 504))
     } catch {
       logFailure("Request failed", error: error)
-      return respond(
-        ServiceResponse(status: 500, body: Data(#"{"error":"Internal server error"}"#.utf8)))
+      return respond(.error("Internal server error", status: 500))
     }
   }
   try await listen(port: port, responder: responder)

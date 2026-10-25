@@ -15,11 +15,11 @@ func graphQLSchemaSDL() throws -> String { printSchema(schema: try makeSchema())
 private func handleGraphQL(
   method: HTTPMethod, body: Data, schema: GraphQLSchema, access: Capabilities.Access
 ) async throws -> ServiceResponse {
-  guard method == .POST else { return try .json(["error": "POST required"], status: 405) }
+  guard method == .POST else { return .error("POST required", status: 405) }
   let request: GraphQLRequest
   do { request = try JSONDecoder().decode(GraphQLRequest.self, from: body) } catch {
     let message = (error as? GraphQLRequest.Invalid)?.message ?? "Expected one JSON object"
-    return try .json(["errors": [["message": message]]], status: 400)
+    return .json(GraphQLErrors(message), status: 400)
   }
   let query = request.query
   let variables = request.variables
@@ -30,12 +30,10 @@ private func handleGraphQL(
       let operations = document.definitions.compactMap { $0 as? OperationDefinition }
       let selected = operations.filter { operation == nil || $0.name?.value == operation }
       guard selected.count == 1 else {
-        return try .json(
-          ["errors": [["message": "Select exactly one operation with operationName"]]], status: 400)
+        return .json(GraphQLErrors("Select exactly one operation with operationName"), status: 400)
       }
       guard selected[0].operation == .query else {
-        return try .json(
-          ["errors": [["message": "Forbidden: GraphQL write access required"]]], status: 403)
+        return .json(GraphQLErrors("Forbidden: GraphQL write access required"), status: 403)
       }
     }
     var result = try await graphql(
@@ -45,7 +43,7 @@ private func handleGraphQL(
     return ServiceResponse(
       body: try GraphQLJSONEncoder().encode(result),
       failure: result.errors.isEmpty ? nil : .graphql)
-  } catch { return try .json(["errors": [graphQLError(error)]], failure: .graphql) }
+  } catch { return .json(GraphQLErrors(error), failure: .graphql) }
 }
 
 // The POST body. Null variables or operationName mean absent.
@@ -77,7 +75,21 @@ private func withErrorCode(_ error: GraphQLError) -> GraphQLError {
     message: error.message, locations: error.locations, path: error.path,
     extensions: error.extensions.merging(["code": .string(server.code.rawValue)]) { _, new in new })
 }
-private func graphQLError(_ error: Error) -> [String: Any] {
-  guard let server = error as? ServerError else { return ["message": String(describing: error)] }
-  return ["message": server.message, "extensions": ["code": server.code.rawValue]]
+// A request-level GraphQL error response, for failures before or outside execution.
+private struct GraphQLErrors: Encodable {
+  struct Entry: Encodable {
+    struct Extensions: Encodable { let code: String }
+    let message: String
+    let extensions: Extensions?
+  }
+  let errors: [Entry]
+  init(_ message: String) { errors = [Entry(message: message, extensions: nil)] }
+  init(_ error: Error) {
+    let server = error as? ServerError
+    errors = [
+      Entry(
+        message: server?.message ?? String(describing: error),
+        extensions: server.map { Entry.Extensions(code: $0.code.rawValue) })
+    ]
+  }
 }
