@@ -829,9 +829,26 @@ private func errorText(_ error: Error) -> String {
 
 // The JSON-RPC method of a request body, for logging.
 private func jsonRPCMethod(_ body: Data) -> String {
-  let object = try? JSONSerialization.jsonObject(with: body)
-  if let method = (object as? [String: Any])?["method"] as? String { return method }
-  return object is [Any] ? "batch" : "unknown"
+  switch try? JSONDecoder().decode(RPCEnvelope.self, from: body) {
+  case .message(let method?, _): method
+  case .batch: "batch"
+  default: "unknown"
+  }
+}
+// The JSON-RPC envelope fields the server logs; params and results stay undecoded.
+private enum RPCEnvelope: Decodable {
+  case message(method: String?, hasError: Bool)
+  case batch
+  enum CodingKeys: String, CodingKey { case method, error }
+  init(from decoder: Decoder) throws {
+    guard let c = try? decoder.container(keyedBy: CodingKeys.self) else {
+      _ = try decoder.unkeyedContainer()
+      self = .batch
+      return
+    }
+    self = .message(
+      method: try? c.decode(String.self, forKey: .method), hasError: c.contains(.error))
+  }
 }
 
 // Records the tool outcome so the logger need not reparse large result bodies.
@@ -887,7 +904,8 @@ func handleMCP(
     var failure: Failure? = outcome.failed ? .mcpTool : nil
     // Protocol replies (no tool or catalog handler ran) report errors in the JSON-RPC body.
     if !outcome.ran,
-      (try? JSONSerialization.jsonObject(with: responseBody) as? [String: Any])?["error"] != nil
+      case .message(_, hasError: true)? = try? JSONDecoder().decode(
+        RPCEnvelope.self, from: responseBody)
     {
       failure = .mcpProtocol
     }
