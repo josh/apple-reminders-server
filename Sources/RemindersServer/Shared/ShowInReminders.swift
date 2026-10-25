@@ -47,7 +47,7 @@ private func navigate(to scriptID: String, isList: Bool) throws {
 
 extension AutomationHandler {
   static let showItem = AutomationHandler(
-    name: "showitem", label: "navigation script", parameters: ["objectID", "isList"],
+    name: "showitem", parameters: ["objectID", "isList"],
     body: """
           with timeout of 10 seconds
               tell application id "com.apple.reminders"

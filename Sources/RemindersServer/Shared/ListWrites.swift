@@ -129,7 +129,7 @@ func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
 // timeout bounds how long one attempt holds the main actor.
 extension AutomationHandler {
   static let setEmblem = AutomationHandler(
-    name: "setemblem", label: "list emblem writer", parameters: ["listID", "iconName"],
+    name: "setemblem", parameters: ["listID", "iconName"],
     body: """
           with timeout of 3 seconds
               tell application id "com.apple.reminders"

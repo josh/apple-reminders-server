@@ -32,8 +32,6 @@ func compiledScript(_ source: String, what: String) throws -> NSAppleScript {
 // source and the subroutine the server calls.
 struct AutomationHandler: Sendable {
   let name: String
-  // Names the handler in errors.
-  let label: String
   let parameters: [String]
   let body: String
   var source: String {
@@ -44,7 +42,7 @@ struct AutomationHandler: Sendable {
 // partial write.
 @MainActor
 func compile(_ handler: AutomationHandler) throws -> NSAppleScript {
-  try compiledScript(handler.source, what: handler.label)
+  try compiledScript(handler.source, what: "Reminders handler \(handler.name)")
 }
 // Calls a handler with typed Apple-event arguments, one per parameter. Not-ready codes
 // surface as AutomationNotReady so callers can retry the automation step.
@@ -53,7 +51,7 @@ func call(_ handler: AutomationHandler, _ arguments: [NSAppleEventDescriptor]) t
   -> NSAppleEventDescriptor
 {
   guard arguments.count == handler.parameters.count else {
-    throw ServerError.internalError("Wrong argument count for \(handler.label)")
+    throw ServerError.internalError("Wrong argument count for \(handler.name)")
   }
   let script = try compile(handler)
   let name = handler.name
@@ -91,7 +89,7 @@ func call(_ handler: AutomationHandler, _ arguments: [NSAppleEventDescriptor]) t
 // timeout bounds how long one attempt holds the main actor.
 extension AutomationHandler {
   static let applyChanges = AutomationHandler(
-    name: "applychanges", label: "reminder automation writer",
+    name: "applychanges",
     parameters: ["reminderID", "listID", "changeFlag", "flagValue", "changeAlert", "alertValue"],
     body: """
           with timeout of 3 seconds
