@@ -86,6 +86,28 @@ actor MetricsCollector {
   }
 }
 
+// reminders_items labels; case order is the exposition order.
+private enum ItemStatus: String, CaseIterable { case incomplete, completed }
+private enum PriorityBand: String, CaseIterable {
+  case none, high, medium, low
+  // EventKit priorities: 0 none, 1-4 high, 5 medium, 6-9 low.
+  init(priority: Int) {
+    self = priority == 0 ? .none : priority < 5 ? .high : priority == 5 ? .medium : .low
+  }
+}
+private struct ItemBucket: Hashable {
+  let status: ItemStatus
+  let priority: PriorityBand
+  let due: DueStatus
+}
+extension ItemBucket {
+  init(_ item: ReminderRecord) {
+    self.init(
+      status: item.completed ? .completed : .incomplete,
+      priority: PriorityBand(priority: item.priority), due: item.dueStatus)
+  }
+}
+
 func collectMetrics() async throws -> String {
   let data = try await readRemindersData()
   let lists = data.lists
@@ -125,20 +147,17 @@ func collectMetrics() async throws -> String {
     "Number of reminders by completion status, priority (none 0, high 1-4, medium 5, low 6-9), and deadline status."
   )
   for list in lists {
-    var counts: [String: Int] = [:]
+    var counts: [ItemBucket: Int] = [:]
     for item in reminders where item.listId == list.id {
-      let status = item.completed ? "completed" : "incomplete"
-      let priority =
-        item.priority == 0
-        ? "none" : item.priority < 5 ? "high" : item.priority == 5 ? "medium" : "low"
-      counts["\(status)/\(priority)/\(item.dueStatus.rawValue)", default: 0] += 1
+      counts[ItemBucket(item), default: 0] += 1
     }
-    for status in ["incomplete", "completed"] {
-      for priority in ["none", "high", "medium", "low"] {
+    for status in ItemStatus.allCases {
+      for priority in PriorityBand.allCases {
         for dueStatus in DueStatus.allCases {
-          let count = counts["\(status)/\(priority)/\(dueStatus.rawValue)", default: 0]
+          let count =
+            counts[ItemBucket(status: status, priority: priority, due: dueStatus), default: 0]
           lines.append(
-            "reminders_items{account_id=\"\(metricEscape(list.source.id))\",list_id=\"\(metricEscape(list.id))\",status=\"\(status)\",priority=\"\(priority)\",due_status=\"\(dueStatus.rawValue)\"} \(count)"
+            "reminders_items{account_id=\"\(metricEscape(list.source.id))\",list_id=\"\(metricEscape(list.id))\",status=\"\(status.rawValue)\",priority=\"\(priority.rawValue)\",due_status=\"\(dueStatus.rawValue)\"} \(count)"
           )
         }
       }
