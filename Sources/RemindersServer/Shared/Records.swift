@@ -133,7 +133,7 @@ struct StructuredLocation: Codable, Sendable {
   let radius: Double
   enum CodingKeys: String, CodingKey { case title, latitude, longitude, radius }
 }
-enum AlarmProximity: String, Codable, Sendable { case none, enter, leave, unknown }
+enum AlarmProximity: String, CaseIterable, Codable, Sendable { case none, enter, leave, unknown }
 enum RecurrenceFrequency: String, CaseIterable, Codable, Sendable {
   case daily, weekly, monthly, yearly, unknown
 }

@@ -113,7 +113,7 @@ private func toolsCatalog() -> [Tool] {
       .absoluteDate: describe(string, FieldDocs.RawAlarm.absoluteDate),
       .relativeOffset: describe(number, FieldDocs.RawAlarm.relativeOffset),
       .proximity: describe(
-        enumeration(["none", "enter", "leave", "unknown"]), FieldDocs.RawAlarm.proximity),
+        enumeration(AlarmProximity.allCases.map(\.rawValue)), FieldDocs.RawAlarm.proximity),
       .structuredLocation: describe(structuredLocation, FieldDocs.RawAlarm.structuredLocation),
     ], required: [.relativeOffset, .proximity])
   let geofence = schema(
