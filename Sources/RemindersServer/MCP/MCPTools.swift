@@ -88,6 +88,7 @@ private func nullable(_ value: Value) -> Value {
 private func toolsCatalog() -> [Tool] {
   let integer = primitive(.integer)
   let string = primitive(.string)
+  let priority = primitive(.integer, ["minimum": 0, "maximum": 9])
   let number = primitive(.number)
   let boolean = primitive(.boolean)
   let integers = array(integer)
@@ -325,7 +326,7 @@ private func toolsCatalog() -> [Tool] {
             .completed: describe(boolean, FieldDocs.ReminderFilter.completed),
             .hasDueDate: describe(boolean, FieldDocs.ReminderFilter.hasDueDate),
             .priorities: describe(
-              array(primitive(.integer, ["minimum": 0, "maximum": 9])),
+              array(priority),
               FieldDocs.ReminderFilter.priorities),
           ]), filterNote),
     ])
@@ -398,7 +399,6 @@ private func toolsCatalog() -> [Tool] {
           ], required: [.latitude, .longitude, .radiusMeters, .proximity]),
         FieldDocs.ReminderAlarmInput.geofence),
     ])
-  let priority = primitive(.integer, ["minimum": 0, "maximum": 9])
   let createReminder = schema(
     ReminderInput.CodingKeys.self,
     [
