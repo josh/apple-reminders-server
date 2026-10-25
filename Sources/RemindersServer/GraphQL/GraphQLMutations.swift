@@ -3,16 +3,16 @@ import GraphQL
 
 // A write or navigation can change what this request already read, so the request's
 // cached reads are dropped afterward, whether or not it succeeded.
-private func afterWrite<T: Encodable & Sendable>(
+private func afterWrite<T: Sendable>(
   _ context: (any Sendable)?, _ write: () async throws -> T
-) async throws -> Map {
+) async throws -> T {
   let value: T
   do { value = try await write() } catch {
     await (context as? GraphQLContext)?.invalidate()
     throw error
   }
   await (context as? GraphQLContext)?.invalidate()
-  return try graphMap(value)
+  return value
 }
 
 func makeMutationType(
@@ -125,15 +125,18 @@ func makeMutationType(
     name: "DeleteResult",
     fields: [
       "deletedId": field(
-        GraphQLNonNull(GraphQLID), description: FieldDocs.DeleteResult.deletedId)
+        GraphQLNonNull(GraphQLID), \DeletedReminder.deletedId,
+        description: FieldDocs.DeleteResult.deletedId)
     ])
   let cleared = try GraphQLObjectType(
     name: "ClearCompletedResult",
     fields: [
       "listId": field(
-        GraphQLNonNull(GraphQLID), description: "The list whose completed reminders were deleted."),
+        GraphQLNonNull(GraphQLID), \ClearCompletedResult.listId,
+        description: "The list whose completed reminders were deleted."),
       "deletedCount": field(
-        GraphQLNonNull(GraphQLInt), description: "Number of completed reminders deleted."),
+        GraphQLNonNull(GraphQLInt), \ClearCompletedResult.deletedCount,
+        description: "Number of completed reminders deleted."),
     ])
   let listPatch = try GraphQLInputObjectType(
     name: "ListPatch",

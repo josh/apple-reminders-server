@@ -2,8 +2,9 @@ import Carbon
 import Foundation
 
 // GraphQL reads flags, emblems, alert dates, and containers through Reminders automation.
-struct ContainerReference: Codable, Sendable {
-  let kind: String
+enum ScriptObjectKind: Sendable { case account, list, reminder }
+struct ContainerReference: Sendable {
+  let kind: ScriptObjectKind
   let id: String
 }
 
@@ -54,13 +55,11 @@ extension ScriptProperty where Value == ContainerReference {
         value.forKeyword(AEKeyword(keyAEKeyForm))?.enumCodeValue == OSType(formUniqueID),
         let parentID = value.forKeyword(AEKeyword(keyAEKeyData))?.stringValue
       else { throw ServerError.internalError("Unsupported container reference") }
-      let kinds: [OSType: String] = [
-        classCode("acct"): "Account", classCode("list"): "ReminderList",
-        classCode("remi"): "Reminder",
+      let kinds: [OSType: ScriptObjectKind] = [
+        classCode("acct"): .account, classCode("list"): .list, classCode("remi"): .reminder,
       ]
       guard let kind = kinds[value.forKeyword(AEKeyword(keyAEDesiredClass))?.typeCodeValue ?? 0],
-        (entity == "list" ? ["Account", "ReminderList"] : ["ReminderList", "Reminder"]).contains(
-          kind)
+        (entity == "list" ? [.account, .list] : [.list, .reminder]).contains(kind)
       else { throw ServerError.internalError("Unsupported container class") }
       return ContainerReference(kind: kind, id: try scriptIdentifier(parentID, kind: kind))
     }
@@ -103,7 +102,7 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
       let id = before.atIndex(index + 1)?.stringValue,
       id == after.atIndex(index + 1)?.stringValue
     else { throw ServerError.internalError("Automation objects changed during read; retry") }
-    let key = try scriptIdentifier(id, kind: entity == "list" ? "ReminderList" : "Reminder")
+    let key = try scriptIdentifier(id, kind: entity == "list" ? .list : .reminder)
     guard output[key] == nil else {
       throw ServerError.internalError("Duplicate automation identifier")
     }
@@ -114,14 +113,13 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
   return output
 }
 
-private func scriptIdentifier(_ value: String, kind: String) throws -> String {
+private func scriptIdentifier(_ value: String, kind: ScriptObjectKind) throws -> String {
   if let uuid = UUID(uuidString: value) { return uuid.uuidString }
   let prefix: String
   switch kind {
-  case "Reminder": prefix = "x-apple-reminder://"
-  case "ReminderList": prefix = "x-apple-reminderkit://REMCDList/"
-  case "Account": prefix = "x-apple-reminderkit://REMCDAccount/"
-  default: throw ServerError.internalError("Unknown automation identifier kind")
+  case .reminder: prefix = "x-apple-reminder://"
+  case .list: prefix = "x-apple-reminderkit://REMCDList/"
+  case .account: prefix = "x-apple-reminderkit://REMCDAccount/"
   }
   guard value.hasPrefix(prefix), let uuid = UUID(uuidString: String(value.dropFirst(prefix.count)))
   else { throw ServerError.internalError("Unsupported automation identifier format for \(kind)") }
