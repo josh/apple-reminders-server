@@ -16,16 +16,14 @@ files retain field documentation; behavioral restrictions are in the API guides.
 - [Data access](DATA_ACCESS.md): in-process execution, records, and threading.
 - [EventKit](EVENTKIT.md): public framework APIs relevant to reads and writes.
 - [Reminders automation](APPLESCRIPT.md): flags, metadata, mutations, and identity matching.
-- [Scripting dictionary](Reminders.sdef) and [dictionary summary](reminders-dictionary.json):
-  declarations used by the automation integration. These contain terminology,
-  not personal reminder data. The XML references an external Cocoa Standard
-  suite that is not expanded in the JSON summary.
+- [Scripting dictionary](Reminders.sdef): declarations used by the automation
+  integration. It contains terminology, not personal reminder data, and
+  references an external Cocoa Standard suite that is not expanded.
 
 Regenerate the dictionary on the target Mac with:
 
 ```sh
-/usr/bin/sdef /System/Applications/Reminders.app > docs/Reminders.sdef
+/usr/bin/sdef /System/Applications/Reminders.app >docs/Reminders.sdef
 ```
 
-Update the JSON summary when changing the dictionary reference. Declarations
-alone do not establish provider support or runtime behavior.
+Declarations alone do not establish provider support or runtime behavior.
