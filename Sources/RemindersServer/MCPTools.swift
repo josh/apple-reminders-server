@@ -185,7 +185,7 @@ private func toolsCatalog() -> [Tool] {
     "cursor": .object([
       "type": "string", "minLength": 1,
       "description":
-        "Omit for the first page. Otherwise use nextCursor from the previous response with the same filter, orderBy, and limit.",
+        "Omit for the first page. Otherwise use nextCursor from the previous response with the same filter, orderBy, and limit. Each page reads live data, so concurrent changes can cause omissions or repeats.",
     ]),
   ]
   let search = schema(
@@ -325,7 +325,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "lists_get",
       description:
-        "Read a list by ID; absent identifiers return null.",
+        "Read a list by ID; absent identifiers return null. Emblems and containers are not included; read them through GraphQL.",
       inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: annotations,
       outputSchema: schema(["list": nullable(list)], required: ["list"])),
     Tool(
@@ -355,7 +355,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "reminders_search",
       description:
-        "Read reminders filtered by account/list IDs, completion, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is the next page offset; keep criteria and limit unchanged across pages. Optional unavailable values are omitted. Dates retain their stored components; omitted hours mean date-only and omitted zones mean floating.",
+        "Read reminders filtered by account/list IDs, completion, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is the next page offset; keep criteria and limit unchanged across pages. Optional unavailable values are omitted. Dates retain their stored components; omitted hours mean date-only and omitted zones mean floating. A reminder whose dates, alarms, or recurrence cannot be projected fails the call. Flags, alert dates, containers, and emblems are not included; read them through GraphQL.",
       inputSchema: search, annotations: annotations,
       outputSchema: schema(
         [
@@ -365,7 +365,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "reminders_get",
       description:
-        "Read one reminder with component and projected dates, alarms and recurrence; returns null when absent.",
+        "Read one reminder with component and projected dates, alarms and recurrence; returns null when absent. Dates, alarms, or recurrence that cannot be projected fail the call. Flags, alert dates, containers, and emblems are not included; read them through GraphQL.",
       inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: annotations,
       outputSchema: schema(["reminder": nullable(item)], required: ["reminder"])),
   ]
