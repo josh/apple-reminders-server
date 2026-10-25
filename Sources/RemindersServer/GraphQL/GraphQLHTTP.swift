@@ -21,14 +21,13 @@ private func handleGraphQL(
     let message = (error as? GraphQLRequest.Invalid)?.message ?? "Expected one JSON object"
     return .json(GraphQLErrors(message), status: .badRequest)
   }
-  let query = request.query
-  let variables = request.variables
-  let operation = request.operationName
   do {
     if access != .write {
-      let document = try parse(source: query)
+      let document = try parse(source: request.query)
       let operations = document.definitions.compactMap { $0 as? OperationDefinition }
-      let selected = operations.filter { operation == nil || $0.name?.value == operation }
+      let selected = operations.filter {
+        request.operationName == nil || $0.name?.value == request.operationName
+      }
       guard selected.count == 1 else {
         return .json(
           GraphQLErrors("Select exactly one operation with operationName"), status: .badRequest)
@@ -38,8 +37,8 @@ private func handleGraphQL(
       }
     }
     var result = try await graphql(
-      schema: schema, request: query, context: GraphQLContext(), variableValues: variables,
-      operationName: operation)
+      schema: schema, request: request.query, context: GraphQLContext(),
+      variableValues: request.variables, operationName: request.operationName)
     result.errors = result.errors.map(withErrorCode)
     return ServiceResponse(
       body: try GraphQLJSONEncoder().encode(result),
