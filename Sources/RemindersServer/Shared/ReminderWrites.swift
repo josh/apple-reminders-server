@@ -75,8 +75,9 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   switch request {
   case .create(let listID, let changes):
     let list =
-      listID.flatMap { reminderList(store, id: $0) }
-      ?? (listID == nil ? store.defaultCalendarForNewReminders() : nil)
+      if let listID { reminderList(store, id: listID) } else {
+        store.defaultCalendarForNewReminders()
+      }
     guard let list else { throw ServerError.notFound("reminder list is unavailable") }
     guard changes.name != nil else { throw ServerError.invalidArgument("name must not be blank") }
     item = EKReminder(eventStore: store)
