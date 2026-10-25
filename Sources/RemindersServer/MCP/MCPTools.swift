@@ -860,7 +860,7 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
     }
     try await server.start(transport: transport)
     let response = await transport.handleRequest(
-      .init(method: method, headers: headers, body: body, path: "/mcp"))
+      .init(method: method, headers: headers, body: body, path: Route.mcp.rawValue))
     await server.stop()
     return ServiceResponse(
       status: response.statusCode, type: response.headers["Content-Type"] ?? "application/json",

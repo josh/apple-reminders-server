@@ -22,6 +22,13 @@ struct ServiceResponse {
       failure: failure, classified: true)
   }
 }
+// The served endpoints; any other path is logged and counted as "other".
+enum Route: String {
+  case graphql = "/graphql"
+  case mcp = "/mcp"
+  case metrics = "/metrics"
+}
+
 // One API endpoint: method, merged lowercase headers, body, and the caller's access.
 typealias APIHandler =
   @Sendable (String, [String: String], Data, Capabilities.Access) async throws -> ServiceResponse
@@ -84,27 +91,26 @@ func serve(
   let metricsCollector = MetricsCollector()
   let collectionTask = Task { await metricsCollector.run(intervalSeconds: metricsInterval) }
   defer { collectionTask.cancel() }
-  let handlers: [String: APIHandler] = [
-    "/graphql": try makeGraphQLHandler(),
-    "/mcp": { try await handleMCP(method: $0, headers: $1, body: $2, access: $3) },
+  let handlers: [Route: APIHandler] = [
+    .graphql: try makeGraphQLHandler(),
+    .mcp: { try await handleMCP(method: $0, headers: $1, body: $2, access: $3) },
   ]
   let origins = Set(["http://127.0.0.1:\(port)", "http://localhost:\(port)"] + allowedOrigins)
   let responder = CallbackResponder<BasicRequestContext> { request, _ in
     let started = ContinuousClock.now
+    let route = Route(rawValue: request.uri.path)
     var rpc: String?
     func respond(_ response: ServiceResponse) -> Response {
       let elapsed = started.duration(to: .now).components
       let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
-      let route =
-        ["/graphql", "/mcp", "/metrics"].contains(request.uri.path)
-        ? request.uri.path : "other"
+      let routeName = route?.rawValue ?? "other"
       // MCP clients probe for an event stream with GET; the spec answer is 405.
-      let probe = request.method == .get && route == "/mcp" && response.status == 405
+      let probe = request.method == .get && route == .mcp && response.status == 405
       let failure = probe ? nil : response.failureKind
       let level: Logger.Level =
         response.status >= 500 ? .error : failure == nil ? .debug : .notice
       var metadata: Logger.Metadata = [
-        "method": "\(request.method.rawValue)", "route": "\(route)",
+        "method": "\(request.method.rawValue)", "route": "\(routeName)",
         "status": "\(response.status)", "duration_ms": "\(String(format: "%.2f", milliseconds))",
         "outcome": "\(failure ?? "ok")",
       ]
@@ -114,7 +120,7 @@ func serve(
       if let agent = request.headers[.userAgent] { metadata["user_agent"] = "\(agent)" }
       if let rpc { metadata["rpc"] = "\(rpc)" }
       serverLogger.log(level: level, "HTTP request", metadata: metadata)
-      recordRequest(route: route, code: response.status)
+      recordRequest(route: routeName, code: response.status)
       var fields: HTTPFields = [.contentType: response.type]
       for (name, value) in response.headers {
         fields[.init(name)!] = value
@@ -165,9 +171,9 @@ func serve(
           let capabilities = try? Capabilities.parse(
             header: headers["tailscale-app-capabilities"], capability: tailscaleAppCapability,
             proxied: headers.keys.contains(where: proxyHeaders.contains)),
-          capabilities.allows(path: request.uri.path)
+          capabilities.allows(route)
         else { return respond(try .json(["error": "Forbidden"], status: 403)) }
-        if request.uri.path != "/metrics" && authorizing.withLock({ $0 }) {
+        if route != .metrics && authorizing.withLock({ $0 }) {
           return respond(
             ServiceResponse(
               status: 503, body: Data(#"{"error":"Reminders authorization pending"}"#.utf8),
@@ -178,19 +184,18 @@ func serve(
         {
           return respond(ServiceResponse(status: 413, body: Data()))
         }
-        let path = request.uri.path
-        if path == "/metrics" && request.method == .get {
+        if route == .metrics && request.method == .get {
           let eventKit = await metricsCollector.cachedExposition()
           let runtime = runtimeMetrics(
             eventKitUp: eventKit != nil, authorizing: authorizing.withLock { $0 })
           response = ServiceResponse(
             type: "text/plain; version=0.0.4; charset=utf-8",
             body: Data((runtime + (eventKit ?? "")).utf8))
-        } else if let handler = handlers[path] {
-          if path == "/mcp" && request.method == .post { rpc = jsonRPCMethod(body) }
+        } else if let route, let handler = handlers[route] {
+          if route == .mcp && request.method == .post { rpc = jsonRPCMethod(body) }
           let method = request.method.rawValue
           let requestHeaders = headers
-          let access = capabilities.access(path: path)
+          let access = capabilities.access(route)
           response = try await withRequestDeadline {
             try await handler(method, requestHeaders, body, access)
           }
