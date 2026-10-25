@@ -57,7 +57,7 @@ private func describe(_ value: Value, _ text: String) -> Value {
 }
 private func object(_ properties: [String: Value], required: [String] = []) -> Value {
   .object([
-    "type": "object", "properties": .object(properties),
+    "type": .string(JSONType.object.rawValue), "properties": .object(properties),
     "required": .array(required.map(Value.string)), "additionalProperties": false,
   ])
 }
@@ -70,19 +70,26 @@ private func schema<Key: CodingKey>(
     Dictionary(uniqueKeysWithValues: properties.map { ($0.key.stringValue, $0.value) }),
     required: required.map(\.stringValue))
 }
-private func primitive(_ type: String) -> Value { .object(["type": .string(type)]) }
-private func array(_ item: Value) -> Value { .object(["type": "array", "items": item]) }
+// JSON Schema type names.
+private enum JSONType: String { case object, array, string, integer, number, boolean, null }
+// A value of one JSON type, with optional keywords such as minimum or default.
+private func primitive(_ type: JSONType, _ keywords: [String: Value] = [:]) -> Value {
+  .object(keywords.merging(["type": .string(type.rawValue)]) { _, type in type })
+}
+private func array(_ item: Value) -> Value {
+  .object(["type": .string(JSONType.array.rawValue), "items": item])
+}
 private func enumeration(_ values: [String]) -> Value {
-  .object(["type": "string", "enum": .array(values.map(Value.string))])
+  primitive(.string, ["enum": .array(values.map(Value.string))])
 }
 private func nullable(_ value: Value) -> Value {
-  .object(["anyOf": .array([value, primitive("null")])])
+  .object(["anyOf": .array([value, primitive(.null)])])
 }
 private func toolsCatalog() -> [Tool] {
-  let integer = primitive("integer")
-  let string = primitive("string")
-  let number = primitive("number")
-  let boolean = primitive("boolean")
+  let integer = primitive(.integer)
+  let string = primitive(.string)
+  let number = primitive(.number)
+  let boolean = primitive(.boolean)
   let integers = array(integer)
   let components = schema(
     ComponentDate.CodingKeys.self,
@@ -279,15 +286,13 @@ private func toolsCatalog() -> [Tool] {
     required: [
       .id, .name, .source, .allowsContentModifications, .allowsListModifications, .subscribed,
     ])
-  let limit = Value.object([
-    "type": "integer", "minimum": 1, "maximum": 100, "default": 50,
-    "description": "Maximum number of items in the page.",
-  ])
-  let cursor = Value.object([
-    "type": "string", "minLength": 1,
-    "description":
-      "Omit for the first page. Otherwise use nextCursor from the previous response with the same filter, orderBy, and limit. Each page reads live data, so concurrent changes can cause omissions or repeats.",
-  ])
+  let limit = describe(
+    primitive(.integer, ["minimum": 1, "maximum": 100, "default": 50]),
+    "Maximum number of items in the page.")
+  let cursor = describe(
+    primitive(.string, ["minLength": 1]),
+    "Omit for the first page. Otherwise use nextCursor from the previous response with the same filter, orderBy, and limit. Each page reads live data, so concurrent changes can cause omissions or repeats."
+  )
   let filterNote = "Search criteria; all given criteria must match."
   let orderNote = "Result order; without it, results use identifier order."
   let search = schema(
@@ -320,7 +325,7 @@ private func toolsCatalog() -> [Tool] {
             .completed: describe(boolean, FieldDocs.ReminderFilter.completed),
             .hasDueDate: describe(boolean, FieldDocs.ReminderFilter.hasDueDate),
             .priorities: describe(
-              array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
+              array(primitive(.integer, ["minimum": 0, "maximum": 9])),
               FieldDocs.ReminderFilter.priorities),
           ]), filterNote),
     ])
@@ -380,20 +385,20 @@ private func toolsCatalog() -> [Tool] {
           [
             .title: describe(string, FieldDocs.Geofence.title),
             .latitude: describe(
-              .object(["type": "number", "minimum": -90, "maximum": 90]),
+              primitive(.number, ["minimum": -90, "maximum": 90]),
               FieldDocs.Geofence.latitude),
             .longitude: describe(
-              .object(["type": "number", "minimum": -180, "maximum": 180]),
+              primitive(.number, ["minimum": -180, "maximum": 180]),
               FieldDocs.Geofence.longitude),
             .radiusMeters: describe(
-              .object(["type": "number", "minimum": 0]), FieldDocs.Geofence.radiusMeters),
+              primitive(.number, ["minimum": 0]), FieldDocs.Geofence.radiusMeters),
             .proximity: describe(
               enumeration(GeofenceProximity.allCases.map(\.rawValue)),
               FieldDocs.Geofence.proximity),
           ], required: [.latitude, .longitude, .radiusMeters, .proximity]),
         FieldDocs.ReminderAlarmInput.geofence),
     ])
-  let priority = Value.object(["type": "integer", "minimum": 0, "maximum": 9])
+  let priority = primitive(.integer, ["minimum": 0, "maximum": 9])
   let createReminder = schema(
     ReminderInput.CodingKeys.self,
     [
@@ -513,10 +518,9 @@ private func toolsCatalog() -> [Tool] {
         ListDeleteArguments.CodingKeys.self,
         [
           .id: describe(string, "Identifier of the list."),
-          .allowNonEmpty: .object([
-            "type": "boolean", "default": false,
-            "description": "Also delete the list's reminders when it is not empty.",
-          ]),
+          .allowNonEmpty: describe(
+            primitive(.boolean, ["default": false]),
+            "Also delete the list's reminders when it is not empty."),
         ], required: [.id]), annotations: changed,
       outputSchema: deleted),
     Tool(
