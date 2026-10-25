@@ -1,6 +1,6 @@
 import Foundation
-import HTTPTypes
 import MCP
+import NIOHTTP1
 
 private struct PageOutput<Item: Encodable>: Encodable {
   let items: [Item]
@@ -857,7 +857,7 @@ private final class ToolOutcome: @unchecked Sendable {
   var failed = false
 }
 func handleMCP(
-  method: HTTPTypes.HTTPRequest.Method, headers: [String: String], body: Data,
+  method: HTTPMethod, headers: [String: String], body: Data,
   access: Capabilities.Access
 ) async throws -> ServiceResponse {
   let outcome = ToolOutcome()
@@ -912,7 +912,7 @@ func handleMCP(
     return ServiceResponse(
       status: response.statusCode, type: response.headers["Content-Type"] ?? "application/json",
       body: responseBody, headers: response.headers, failure: failure,
-      logMetadata: method == .post ? ["rpc": jsonRPCMethod(body)] : [:])
+      logMetadata: method == .POST ? ["rpc": jsonRPCMethod(body)] : [:])
   } catch {
     await server.stop()
     throw error

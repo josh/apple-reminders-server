@@ -1,6 +1,6 @@
 import Foundation
 import GraphQL
-import HTTPTypes
+import NIOHTTP1
 
 // Serves POST /graphql. The schema is built once and shared by every request.
 func makeGraphQLHandler() throws -> APIHandler {
@@ -13,9 +13,9 @@ func makeGraphQLHandler() throws -> APIHandler {
 func graphQLSchemaSDL() throws -> String { printSchema(schema: try makeSchema()) }
 
 private func handleGraphQL(
-  method: HTTPRequest.Method, body: Data, schema: GraphQLSchema, access: Capabilities.Access
+  method: HTTPMethod, body: Data, schema: GraphQLSchema, access: Capabilities.Access
 ) async throws -> ServiceResponse {
-  guard method == .post else { return try .json(["error": "POST required"], status: 405) }
+  guard method == .POST else { return try .json(["error": "POST required"], status: 405) }
   let request: GraphQLRequest
   do { request = try JSONDecoder().decode(GraphQLRequest.self, from: body) } catch {
     let message = (error as? GraphQLRequest.Invalid)?.message ?? "Expected one JSON object"

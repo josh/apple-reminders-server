@@ -1,7 +1,8 @@
 import Foundation
-import HTTPTypes
-import Hummingbird
 import Logging
+import NIOCore
+import NIOHTTP1
+import NIOPosix
 
 import struct os.OSAllocatedUnfairLock
 
@@ -39,7 +40,7 @@ enum Route: String {
 
 // One API endpoint: method, merged lowercase headers, body, and the caller's access.
 typealias APIHandler =
-  @Sendable (HTTPRequest.Method, [String: String], Data, Capabilities.Access) async throws
+  @Sendable (HTTPMethod, [String: String], Data, Capabilities.Access) async throws
   -> ServiceResponse
 
 // Headers the server reads as one value; a repeat is ambiguous. Every other header
@@ -51,8 +52,6 @@ private let proxyHeaders: Set<String> = [
   "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto", "forwarded",
   "tailscale-funnel-request",
 ]
-private let forwardedFor = HTTPField.Name("x-forwarded-for")!
-private let tailscaleUserLogin = HTTPField.Name("tailscale-user-login")!
 
 private let requestDeadline: Duration = .seconds(60)
 private struct RequestTimedOut: Error {}
@@ -100,59 +99,57 @@ func serve(
     .mcp: { try await handleMCP(method: $0, headers: $1, body: $2, access: $3) },
   ]
   let origins = Set(["http://127.0.0.1:\(port)", "http://localhost:\(port)"] + allowedOrigins)
-  let responder = CallbackResponder<BasicRequestContext> { request, _ in
+  let responder: Responder = { request in
     let started = ContinuousClock.now
-    let route = Route(rawValue: request.uri.path)
-    func respond(_ response: ServiceResponse) -> Response {
+    let route = Route(rawValue: request.path)
+    // Repeats are joined here; a repeated single-value header is rejected below.
+    var headers: [String: String] = [:]
+    var repeated: String?
+    for (name, value) in request.head.headers {
+      let key = name.lowercased()
+      guard let existing = headers[key] else {
+        headers[key] = value
+        continue
+      }
+      if singleValueHeaders.contains(key) { repeated = repeated ?? key }
+      headers[key] = existing + ", " + value
+    }
+    func respond(_ response: ServiceResponse) -> ServiceResponse {
       let elapsed = started.duration(to: .now).components
       let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
       let routeName = route?.rawValue ?? "other"
       // MCP clients probe for an event stream with GET; the spec answer is 405.
-      let probe = request.method == .get && route == .mcp && response.status == 405
+      let probe = request.head.method == .GET && route == .mcp && response.status == 405
       let failure = probe ? nil : response.status >= 400 ? .http : response.failure
       let level: Logger.Level =
         response.status >= 500 ? .error : failure == nil ? .debug : .notice
       var metadata: Logger.Metadata = [
-        "method": "\(request.method.rawValue)", "route": "\(routeName)",
+        "method": "\(request.head.method.rawValue)", "route": "\(routeName)",
         "status": "\(response.status)", "duration_ms": "\(String(format: "%.2f", milliseconds))",
         "outcome": "\(failure?.rawValue ?? "ok")",
       ]
       // Tailscale serve forwards the peer address and, for user-owned nodes, the login.
-      if let peer = request.headers[forwardedFor] { metadata["peer"] = "\(peer)" }
-      if let login = request.headers[tailscaleUserLogin] { metadata["tailscale_user"] = "\(login)" }
-      if let agent = request.headers[.userAgent] { metadata["user_agent"] = "\(agent)" }
+      if let peer = headers["x-forwarded-for"] { metadata["peer"] = "\(peer)" }
+      if let login = headers["tailscale-user-login"] { metadata["tailscale_user"] = "\(login)" }
+      if let agent = headers["user-agent"] { metadata["user_agent"] = "\(agent)" }
       for (key, value) in response.logMetadata { metadata[key] = "\(value)" }
       serverLogger.log(level: level, "HTTP request", metadata: metadata)
       recordRequest(route: routeName, code: response.status)
-      var fields: HTTPFields = [.contentType: response.type]
-      for (name, value) in response.headers {
-        fields[.init(name)!] = value
+      var cors = response
+      if let origin = headers["origin"], origins.contains(origin.lowercased()) {
+        cors.headers["Access-Control-Allow-Origin"] = origin
+        cors.headers["Vary"] = "Origin"
       }
-      if let origin = request.headers[.origin], origins.contains(origin.lowercased()) {
-        fields[.accessControlAllowOrigin] = origin
-        fields[.vary] = "Origin"
-      }
-      return Response(
-        status: .init(code: response.status), headers: fields,
-        body: .init(byteBuffer: ByteBuffer(bytes: response.body)))
+      return cors
     }
     do {
       let response: ServiceResponse
-      var headers: [String: String] = [:]
-      for header in request.headers {
-        let key = header.name.rawName.lowercased()
-        guard let existing = headers[key] else {
-          headers[key] = header.value
-          continue
-        }
-        guard !singleValueHeaders.contains(key) else {
-          return respond(try .json(["error": "Repeated \(key) header"], status: 400))
-        }
-        headers[key] = existing + ", " + header.value
+      if let key = repeated {
+        return respond(try .json(["error": "Repeated \(key) header"], status: 400))
       }
       if let origin = headers["origin"], !origins.contains(origin.lowercased()) {
         response = try .json(["error": "Untrusted origin"], status: 403)
-      } else if request.method == .options {
+      } else if request.head.method == .OPTIONS {
         var preflightHeaders = ["Allow": "GET, POST, OPTIONS"]
         if headers["origin"] != nil {
           preflightHeaders["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
@@ -162,7 +159,7 @@ func serve(
           preflightHeaders["Access-Control-Max-Age"] = "86400"
         }
         response = ServiceResponse(status: 204, body: Data(), headers: preflightHeaders)
-      } else if request.method == .post
+      } else if request.head.method == .POST
         && headers["content-type"]?.split(separator: ";").first?.trimmingCharacters(
           in: .whitespaces
         )
@@ -181,12 +178,10 @@ func serve(
             ServiceResponse(
               status: 503, body: Data(#"{"error":"Reminders authorization pending"}"#.utf8)))
         }
-        let body: Data
-        do { body = Data(try await request.body.collect(upTo: 1_048_576).readableBytesView) } catch
-        {
+        guard let body = request.body else {
           return respond(ServiceResponse(status: 413, body: Data()))
         }
-        if route == .metrics && request.method == .get {
+        if route == .metrics && request.head.method == .GET {
           let eventKit = await metricsCollector.cachedExposition()
           let runtime = runtimeMetrics(
             eventKitUp: eventKit != nil, authorizing: authorizing.withLock { $0 })
@@ -194,7 +189,7 @@ func serve(
             type: "text/plain; version=0.0.4; charset=utf-8",
             body: Data((runtime + (eventKit ?? "")).utf8))
         } else if let route, let handler = handlers[route] {
-          let method = request.method
+          let method = request.head.method
           let requestHeaders = headers
           let access = capabilities.access(route)
           response = try await withRequestDeadline {
@@ -214,8 +209,92 @@ func serve(
         ServiceResponse(status: 500, body: Data(#"{"error":"Internal server error"}"#.utf8)))
     }
   }
-  let app = Application(
-    responder: responder, configuration: .init(address: .hostname("127.0.0.1", port: Int(port))),
-    logger: serverLogger)
-  try await app.runService()
+  try await listen(port: port, responder: responder)
 }
+
+// One HTTP/1.1 request with its body collected; nil when the body exceeded the limit.
+struct CollectedRequest: Sendable {
+  let head: HTTPRequestHead
+  let body: Data?
+  var path: String { String(head.uri.prefix { $0 != "?" }) }
+}
+typealias Responder = @Sendable (CollectedRequest) async -> ServiceResponse
+private let maxBodyBytes = 1_048_576
+
+// Serves HTTP/1.1 on loopback until the process exits. NIO parses requests, answers
+// malformed ones with 400, and handles keep-alive and pipelining.
+private func listen(port: UInt16, responder: @escaping Responder) async throws {
+  let server = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
+    .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
+    // A client may half-close after sending; keep writing its responses.
+    .childChannelOption(.allowRemoteHalfClosure, value: true)
+    .bind(host: "127.0.0.1", port: Int(port)) { channel in
+      channel.eventLoop.makeCompletedFuture {
+        try channel.pipeline.syncOperations.configureHTTPServerPipeline(withErrorHandling: true)
+        return try NIOAsyncChannel<HTTPServerRequestPart, HTTPServerResponsePart>(
+          wrappingChannelSynchronously: channel)
+      }
+    }
+  serverLogger.info("Server started and listening on 127.0.0.1:\(port)")
+  try await withThrowingDiscardingTaskGroup { group in
+    try await server.executeThenClose { connections in
+      for try await connection in connections {
+        group.addTask { await serveConnection(connection, responder: responder) }
+      }
+    }
+  }
+}
+
+private func serveConnection(
+  _ connection: NIOAsyncChannel<HTTPServerRequestPart, HTTPServerResponsePart>,
+  responder: Responder
+) async {
+  // A connection error only ends that connection; NIO has already answered parse errors.
+  try? await connection.executeThenClose { inbound, outbound in
+    var head: HTTPRequestHead?
+    var body = ByteBuffer()
+    var oversized = false
+    for try await part in inbound {
+      switch part {
+      case .head(let value):
+        head = value
+        body.clear()
+        oversized = false
+      case .body(var chunk):
+        if oversized || body.readableBytes + chunk.readableBytes > maxBodyBytes {
+          oversized = true
+          body.clear()
+        } else {
+          body.writeBuffer(&chunk)
+        }
+      case .end:
+        guard let request = head else { continue }
+        let response = await responder(
+          CollectedRequest(head: request, body: oversized ? nil : Data(body.readableBytesView)))
+        var headers = HTTPHeaders([("Content-Type", response.type)])
+        for (name, value) in response.headers { headers.replaceOrAdd(name: name, value: value) }
+        if response.status != 204 {
+          headers.add(name: "Content-Length", value: String(response.body.count))
+        }
+        headers.add(name: "Date", value: Date().formatted(httpDate))
+        try await outbound.write(
+          .head(
+            HTTPResponseHead(
+              version: .http1_1, status: .init(statusCode: response.status), headers: headers)))
+        if request.method != .HEAD && !response.body.isEmpty {
+          try await outbound.write(.body(.byteBuffer(ByteBuffer(bytes: response.body))))
+        }
+        try await outbound.write(.end(nil))
+        guard request.isKeepAlive else { return }
+        head = nil
+      }
+    }
+  }
+}
+
+// IMF-fixdate (RFC 9110), for the Date header.
+private let httpDate = Date.VerbatimFormatStyle(
+  format:
+    "\(weekday: .abbreviated), \(day: .twoDigits) \(month: .abbreviated) \(year: .defaultDigits) \(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits) GMT",
+  locale: Locale(identifier: "en_US_POSIX"), timeZone: .gmt,
+  calendar: Calendar(identifier: .gregorian))
