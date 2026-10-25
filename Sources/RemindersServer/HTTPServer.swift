@@ -187,19 +187,30 @@ func serve(
       {
         response = .error("Content-Type application/json required", status: .unsupportedMediaType)
       } else {
-        let capabilities: Capabilities? =
-          switch request.label {
-          case .listeners: .full
-          case .metrics: .metricsOnly
-          case .graphql: .graphqlOnly
-          case .mcp: .mcpOnly
-          case .tailscaleServe:
-            config.tailscaleAppCapability.flatMap {
-              try? Capabilities.parse(header: headers[header: .appCapabilities], capability: $0)
-            }
+        // Denials log their reason; the response stays a bare "Forbidden".
+        func forbidden(_ reason: String) -> ServiceResponse {
+          var response = ServiceResponse.error("Forbidden", status: .forbidden)
+          response.logMetadata["error"] = reason
+          return response
+        }
+        let capabilities: Capabilities
+        switch request.label {
+        case .listeners: capabilities = .full
+        case .metrics: capabilities = .metricsOnly
+        case .graphql: capabilities = .graphqlOnly
+        case .mcp: capabilities = .mcpOnly
+        case .tailscaleServe:
+          // main refuses to start a TailscaleServe socket without the capability name.
+          do {
+            capabilities = try Capabilities.parse(
+              header: headers[header: .appCapabilities],
+              capability: config.tailscaleAppCapability ?? "")
+          } catch {
+            return respond(forbidden("\(error)"))
           }
-        guard let capabilities, capabilities.allows(route) else {
-          return respond(.error("Forbidden", status: .forbidden))
+        }
+        guard capabilities.allows(route) else {
+          return respond(forbidden("\(request.label.rawValue) access does not include this route"))
         }
         if route != .metrics && authorizing.withLock({ $0 }) {
           return respond(.error("Reminders authorization pending", status: .serviceUnavailable))

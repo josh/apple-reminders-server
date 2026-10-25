@@ -18,10 +18,16 @@ struct Capabilities {
 
   // A TailscaleServe socket: Serve sends the caller's grants for the capability; a
   // request without them gets nothing.
+  // Each failure names its reason for the request log; clients only see "Forbidden".
   static func parse(header: String?, capability: String) throws -> Capabilities {
-    guard let header, header.utf8.count <= 16_384,
-      let grants = try? grantDecoder(capability).decode(Grants.self, from: decodeHeader(header))
-    else { throw ServerError.forbidden("Forbidden") }
+    guard let header else { throw ServerError.forbidden("no capability header") }
+    guard header.utf8.count <= 16_384 else {
+      throw ServerError.forbidden("capability header exceeds 16 KiB")
+    }
+    let data = try decodeHeader(header)
+    guard let grants = try? grantDecoder(capability).decode(Grants.self, from: data) else {
+      throw ServerError.forbidden("no valid \(capability) grant")
+    }
 
     var result = Capabilities()
     for grant in grants.grants {
@@ -31,7 +37,7 @@ struct Capabilities {
         case .graphql: result.graphql = max(result.graphql, access)
         case .mcp: result.mcp = max(result.mcp, access)
         case .metrics:
-          guard access == .read else { throw ServerError.forbidden("Forbidden") }
+          guard access == .read else { throw ServerError.forbidden("metrics grants are read-only") }
           result.metrics = .read
         }
       }
@@ -82,7 +88,7 @@ struct Capabilities {
     var decoded = Data()
     for word in header.split(whereSeparator: { $0.isWhitespace }) {
       guard word.lowercased().hasPrefix("=?utf-8?q?"), word.hasSuffix("?=") else {
-        throw ServerError.forbidden("Forbidden")
+        throw ServerError.forbidden("malformed capability header encoding")
       }
       let bytes = Array(word.dropFirst(10).dropLast(2).utf8)
       var index = 0
@@ -95,7 +101,7 @@ struct Capabilities {
             }),
             let byte = UInt8(
               String(decoding: bytes[(index + 1)...(index + 2)], as: UTF8.self), radix: 16)
-          else { throw ServerError.forbidden("Forbidden") }
+          else { throw ServerError.forbidden("malformed capability header encoding") }
           decoded.append(byte)
           index += 3
         case 95:
@@ -103,7 +109,7 @@ struct Capabilities {
           index += 1
         default:
           guard (33...126).contains(bytes[index]), bytes[index] != 63 else {
-            throw ServerError.forbidden("Forbidden")
+            throw ServerError.forbidden("malformed capability header encoding")
           }
           decoded.append(bytes[index])
           index += 1
@@ -111,7 +117,7 @@ struct Capabilities {
       }
     }
     guard String(data: decoded, encoding: .utf8) != nil else {
-      throw ServerError.forbidden("Forbidden")
+      throw ServerError.forbidden("malformed capability header encoding")
     }
     return decoded
   }
