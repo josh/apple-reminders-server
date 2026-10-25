@@ -925,9 +925,13 @@ func handleMCP(
     {
       failure = .mcpProtocol
     }
+    var headers = HTTPHeaders(response.headers.map { ($0.key, $0.value) })
+    if !headers.contains(name: "Content-Type") {
+      headers.add(name: "Content-Type", value: "application/json")
+    }
     return ServiceResponse(
-      status: response.statusCode, type: response.headers["Content-Type"] ?? "application/json",
-      body: responseBody, headers: response.headers, failure: failure,
+      status: .init(statusCode: response.statusCode), headers: headers, body: responseBody,
+      failure: failure,
       logMetadata: method == .POST ? ["rpc": jsonRPCMethod(body)] : [:])
   } catch {
     await server.stop()

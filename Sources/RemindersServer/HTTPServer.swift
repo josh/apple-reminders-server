@@ -14,25 +14,24 @@ enum Failure: String {
   case mcpProtocol = "mcp_protocol"
 }
 struct ServiceResponse {
-  var status: Int = 200
-  var type = "application/json"
+  var status: HTTPResponseStatus = .ok
+  var headers: HTTPHeaders = ["Content-Type": "application/json"]
   var body: Data
-  var headers: [String: String] = [:]
   // Set by the handler that knows the outcome of a successful HTTP response.
   var failure: Failure? = nil
   // Extra request details the handler wants logged.
   var logMetadata: [String: String] = [:]
   // A JSON body with sorted keys.
-  static func json<Body: Encodable>(_ body: Body, status: Int = 200, failure: Failure? = nil)
-    -> ServiceResponse
-  {
+  static func json<Body: Encodable>(
+    _ body: Body, status: HTTPResponseStatus = .ok, failure: Failure? = nil
+  ) -> ServiceResponse {
     let encoder = JSONEncoder()
     encoder.outputFormatting = .sortedKeys
     // Bodies here are plain structs of strings, which always encode.
     return ServiceResponse(status: status, body: try! encoder.encode(body), failure: failure)
   }
   // {"error": message}, the body of every failure outside GraphQL's own error format.
-  static func error(_ message: String, status: Int) -> ServiceResponse {
+  static func error(_ message: String, status: HTTPResponseStatus) -> ServiceResponse {
     .json(ErrorBody(error: message), status: status)
   }
 }
@@ -126,13 +125,14 @@ func serve(
       let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
       let routeName = route?.rawValue ?? "other"
       // MCP clients probe for an event stream with GET; the spec answer is 405.
-      let probe = request.head.method == .GET && route == .mcp && response.status == 405
-      let failure = probe ? nil : response.status >= 400 ? .http : response.failure
-      let level: Logger.Level =
-        response.status >= 500 ? .error : failure == nil ? .debug : .notice
+      let code = Int(response.status.code)
+      let probe =
+        request.head.method == .GET && route == .mcp && response.status == .methodNotAllowed
+      let failure = probe ? nil : code >= 400 ? .http : response.failure
+      let level: Logger.Level = code >= 500 ? .error : failure == nil ? .debug : .notice
       var metadata: Logger.Metadata = [
         "method": "\(request.head.method.rawValue)", "route": "\(routeName)",
-        "status": "\(response.status)", "duration_ms": "\(String(format: "%.2f", milliseconds))",
+        "status": "\(code)", "duration_ms": "\(String(format: "%.2f", milliseconds))",
         "outcome": "\(failure?.rawValue ?? "ok")",
       ]
       // Tailscale serve forwards the peer address and, for user-owned nodes, the login.
@@ -141,57 +141,59 @@ func serve(
       if let agent = headers["user-agent"] { metadata["user_agent"] = "\(agent)" }
       for (key, value) in response.logMetadata { metadata[key] = "\(value)" }
       serverLogger.log(level: level, "HTTP request", metadata: metadata)
-      recordRequest(route: routeName, code: response.status)
+      recordRequest(route: routeName, code: code)
       var cors = response
       if let origin = headers["origin"], origins.contains(origin.lowercased()) {
-        cors.headers["Access-Control-Allow-Origin"] = origin
-        cors.headers["Vary"] = "Origin"
+        cors.headers.replaceOrAdd(name: "Access-Control-Allow-Origin", value: origin)
+        cors.headers.replaceOrAdd(name: "Vary", value: "Origin")
       }
       return cors
     }
     do {
       let response: ServiceResponse
       if let key = repeated {
-        return respond(.error("Repeated \(key) header", status: 400))
+        return respond(.error("Repeated \(key) header", status: .badRequest))
       }
       if let origin = headers["origin"], !origins.contains(origin.lowercased()) {
-        response = .error("Untrusted origin", status: 403)
+        response = .error("Untrusted origin", status: .forbidden)
       } else if request.head.method == .OPTIONS {
-        var preflightHeaders = ["Allow": "GET, POST, OPTIONS"]
+        var preflight = ServiceResponse(status: .noContent, body: Data())
+        preflight.headers.add(name: "Allow", value: "GET, POST, OPTIONS")
         if headers["origin"] != nil {
-          preflightHeaders["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-          preflightHeaders["Access-Control-Allow-Headers"] =
-            headers["access-control-request-headers"]
-            ?? "Content-Type, Accept, Mcp-Protocol-Version"
-          preflightHeaders["Access-Control-Max-Age"] = "86400"
+          preflight.headers.add(name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS")
+          preflight.headers.add(
+            name: "Access-Control-Allow-Headers",
+            value: headers["access-control-request-headers"]
+              ?? "Content-Type, Accept, Mcp-Protocol-Version")
+          preflight.headers.add(name: "Access-Control-Max-Age", value: "86400")
         }
-        response = ServiceResponse(status: 204, body: Data(), headers: preflightHeaders)
+        response = preflight
       } else if request.head.method == .POST
         && headers["content-type"]?.split(separator: ";").first?.trimmingCharacters(
           in: .whitespaces
         )
         .lowercased() != "application/json"
       {
-        response = .error("Content-Type application/json required", status: 415)
+        response = .error("Content-Type application/json required", status: .unsupportedMediaType)
       } else {
         guard
           let capabilities = try? Capabilities.parse(
             header: headers["tailscale-app-capabilities"], capability: tailscaleAppCapability,
             proxied: headers.keys.contains(where: proxyHeaders.contains)),
           capabilities.allows(route)
-        else { return respond(.error("Forbidden", status: 403)) }
+        else { return respond(.error("Forbidden", status: .forbidden)) }
         if route != .metrics && authorizing.withLock({ $0 }) {
-          return respond(.error("Reminders authorization pending", status: 503))
+          return respond(.error("Reminders authorization pending", status: .serviceUnavailable))
         }
         guard let body = request.body else {
-          return respond(ServiceResponse(status: 413, body: Data()))
+          return respond(ServiceResponse(status: .payloadTooLarge, body: Data()))
         }
         if route == .metrics && request.head.method == .GET {
           let eventKit = await metricsCollector.cachedExposition()
           let runtime = runtimeMetrics(
             eventKitUp: eventKit != nil, authorizing: authorizing.withLock { $0 })
           response = ServiceResponse(
-            type: "text/plain; version=0.0.4; charset=utf-8",
+            headers: ["Content-Type": "text/plain; version=0.0.4; charset=utf-8"],
             body: Data((runtime + (eventKit ?? "")).utf8))
         } else if let route, let handler = handlers[route] {
           let method = request.head.method
@@ -201,15 +203,15 @@ func serve(
             try await handler(method, requestHeaders, body, access)
           }
         } else {
-          response = .error("Not found", status: 404)
+          response = .error("Not found", status: .notFound)
         }
       }
       return respond(response)
     } catch is RequestTimedOut {
-      return respond(.error("Request timed out", status: 504))
+      return respond(.error("Request timed out", status: .gatewayTimeout))
     } catch {
       logFailure("Request failed", error: error)
-      return respond(.error("Internal server error", status: 500))
+      return respond(.error("Internal server error", status: .internalServerError))
     }
   }
   try await listen(port: port, responder: responder)
@@ -274,16 +276,15 @@ private func serveConnection(
         guard let request = head else { continue }
         let response = await responder(
           CollectedRequest(head: request, body: oversized ? nil : Data(body.readableBytesView)))
-        var headers = HTTPHeaders([("Content-Type", response.type)])
-        for (name, value) in response.headers { headers.replaceOrAdd(name: name, value: value) }
-        if response.status != 204 {
-          headers.add(name: "Content-Length", value: String(response.body.count))
+        var headers = response.headers
+        if response.status != .noContent {
+          headers.replaceOrAdd(name: "Content-Length", value: String(response.body.count))
         }
         headers.add(name: "Date", value: Date().formatted(httpDate))
         try await outbound.write(
           .head(
             HTTPResponseHead(
-              version: .http1_1, status: .init(statusCode: response.status), headers: headers)))
+              version: .http1_1, status: response.status, headers: headers)))
         if request.method != .HEAD && !response.body.isEmpty {
           try await outbound.write(.body(.byteBuffer(ByteBuffer(bytes: response.body))))
         }

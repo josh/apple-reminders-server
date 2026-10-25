@@ -15,11 +15,11 @@ func graphQLSchemaSDL() throws -> String { printSchema(schema: try makeSchema())
 private func handleGraphQL(
   method: HTTPMethod, body: Data, schema: GraphQLSchema, access: Capabilities.Access
 ) async throws -> ServiceResponse {
-  guard method == .POST else { return .error("POST required", status: 405) }
+  guard method == .POST else { return .error("POST required", status: .methodNotAllowed) }
   let request: GraphQLRequest
   do { request = try JSONDecoder().decode(GraphQLRequest.self, from: body) } catch {
     let message = (error as? GraphQLRequest.Invalid)?.message ?? "Expected one JSON object"
-    return .json(GraphQLErrors(message), status: 400)
+    return .json(GraphQLErrors(message), status: .badRequest)
   }
   let query = request.query
   let variables = request.variables
@@ -30,10 +30,11 @@ private func handleGraphQL(
       let operations = document.definitions.compactMap { $0 as? OperationDefinition }
       let selected = operations.filter { operation == nil || $0.name?.value == operation }
       guard selected.count == 1 else {
-        return .json(GraphQLErrors("Select exactly one operation with operationName"), status: 400)
+        return .json(
+          GraphQLErrors("Select exactly one operation with operationName"), status: .badRequest)
       }
       guard selected[0].operation == .query else {
-        return .json(GraphQLErrors("Forbidden: GraphQL write access required"), status: 403)
+        return .json(GraphQLErrors("Forbidden: GraphQL write access required"), status: .forbidden)
       }
     }
     var result = try await graphql(
