@@ -20,14 +20,11 @@ private func familyHeader(_ name: String, _ type: MetricType, _ help: String) ->
 // blank the request and liveness series that explain it.
 func runtimeMetrics(eventKitUp: Bool, authorizing: Bool) -> String {
   var lines: [String] = []
-  func family(_ name: String, _ type: MetricType, _ help: String) {
-    lines += familyHeader(name, type, help)
-  }
-  family(
+  lines += familyHeader(
     "process_start_time_seconds", .gauge,
     "Start time of the process since the Unix epoch; a change is a restart.")
   lines.append("process_start_time_seconds \(Int(processStart.timeIntervalSince1970))")
-  family(
+  lines += familyHeader(
     "reminders_http_requests_total", .counter, "HTTP requests answered, by route and status code.")
   let counts = requestCounts.withLock { $0 }
   for (key, count) in counts.sorted(by: {
@@ -37,17 +34,17 @@ func runtimeMetrics(eventKitUp: Bool, authorizing: Bool) -> String {
       "reminders_http_requests_total{route=\"\(metricEscape(key.route))\",code=\"\(key.code)\"} \(count)"
     )
   }
-  family(
+  lines += familyHeader(
     "reminders_main_actor_heartbeat_age_seconds", .gauge,
     "Seconds since the main actor last ran a watchdog heartbeat; the process exits past 120.")
   lines.append(
     "reminders_main_actor_heartbeat_age_seconds \(mainActorHeartbeatAge() / .seconds(1))")
-  family(
+  lines += familyHeader(
     "reminders_authorization_pending", .gauge,
     "1 while the startup Reminders access request has not finished; /graphql and /mcp answer 503 meanwhile."
   )
   lines.append("reminders_authorization_pending \(authorizing ? 1 : 0)")
-  family(
+  lines += familyHeader(
     "reminders_eventkit_up", .gauge,
     "1 when the last background EventKit read succeeded and its gauges follow.")
   lines.append("reminders_eventkit_up \(eventKitUp ? 1 : 0)")
