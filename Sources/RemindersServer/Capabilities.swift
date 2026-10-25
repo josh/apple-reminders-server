@@ -25,7 +25,9 @@ struct Capabilities {
       throw ServerError.forbidden("capability header exceeds 16 KiB")
     }
     let data = try decodeHeader(header)
-    guard let grants = try? grantDecoder(capability).decode(Grants.self, from: data) else {
+    let decoder = JSONDecoder()
+    decoder.userInfo[Grants.capability] = capability
+    guard let grants = try? decoder.decode(Grants.self, from: data) else {
       throw ServerError.forbidden("no valid \(capability) grant")
     }
 
@@ -63,11 +65,6 @@ struct Capabilities {
       grants = try decoder.container(keyedBy: Key.self).decode(
         [[API: Level]].self, forKey: Key(stringValue: name))
     }
-  }
-  private static func grantDecoder(_ capability: String) -> JSONDecoder {
-    let decoder = JSONDecoder()
-    decoder.userInfo[Grants.capability] = capability
-    return decoder
   }
 
   // An unknown path is allowed through so the server can answer 404.
