@@ -95,12 +95,12 @@ struct Capabilities {
       while index < bytes.count {
         switch bytes[index] {
         case 61:
-          guard index + 2 < bytes.count,
-            bytes[(index + 1)...(index + 2)].allSatisfy({
-              (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
-            }),
-            let byte = UInt8(
-              String(decoding: bytes[(index + 1)...(index + 2)], as: UTF8.self), radix: 16)
+          guard index + 2 < bytes.count else {
+            throw ServerError.forbidden("malformed capability header encoding")
+          }
+          let hex = bytes[(index + 1)...(index + 2)]
+          guard hex.allSatisfy({ Character(Unicode.Scalar($0)).isHexDigit }),
+            let byte = UInt8(String(decoding: hex, as: UTF8.self), radix: 16)
           else { throw ServerError.forbidden("malformed capability header encoding") }
           decoded.append(byte)
           index += 3
