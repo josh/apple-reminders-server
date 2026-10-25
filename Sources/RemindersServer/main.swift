@@ -30,6 +30,8 @@ Task.detached {
     let arguments = Array(CommandLine.arguments.dropFirst())
     if arguments == ["--help"] || arguments == ["-h"] {
       print(usage)
+    } else if arguments == ["--dump-mcp-tools"] {
+      print(try mcpToolsJSON())
     } else {
       var port: UInt16 = 8171
       var metricsInterval = 3600

@@ -638,6 +638,12 @@ private let toolNames = Set(tools.map(\.name))
 // A tool without readOnlyHint requires write access.
 private let readOnlyTools = Set(tools.filter { $0.annotations.readOnlyHint == true }.map(\.name))
 
+func mcpToolsJSON() throws -> String {
+  let encoder = JSONEncoder()
+  encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+  return String(decoding: try encoder.encode(ListTools.Result(tools: tools)), as: UTF8.self)
+}
+
 // Tool errors are JSON like successful results, with the code clients act on.
 private func errorText(_ error: Error) -> String {
   let server = error as? ServerError

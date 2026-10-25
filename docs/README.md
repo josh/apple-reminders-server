@@ -27,3 +27,10 @@ Regenerate the dictionary on the target Mac with:
 ```
 
 Declarations alone do not establish provider support or runtime behavior.
+
+Regenerate the MCP tool catalog after changing a tool with:
+
+```sh
+swift run apple-reminders-server --dump-mcp-tools >docs/mcp-tools.json
+prettier --write docs/mcp-tools.json
+```
