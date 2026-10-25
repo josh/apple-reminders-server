@@ -56,6 +56,10 @@ struct ComponentDate: Codable, Sendable {
     case weekdayOrdinal, quarter, weekOfMonth, weekOfYear, yearForWeekOfYear, isLeapMonth
   }
 }
+extension Calendar.Identifier {
+  // How ComponentDate.calendar records the identifier, e.g. "gregorian".
+  var storedName: String { String(describing: self) }
+}
 struct SourceRecord: Codable, Sendable {
   let id: String
   let title: String

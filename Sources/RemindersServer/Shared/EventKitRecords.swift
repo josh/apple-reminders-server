@@ -6,7 +6,7 @@ import Foundation
 extension ComponentDate {
   init(_ value: DateComponents) {
     self.init(
-      calendar: value.calendar.map { String(describing: $0.identifier) },
+      calendar: value.calendar?.identifier.storedName,
       timeZone: value.timeZone?.identifier, era: value.era, year: value.year,
       month: value.month, day: value.day, hour: value.hour, minute: value.minute,
       second: value.second, nanosecond: value.nanosecond, weekday: value.weekday,

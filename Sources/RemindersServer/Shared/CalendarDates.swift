@@ -8,7 +8,7 @@ struct CalendarDateProjection {
 }
 func projectDate(_ value: ComponentDate?) throws -> CalendarDateProjection? {
   guard let value else { return nil }
-  guard value.calendar == nil || value.calendar == "gregorian",
+  guard value.calendar == nil || value.calendar == Calendar.Identifier.gregorian.storedName,
     value.era == nil || value.era == 1,
     let year = value.year, let month = value.month, let day = value.day,
     (1...9999).contains(year)
