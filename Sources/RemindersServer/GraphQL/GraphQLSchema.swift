@@ -39,7 +39,6 @@ private func searchPage(
   search.listIds = try? criteria["listIds"].arrayValue().map { try $0.stringValue() }
   search.hasDueDate = try? criteria["hasDueDate"].boolValue()
   search.completed = try? criteria["completed"].boolValue()
-  search.flagged = try? criteria["flagged"].boolValue()
   search.priorities = try? criteria["priorities"].arrayValue().map { try $0.intValue() }
   guard search.priorities?.allSatisfy({ (0...9).contains($0) }) ?? true else {
     throw ServerError.invalidArgument("priorities must be 0...9")
@@ -54,14 +53,17 @@ private func searchPage(
     search.orderField = try args["orderBy"]["field"].stringValue()
     search.descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
   }
-  var flags: [String: Bool]?
-  if search.flagged != nil {
+  var items = try search.reminders(data, scope: scope)
+  // Flags come from Reminders automation, so the flag filter applies only here.
+  if let flagged = try? criteria["flagged"].boolValue() {
     guard let context = context as? GraphQLContext else {
       throw ServerError.internalError("Missing flag context")
     }
-    flags = try await context.flags()
+    let flags = try await context.flags()
+    // An unknown flag (not yet exposed by Reminders) matches neither filter value.
+    items = items.filter { flags[$0.id] == flagged }
   }
-  return try page(search.reminders(data, scope: scope, flags: flags), args: args)
+  return try page(items, args: args)
 }
 func page<T: Encodable>(_ values: [T], args: Map) throws -> Map {
   let limit = try args["limit"].intValue()

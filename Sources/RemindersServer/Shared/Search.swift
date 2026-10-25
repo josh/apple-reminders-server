@@ -11,7 +11,6 @@ struct Search: Sendable {
   var listIds: [String]?
   var hasDueDate: Bool?
   var completed: Bool?
-  var flagged: Bool?
   var priorities: [Int]?
   var dueStatus: DueStatus?
   var dueFrom: String?
@@ -21,11 +20,8 @@ struct Search: Sendable {
   var allowsContentModifications: Bool?
   var subscribed: Bool?
 
-  // Matching reminders in the requested order. `scope` restricts the list IDs;
-  // `flags` is the automation flag table, required when `flagged` is set.
-  func reminders(_ data: RemindersData, scope: Set<String>? = nil, flags: [String: Bool]? = nil)
-    throws -> [ReminderRecord]
-  {
+  // Matching reminders in the requested order. `scope` restricts the list IDs.
+  func reminders(_ data: RemindersData, scope: Set<String>? = nil) throws -> [ReminderRecord] {
     let timestampUpper = dueBefore.flatMap { $0.contains("T") ? $0 : nil }
     let dayUpper = dueBefore.flatMap { $0.contains("T") ? nil : $0 }
     guard !(dueFrom != nil && (dueOnOrAfter != nil || dayUpper != nil)),
@@ -45,8 +41,6 @@ struct Search: Sendable {
     let text = query?.lowercased()
     let name = nameContains?.lowercased()
     let items = data.reminders.filter { item in
-      // An unknown flag (not yet exposed by Reminders) matches neither filter value.
-      if let flagged, flags?[item.id] != flagged { return false }
       if fromDate != nil || beforeDate != nil {
         guard let date = (try? projectDate(item.dueDateComponents))?.instant,
           fromDate == nil || date >= fromDate!, beforeDate == nil || date < beforeDate!

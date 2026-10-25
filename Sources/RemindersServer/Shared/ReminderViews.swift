@@ -1,9 +1,5 @@
 import Foundation
 
-struct ContainerReference: Codable, Sendable {
-  let kind: String
-  let id: String
-}
 struct RecurrenceView: Encodable {
   struct Day: Encodable {
     let day: String

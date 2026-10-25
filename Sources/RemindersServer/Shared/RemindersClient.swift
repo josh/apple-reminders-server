@@ -2,7 +2,7 @@ import Foundation
 
 // Framework calls run as one main-actor job; the pool releases their temporaries.
 // Only Sendable records come back.
-private func onMainActor<T: Sendable>(_ body: @MainActor () throws -> T) async throws -> T {
+func onMainActor<T: Sendable>(_ body: @MainActor () throws -> T) async throws -> T {
   try await MainActor.run { try autoreleasepool(invoking: body) }
 }
 
@@ -20,14 +20,6 @@ func untilSynchronized<T: Sendable>(_ attempt: @MainActor () throws -> T) async 
   }
 }
 
-func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async throws -> [String:
-  Value]
-{
-  try await onMainActor {
-    try requireAccess()
-    return try readScriptProperty(property)
-  }
-}
 func writeReminder(_ request: ReminderWrite) async throws -> WriteResult<ReminderRecord> {
   switch try await onMainActor({ try executeReminderWrite(request) }) {
   case .finished(let result): return result

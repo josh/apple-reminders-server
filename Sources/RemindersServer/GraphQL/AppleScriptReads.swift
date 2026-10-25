@@ -1,5 +1,20 @@
 import Foundation
 
+// GraphQL reads flags, emblems, alert dates, and containers through Reminders automation.
+struct ContainerReference: Codable, Sendable {
+  let kind: String
+  let id: String
+}
+
+func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async throws -> [String:
+  Value]
+{
+  try await onMainActor {
+    try requireAccess()
+    return try readScriptProperty(property)
+  }
+}
+
 // Fixed read-only sources; request values are never interpolated. AppleScript's
 // timeout applies to each event, not to app launch or the complete operation.
 // Typed descriptors bind each fixed script expression to its result decoder.
@@ -9,13 +24,8 @@ struct ScriptProperty<Value: Sendable>: Sendable {
   let decode: @Sendable (NSAppleEventDescriptor) throws -> Value
 }
 extension ScriptProperty where Value == Bool {
-  static let flags = Self(entity: "reminder", expression: "flagged of every reminder") { value in
-    // typeBoolean, typeTrue, typeFalse
-    guard [0x626f_6f6c, 0x7472_7565, 0x6661_6c73].contains(value.descriptorType) else {
-      throw ServerError.internalError("Unsupported reminder flag value")
-    }
-    return value.booleanValue
-  }
+  static let flags = Self(
+    entity: "reminder", expression: "flagged of every reminder", decode: automationFlag)
 }
 extension ScriptProperty where Value == String? {
   static let emblems = Self(entity: "list", expression: "emblem of every list") { value in
