@@ -240,10 +240,7 @@ func makeSchema() throws -> GraphQLSchema {
       name: name,
       values: GraphQLEnumValueMap(
         uniqueKeysWithValues: values.map {
-          (
-            $0.uppercased(),
-            GraphQLEnumValue(value: .string($0), description: descriptions[$0.uppercased()])
-          )
+          ($0, GraphQLEnumValue(value: .string($0), description: descriptions[$0]))
         }))
   }
   let dueStatus = try enumeration(
