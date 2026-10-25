@@ -132,8 +132,7 @@ func serve(
       headers[key] = existing + ", " + value
     }
     func respond(_ response: ServiceResponse) -> ServiceResponse {
-      let elapsed = started.duration(to: .now).components
-      let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
+      let milliseconds = started.duration(to: .now) / .milliseconds(1)
       let routeName = route?.rawValue ?? "other"
       // MCP clients probe for an event stream with GET; the spec answer is 405.
       let code = Int(response.status.code)

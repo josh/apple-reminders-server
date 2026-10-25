@@ -40,10 +40,8 @@ func runtimeMetrics(eventKitUp: Bool, authorizing: Bool) -> String {
   family(
     "reminders_main_actor_heartbeat_age_seconds", .gauge,
     "Seconds since the main actor last ran a watchdog heartbeat; the process exits past 120.")
-  let age = mainActorHeartbeatAge().components
   lines.append(
-    "reminders_main_actor_heartbeat_age_seconds \(Double(age.seconds) + Double(age.attoseconds) / 1e18)"
-  )
+    "reminders_main_actor_heartbeat_age_seconds \(mainActorHeartbeatAge() / .seconds(1))")
   family(
     "reminders_authorization_pending", .gauge,
     "1 while the startup Reminders access request has not finished; /graphql and /mcp answer 503 meanwhile."
