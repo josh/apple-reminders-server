@@ -451,13 +451,13 @@ private func toolsCatalog() -> [Tool] {
     readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
   return [
     Tool(
-      name: "lists_create",
+      name: ToolName.listsCreate.rawValue,
       description:
         "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. If the emblem write fails after the save, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly.",
       inputSchema: listCreate, annotations: created,
       outputSchema: schema(["list": describe(list, "The saved list.")], required: ["list"])),
     Tool(
-      name: "lists_update",
+      name: ToolName.listsUpdate.rawValue,
       description:
         "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. If the emblem write fails after the save, the error has code WRITE_APPLIED and names the saved ID; refetch before retrying.",
       inputSchema: schema(
@@ -465,7 +465,7 @@ private func toolsCatalog() -> [Tool] {
       annotations: changed,
       outputSchema: schema(["list": describe(list, "The saved list.")], required: ["list"])),
     Tool(
-      name: "lists_delete",
+      name: ToolName.listsDelete.rawValue,
       description:
         "Delete a list. Nonempty lists require allowNonEmpty=true, which also deletes their reminders. The emptiness check does not lock out concurrent external edits.",
       inputSchema: schema(
@@ -480,18 +480,18 @@ private func toolsCatalog() -> [Tool] {
         ["deletedId": describe(primitive("string"), FieldDocs.DeleteResult.deletedId)],
         required: ["deletedId"])),
     Tool(
-      name: "reminders_show",
+      name: ToolName.remindersShow.rawValue,
       description: "Show a reminder in Reminders. Changes the application UI, not reminder data.",
       inputSchema: schema(["id": id("reminder")], required: ["id"]), annotations: navigation,
       outputSchema: schema(
         ["reminder": describe(item, "The shown reminder.")], required: ["reminder"])),
     Tool(
-      name: "lists_show",
+      name: ToolName.listsShow.rawValue,
       description: "Show a list in Reminders. Changes the application UI, not list data.",
       inputSchema: schema(["id": id("list")], required: ["id"]), annotations: navigation,
       outputSchema: schema(["list": describe(list, "The shown list.")], required: ["list"])),
     Tool(
-      name: "reminders_create",
+      name: ToolName.remindersCreate.rawValue,
       description:
         "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
       inputSchema: schema(createFields, required: ["name"]),
@@ -499,7 +499,7 @@ private func toolsCatalog() -> [Tool] {
       outputSchema: schema(
         ["reminder": describe(item, "The saved reminder.")], required: ["reminder"])),
     Tool(
-      name: "reminders_update",
+      name: ToolName.remindersUpdate.rawValue,
       description:
         "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch before retrying.",
       inputSchema: schema(
@@ -509,7 +509,7 @@ private func toolsCatalog() -> [Tool] {
       outputSchema: schema(
         ["reminder": describe(item, "The saved reminder.")], required: ["reminder"])),
     Tool(
-      name: "reminders_delete",
+      name: ToolName.remindersDelete.rawValue,
       description:
         "Delete one reminder. Missing IDs return a NOT_FOUND tool error. Refetch before retrying after uncertain failures.",
       inputSchema: schema(["id": id("reminder")], required: ["id"]), annotations: changed,
@@ -517,7 +517,7 @@ private func toolsCatalog() -> [Tool] {
         ["deletedId": describe(primitive("string"), FieldDocs.DeleteResult.deletedId)],
         required: ["deletedId"])),
     Tool(
-      name: "accounts_get",
+      name: ToolName.accountsGet.rawValue,
       description:
         "Read an account by identifier; returns null when it has no accessible reminder lists or is absent.",
       inputSchema: schema(["id": id("account")], required: ["id"]), annotations: annotations,
@@ -525,21 +525,21 @@ private func toolsCatalog() -> [Tool] {
         ["account": describe(nullable(account), "The account, or null when absent.")],
         required: ["account"])),
     Tool(
-      name: "accounts_list",
+      name: ToolName.accountsList.rawValue,
       description: "Read accounts with accessible reminder lists, ordered by identifier.",
       inputSchema: schema([:]), annotations: annotations,
       outputSchema: schema(
         ["items": describe(array(account), "Accounts with accessible reminder lists.")],
         required: ["items"])),
     Tool(
-      name: "lists_get",
+      name: ToolName.listsGet.rawValue,
       description:
         "Read a list by ID; absent identifiers return null. Emblems and containers are not included.",
       inputSchema: schema(["id": id("list")], required: ["id"]), annotations: annotations,
       outputSchema: schema(
         ["list": describe(nullable(list), "The list, or null when absent.")], required: ["list"])),
     Tool(
-      name: "defaults_get",
+      name: ToolName.defaultsGet.rawValue,
       description:
         "Read the accessible default list and its account; unavailable defaults return null.",
       inputSchema: schema([:]), annotations: annotations,
@@ -549,7 +549,7 @@ private func toolsCatalog() -> [Tool] {
           "account": describe(nullable(account), "The default list's account, or null."),
         ], required: ["list", "account"])),
     Tool(
-      name: "lists_summary",
+      name: ToolName.listsSummary.rawValue,
       description:
         "Count all reminders per accessible list, optionally restricted to listId. Counts overlap and include completed items except overdue.",
       inputSchema: schema([
@@ -562,7 +562,7 @@ private func toolsCatalog() -> [Tool] {
             array(schema(summary, required: counts + ["listId"])), "Counts for each list.")
         ], required: ["items"])),
     Tool(
-      name: "lists_list",
+      name: ToolName.listsList.rawValue,
       description:
         "Read lists filtered by name, account IDs, editability, and subscription. Use filter for search criteria. orderBy.direction selects name ordering; omission uses identifier order. Filters intersect. Pagination uses limit and cursor; keep the criteria unchanged across pages. Name ordering is case-insensitive with ID ascending ties.",
       inputSchema: listSearch, annotations: annotations,
@@ -573,7 +573,7 @@ private func toolsCatalog() -> [Tool] {
           "nextCursor": describe(primitive("string"), nextCursorNote),
         ], required: ["items", "totalCount"])),
     Tool(
-      name: "reminders_search",
+      name: ToolName.remindersSearch.rawValue,
       description:
         "Read reminders filtered by account/list IDs, completion, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is the next page offset; keep criteria and limit unchanged across pages. Optional unavailable values are omitted. Dates retain their stored components; omitted hours mean date-only and omitted zones mean floating. A reminder whose dates, alarms, or recurrence cannot be projected fails the call. Flags, alert dates, containers, and emblems are not included.",
       inputSchema: search, annotations: annotations,
@@ -584,7 +584,7 @@ private func toolsCatalog() -> [Tool] {
           "nextCursor": describe(primitive("string"), nextCursorNote),
         ], required: ["items", "totalCount"])),
     Tool(
-      name: "reminders_get",
+      name: ToolName.remindersGet.rawValue,
       description:
         "Read one reminder with component and projected dates, alarms and recurrence; returns null when absent. Dates, alarms, or recurrence that cannot be projected fail the call. Flags, alert dates, containers, and emblems are not included.",
       inputSchema: schema(["id": id("reminder")], required: ["id"]), annotations: annotations,
@@ -608,7 +608,28 @@ private func result<T: Encodable>(_ value: T) throws -> CallTool.Result {
     content: [.text(text: String(decoding: bytes, as: UTF8.self), annotations: nil, _meta: nil)],
     structuredContent: try JSONDecoder().decode(Value.self, from: bytes), isError: false)
 }
-private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Result {
+// Tool names are the MCP contract; the catalog and dispatch both use these cases.
+enum ToolName: String, CaseIterable {
+  case listsCreate = "lists_create"
+  case listsUpdate = "lists_update"
+  case listsDelete = "lists_delete"
+  case remindersShow = "reminders_show"
+  case listsShow = "lists_show"
+  case remindersCreate = "reminders_create"
+  case remindersUpdate = "reminders_update"
+  case remindersDelete = "reminders_delete"
+  case accountsGet = "accounts_get"
+  case accountsList = "accounts_list"
+  case listsGet = "lists_get"
+  case defaultsGet = "defaults_get"
+  case listsSummary = "lists_summary"
+  case listsList = "lists_list"
+  case remindersSearch = "reminders_search"
+  case remindersGet = "reminders_get"
+}
+private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async throws
+  -> CallTool.Result
+{
   let args = params.arguments ?? [:]
   try rejectNulls(.object(args))
   func arguments<T: Decodable>(_ type: T.Type) throws -> T { try decodeInput(type, from: args) }
@@ -669,51 +690,51 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       )
     }
   }
-  switch params.name {
-  case "reminders_create":
+  switch tool {
+  case .remindersCreate:
     let input = try arguments(ReminderInput.self)
     return try await savedReminder(
       .create(listID: input.listId.value, changes: reminderChanges(input, creating: true)))
-  case "reminders_update":
+  case .remindersUpdate:
     let update = try arguments(PatchArguments<ReminderInput>.self)
     return try await savedReminder(
       .update(id: update.id, changes: reminderChanges(update.patch, creating: false)))
-  case "lists_create":
+  case .listsCreate:
     let input = try arguments(ListInput.self)
     return try await savedList(
       .create(
         accountID: input.accountId.required("accountId"),
         changes: listChanges(input, creating: true)))
-  case "lists_update":
+  case .listsUpdate:
     let update = try arguments(PatchArguments<ListInput>.self)
     return try await savedList(
       .update(id: update.id, changes: listChanges(update.patch, creating: false)))
-  case "lists_delete":
+  case .listsDelete:
     let delete = try arguments(ListDeleteArguments.self)
     let deleted = try await deleteList(
       id: delete.id, allowNonEmpty: delete.allowNonEmpty.value ?? false)
     return try result(deleted)
-  case "reminders_show":
+  case .remindersShow:
     let id = try arguments(IDArguments.self).id
     let shown = try await showReminder(id: id)
     do { return try result(GetOutput(reminder: try MCPReminder(record: shown))) } catch {
       throw ServerError.showApplied(
         "reminder \(id) was shown, but response projection failed: \(error)")
     }
-  case "lists_show":
+  case .listsShow:
     let id = try arguments(IDArguments.self).id
     let shown = try await showList(id: id)
     do { return try result(ListOutput(list: shown)) } catch {
       throw ServerError.showApplied(
         "list \(id) was shown, but response projection failed: \(error)")
     }
-  case "reminders_delete":
+  case .remindersDelete:
     let deleted = try await deleteReminder(id: arguments(IDArguments.self).id)
     return try result(deleted)
-  case "accounts_get":
+  case .accountsGet:
     let id = try arguments(IDArguments.self).id
     return try result(AccountOutput(account: await readLists().accounts.first { $0.id == id }))
-  case "lists_list":
+  case .listsList:
     let search = try arguments(ListSearchArguments.self)
     var criteria = Search()
     if let filter = search.filter.value {
@@ -728,16 +749,16 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     return try await result(
       page(criteria.lists(readLists()), limit: search.limit, cursor: search.cursor))
-  case "accounts_list":
+  case .accountsList:
     try noArguments()
     return try result(AccountsOutput(items: await readLists().accounts))
-  case "lists_get":
+  case .listsGet:
     return try result(ListOutput(list: await readList(id: arguments(IDArguments.self).id)))
-  case "defaults_get":
+  case .defaultsGet:
     try noArguments()
     let data = try await readLists()
     return try result(DefaultsOutput(list: data.defaultList, account: data.defaultAccount))
-  case "lists_summary":
+  case .listsSummary:
     let id = try arguments(SummaryArguments.self).listId.value
     let data = try await readRemindersData()
     return try result(
@@ -745,11 +766,11 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
         items: data.lists.filter { id == nil || $0.id == id }.map {
           summarize(data, listId: $0.id)
         }))
-  case "reminders_get":
+  case .remindersGet:
     let id = try arguments(IDArguments.self).id
     return try result(
       GetOutput(reminder: await readReminder(id: id).map(MCPReminder.init(record:))))
-  case "reminders_search":
+  case .remindersSearch:
     let search = try arguments(ReminderSearchArguments.self)
     var criteria = Search()
     if let filter = search.filter.value {
@@ -785,11 +806,9 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       page(
         criteria.reminders(readRemindersData()).map(MCPReminder.init(record:)), limit: search.limit,
         cursor: search.cursor))
-  default: throw MCPError.invalidParams("Unknown tool")
   }
 }
 private let tools = toolsCatalog()
-private let toolNames = Set(tools.map(\.name))
 // A tool without readOnlyHint requires write access.
 private let readOnlyTools = Set(tools.filter { $0.annotations.readOnlyHint == true }.map(\.name))
 
@@ -845,7 +864,7 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
       return .init(tools: tools)
     }
     await server.withMethodHandler(CallTool.self) { params in
-      guard toolNames.contains(params.name) else {
+      guard let tool = ToolName(rawValue: params.name) else {
         throw MCPError.invalidParams("Unknown tool")
       }
       outcome.ran = true
@@ -856,7 +875,7 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
             .text(text: "Forbidden: MCP write access required", annotations: nil, _meta: nil)
           ], isError: true)
       }
-      do { return try await callTool(params) } catch {
+      do { return try await callTool(tool, params) } catch {
         outcome.failed = true
         return .init(
           content: [.text(text: errorText(error), annotations: nil, _meta: nil)], isError: true)
