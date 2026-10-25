@@ -2,16 +2,9 @@ import Carbon
 import Foundation
 
 // GraphQL reads flags, emblems, alert dates, and containers through Reminders automation.
-enum ScriptObjectKind: Sendable {
+// Raw values are the class names in Reminders' scripting dictionary.
+enum ScriptObjectKind: String, Sendable {
   case account, list, reminder
-  // The class name in Reminders' scripting dictionary.
-  var scriptName: String {
-    switch self {
-    case .account: "account"
-    case .list: "list"
-    case .reminder: "reminder"
-    }
-  }
 }
 struct ContainerReference: Sendable {
   let kind: ScriptObjectKind
@@ -60,7 +53,7 @@ extension ScriptProperty where Value == ContainerReference {
   static let listContainers = containers(entity: .list)
   static let reminderContainers = containers(entity: .reminder)
   private static func containers(entity: ScriptObjectKind) -> Self {
-    Self(entity: entity, expression: "container of every \(entity.scriptName)") { value in
+    Self(entity: entity, expression: "container of every \(entity.rawValue)") { value in
       guard value.descriptorType == DescType(typeObjectSpecifier),
         value.forKeyword(AEKeyword(keyAEKeyForm))?.enumCodeValue == OSType(formUniqueID),
         let parentID = value.forKeyword(AEKeyword(keyAEKeyData))?.stringValue
@@ -81,7 +74,7 @@ private func classCode(_ code: String) -> OSType {
 }
 @MainActor
 func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [String: Value] {
-  let entity = property.entity.scriptName
+  let entity = property.entity.rawValue
   let expression = property.expression
   let source = """
     with timeout of 10 seconds
