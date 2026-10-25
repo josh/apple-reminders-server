@@ -17,15 +17,3 @@ func logFailure(_ message: String, error: Error) {
       "error_code": "\(native.code)",
     ])
 }
-
-extension ServiceResponse {
-  var failureKind: String? {
-    if status >= 400 { return "http" }
-    if classified { return failure }
-    // Only MCP protocol replies arrive unclassified; GraphQL and tool calls classify.
-    guard type.hasPrefix("application/json"),
-      let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
-    else { return nil }
-    return object["error"] != nil ? "mcp_protocol" : nil
-  }
-}

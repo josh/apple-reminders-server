@@ -51,7 +51,7 @@ private func handleGraphQL(
     result.errors = result.errors.map(withErrorCode)
     return ServiceResponse(
       body: try GraphQLJSONEncoder().encode(result),
-      failure: result.errors.isEmpty ? nil : "graphql", classified: true)
+      failure: result.errors.isEmpty ? nil : "graphql")
   } catch { return try .json(["errors": [graphQLError(error)]], failure: "graphql") }
 }
 

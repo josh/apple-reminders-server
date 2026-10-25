@@ -10,16 +10,17 @@ struct ServiceResponse {
   var type = "application/json"
   var body: Data
   var headers: [String: String] = [:]
-  // The handler that knows the outcome sets failure; unclassified bodies are inspected.
+  // Set by the handler that knows the outcome of a successful HTTP response.
   var failure: String? = nil
-  var classified = false
+  // Extra request details the handler wants logged.
+  var logMetadata: [String: String] = [:]
   static func json(_ object: Any, status: Int = 200, failure: String? = nil) throws
     -> ServiceResponse
   {
     ServiceResponse(
       status: status,
       body: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
-      failure: failure, classified: true)
+      failure: failure)
   }
 }
 // The served endpoints; any other path is logged and counted as "other".
@@ -44,11 +45,6 @@ private let proxyHeaders: Set<String> = [
 ]
 private let forwardedFor = HTTPField.Name("x-forwarded-for")!
 private let tailscaleUserLogin = HTTPField.Name("tailscale-user-login")!
-private func jsonRPCMethod(_ body: Data) -> String {
-  let object = try? JSONSerialization.jsonObject(with: body)
-  if let method = (object as? [String: Any])?["method"] as? String { return method }
-  return object is [Any] ? "batch" : "unknown"
-}
 
 private let requestDeadline: Duration = .seconds(60)
 private struct RequestTimedOut: Error {}
@@ -99,14 +95,13 @@ func serve(
   let responder = CallbackResponder<BasicRequestContext> { request, _ in
     let started = ContinuousClock.now
     let route = Route(rawValue: request.uri.path)
-    var rpc: String?
     func respond(_ response: ServiceResponse) -> Response {
       let elapsed = started.duration(to: .now).components
       let milliseconds = Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
       let routeName = route?.rawValue ?? "other"
       // MCP clients probe for an event stream with GET; the spec answer is 405.
       let probe = request.method == .get && route == .mcp && response.status == 405
-      let failure = probe ? nil : response.failureKind
+      let failure = probe ? nil : response.status >= 400 ? "http" : response.failure
       let level: Logger.Level =
         response.status >= 500 ? .error : failure == nil ? .debug : .notice
       var metadata: Logger.Metadata = [
@@ -118,7 +113,7 @@ func serve(
       if let peer = request.headers[forwardedFor] { metadata["peer"] = "\(peer)" }
       if let login = request.headers[tailscaleUserLogin] { metadata["tailscale_user"] = "\(login)" }
       if let agent = request.headers[.userAgent] { metadata["user_agent"] = "\(agent)" }
-      if let rpc { metadata["rpc"] = "\(rpc)" }
+      for (key, value) in response.logMetadata { metadata[key] = "\(value)" }
       serverLogger.log(level: level, "HTTP request", metadata: metadata)
       recordRequest(route: routeName, code: response.status)
       var fields: HTTPFields = [.contentType: response.type]
@@ -176,8 +171,7 @@ func serve(
         if route != .metrics && authorizing.withLock({ $0 }) {
           return respond(
             ServiceResponse(
-              status: 503, body: Data(#"{"error":"Reminders authorization pending"}"#.utf8),
-              failure: "authorizing", classified: true))
+              status: 503, body: Data(#"{"error":"Reminders authorization pending"}"#.utf8)))
         }
         let body: Data
         do { body = Data(try await request.body.collect(upTo: 1_048_576).readableBytesView) } catch
@@ -192,7 +186,6 @@ func serve(
             type: "text/plain; version=0.0.4; charset=utf-8",
             body: Data((runtime + (eventKit ?? "")).utf8))
         } else if let route, let handler = handlers[route] {
-          if route == .mcp && request.method == .post { rpc = jsonRPCMethod(body) }
           let method = request.method.rawValue
           let requestHeaders = headers
           let access = capabilities.access(route)
@@ -206,9 +199,7 @@ func serve(
       return respond(response)
     } catch is RequestTimedOut {
       return respond(
-        ServiceResponse(
-          status: 504, body: Data(#"{"error":"Request timed out"}"#.utf8),
-          failure: "timeout", classified: true))
+        ServiceResponse(status: 504, body: Data(#"{"error":"Request timed out"}"#.utf8)))
     } catch {
       logFailure("Request failed", error: error)
       return respond(

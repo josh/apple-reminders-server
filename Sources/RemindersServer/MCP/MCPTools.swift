@@ -813,6 +813,13 @@ private func errorText(_ error: Error) -> String {
   return data.flatMap { String(data: $0, encoding: .utf8) } ?? String(describing: error)
 }
 
+// The JSON-RPC method of a request body, for logging.
+private func jsonRPCMethod(_ body: Data) -> String {
+  let object = try? JSONSerialization.jsonObject(with: body)
+  if let method = (object as? [String: Any])?["method"] as? String { return method }
+  return object is [Any] ? "batch" : "unknown"
+}
+
 // Records the tool outcome so the logger need not reparse large result bodies.
 private final class ToolOutcome: @unchecked Sendable {
   var ran = false
@@ -862,10 +869,18 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
     let response = await transport.handleRequest(
       .init(method: method, headers: headers, body: body, path: Route.mcp.rawValue))
     await server.stop()
+    let responseBody = response.bodyData ?? Data()
+    var failure: String? = outcome.failed ? "mcp_tool" : nil
+    // Protocol replies (no tool or catalog handler ran) report errors in the JSON-RPC body.
+    if !outcome.ran,
+      (try? JSONSerialization.jsonObject(with: responseBody) as? [String: Any])?["error"] != nil
+    {
+      failure = "mcp_protocol"
+    }
     return ServiceResponse(
       status: response.statusCode, type: response.headers["Content-Type"] ?? "application/json",
-      body: response.bodyData ?? Data(), headers: response.headers,
-      failure: outcome.failed ? "mcp_tool" : nil, classified: outcome.ran)
+      body: responseBody, headers: response.headers, failure: failure,
+      logMetadata: method == "POST" ? ["rpc": jsonRPCMethod(body)] : [:])
   } catch {
     await server.stop()
     throw error
