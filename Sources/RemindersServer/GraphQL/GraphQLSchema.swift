@@ -687,10 +687,7 @@ func makeSchema() throws -> GraphQLSchema {
   reminder.fields = { reminderFields }
   let mutation = try makeMutationType(
     reminder: reminder, list: list, dateTime: dateTime, localDate: localDate, proximity: proximity,
-    frequency: frequency, weekday: weekday
-  ) { context in
-    await (context as? GraphQLContext)?.invalidate()
-  }
+    frequency: frequency, weekday: weekday)
   return try GraphQLSchema(
     query: GraphQLObjectType(
       name: "Query",

@@ -1,11 +1,24 @@
 import Foundation
 import GraphQL
 
+// A write or navigation can change what this request already read, so the request's
+// cached reads are dropped afterward, whether or not it succeeded.
+private func afterWrite<T: Encodable & Sendable>(
+  _ context: (any Sendable)?, _ write: () async throws -> T
+) async throws -> Map {
+  let value: T
+  do { value = try await write() } catch {
+    await (context as? GraphQLContext)?.invalidate()
+    throw error
+  }
+  await (context as? GraphQLContext)?.invalidate()
+  return try graphMap(value)
+}
+
 func makeMutationType(
   reminder: GraphQLObjectType, list: GraphQLObjectType, dateTime: GraphQLScalarType,
   localDate: GraphQLScalarType, proximity: GraphQLEnumType, frequency: GraphQLEnumType,
-  weekday: GraphQLEnumType,
-  invalidate: @escaping @Sendable ((any Sendable)?) async -> Void
+  weekday: GraphQLEnumType
 ) throws -> GraphQLObjectType {
   let geofence = try GraphQLInputObjectType(
     name: "GeofenceInput",
@@ -143,26 +156,6 @@ func makeMutationType(
       "accountId": InputObjectField(
         type: GraphQLNonNull(GraphQLID), description: FieldDocs.CreateListInput.accountId),
     ])
-  @Sendable func runList(_ request: ListWrite, context: (any Sendable)?) async throws -> Map {
-    do {
-      let value = try graphMap(await writeList(request))
-      await invalidate(context)
-      return value
-    } catch {
-      await invalidate(context)
-      throw error
-    }
-  }
-  @Sendable func run(_ request: ReminderWrite, context: (any Sendable)?) async throws -> Map {
-    do {
-      let value = try graphMap(await writeReminder(request))
-      await invalidate(context)
-      return value
-    } catch {
-      await invalidate(context)
-      throw error
-    }
-  }
   return try GraphQLObjectType(
     name: "Mutation",
     fields: [
@@ -173,10 +166,12 @@ func makeMutationType(
         args: ["input": GraphQLArgument(type: GraphQLNonNull(createList))],
         resolve: { _, args, context, _ in
           let input = try decodeInput(ListInput.self, from: args["input"])
-          return try await runList(
-            .create(
-              accountID: input.accountId.required("accountId"),
-              changes: listChanges(input, creating: true)), context: context)
+          return try await afterWrite(context) {
+            try await writeList(
+              .create(
+                accountID: input.accountId.required("accountId"),
+                changes: listChanges(input, creating: true)))
+          }
         }),
       "updateList": GraphQLField(
         type: list,
@@ -187,13 +182,13 @@ func makeMutationType(
           "patch": GraphQLArgument(type: GraphQLNonNull(listPatch)),
         ],
         resolve: { _, args, context, _ in
-          try await runList(
-            .update(
-              id: args["id"].stringValue(),
-              changes: listChanges(
-                decodeInput(ListInput.self, from: args["patch"]), creating: false)),
-            context: context
-          )
+          try await afterWrite(context) {
+            try await writeList(
+              .update(
+                id: args["id"].stringValue(),
+                changes: listChanges(
+                  decodeInput(ListInput.self, from: args["patch"]), creating: false)))
+          }
         }),
       "deleteList": GraphQLField(
         type: deleted,
@@ -205,29 +200,28 @@ func makeMutationType(
             type: GraphQLNonNull(GraphQLBoolean), defaultValue: false),
         ],
         resolve: { _, args, context, _ in
-          try await runList(
-            .delete(
-              id: args["id"].stringValue(), allowNonEmpty: args["allowNonEmpty"].boolValue()),
-            context: context)
+          try await afterWrite(context) {
+            try await writeList(
+              .delete(
+                id: args["id"].stringValue(), allowNonEmpty: args["allowNonEmpty"].boolValue()))
+          }
         }),
       "showReminder": GraphQLField(
         type: reminder,
         description: "Show a reminder in the Reminders UI without changing its data.",
         args: ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
-          let value = try await showRemindersObject(
-            args["id"].stringValue(), isList: false)
-          await invalidate(context)
-          return try graphMap(value)
+          try await afterWrite(context) {
+            try await showRemindersObject(args["id"].stringValue(), isList: false)
+          }
         }),
       "showList": GraphQLField(
         type: list, description: "Show a list in the Reminders UI without changing its data.",
         args: ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
-          let value = try await showRemindersObject(
-            args["id"].stringValue(), isList: true)
-          await invalidate(context)
-          return try graphMap(value)
+          try await afterWrite(context) {
+            try await showRemindersObject(args["id"].stringValue(), isList: true)
+          }
         }),
       "createReminder": GraphQLField(
         type: reminder,
@@ -236,9 +230,10 @@ func makeMutationType(
         args: ["input": GraphQLArgument(type: GraphQLNonNull(create))],
         resolve: { _, args, context, _ in
           let input = try decodeInput(ReminderInput.self, from: args["input"])
-          return try await run(
-            .create(listID: input.listId.value, changes: reminderChanges(input, creating: true)),
-            context: context)
+          return try await afterWrite(context) {
+            try await writeReminder(
+              .create(listID: input.listId.value, changes: reminderChanges(input, creating: true)))
+          }
         }),
       "updateReminder": GraphQLField(
         type: reminder,
@@ -249,12 +244,13 @@ func makeMutationType(
           "patch": GraphQLArgument(type: GraphQLNonNull(patch)),
         ],
         resolve: { _, args, context, _ in
-          try await run(
-            .update(
-              id: args["id"].stringValue(),
-              changes: reminderChanges(
-                decodeInput(ReminderInput.self, from: args["patch"]), creating: false)),
-            context: context)
+          try await afterWrite(context) {
+            try await writeReminder(
+              .update(
+                id: args["id"].stringValue(),
+                changes: reminderChanges(
+                  decodeInput(ReminderInput.self, from: args["patch"]), creating: false)))
+          }
         }),
       "clearCompletedReminders": GraphQLField(
         type: cleared,
@@ -262,13 +258,8 @@ func makeMutationType(
           "Delete completed reminders in one list. Keep incomplete reminders and the list.",
         args: ["listId": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
-          do {
-            let result = try await clearCompletedReminders(listID: args["listId"].stringValue())
-            await invalidate(context)
-            return try graphMap(result)
-          } catch {
-            await invalidate(context)
-            throw error
+          try await afterWrite(context) {
+            try await clearCompletedReminders(listID: args["listId"].stringValue())
           }
         }),
       "deleteReminder": GraphQLField(
@@ -277,7 +268,9 @@ func makeMutationType(
           "Delete a reminder in an editable list. Missing identifiers return a NOT_FOUND error.",
         args: ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
-          try await run(.delete(id: args["id"].stringValue()), context: context)
+          try await afterWrite(context) {
+            try await writeReminder(.delete(id: args["id"].stringValue()))
+          }
         }),
     ])
 }
