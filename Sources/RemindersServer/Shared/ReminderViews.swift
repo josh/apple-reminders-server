@@ -4,10 +4,12 @@ struct RecurrenceView: Encodable {
   struct Day: Encodable {
     let day: Weekday
     let ordinal: Int?
+    enum CodingKeys: String, CodingKey { case day, ordinal }
   }
   struct End: Encodable {
     let until: String?
     let count: Int?
+    enum CodingKeys: String, CodingKey { case until, count }
   }
   let frequency: ScheduleFrequency
   let interval: Int
@@ -15,6 +17,10 @@ struct RecurrenceView: Encodable {
   let daysOfMonth: [Int]?, monthsOfYear: [Int]?, weeksOfYear: [Int]?, daysOfYear: [Int]?,
     setPositions: [Int]?
   let end: End?
+  enum CodingKeys: String, CodingKey {
+    case frequency, interval, daysOfWeek, daysOfMonth, monthsOfYear, weeksOfYear, daysOfYear
+    case setPositions, end
+  }
   init(_ rule: RecurrenceRecord) throws {
     guard let frequency = ScheduleFrequency(rule.frequency) else {
       throw ServerError.unsupported("unknown recurrence frequency")
@@ -60,11 +66,13 @@ struct AlarmView: Encodable {
     let longitude: Double
     let radiusMeters: Double
     let proximity: GeofenceProximity
+    enum CodingKeys: String, CodingKey { case title, latitude, longitude, radiusMeters, proximity }
   }
   let kind: AlarmKind
   let at: String?
   let offsetSeconds: Double?
   let geofence: Geofence?
+  enum CodingKeys: String, CodingKey { case kind, at, offsetSeconds, geofence }
   init(_ alarm: AlarmRecord) throws {
     guard alarm.relativeOffset.isFinite else {
       throw ServerError.unsupported("nonfinite alarm offset")
