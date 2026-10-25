@@ -9,15 +9,17 @@ struct Capabilities {
   var mcp: Access = .denied
   var metrics: Access = .denied
 
-  static func parse(header: String?, capability: String?, proxied: Bool) throws -> Capabilities {
-    guard let capability else {
-      return Capabilities(graphql: .write, mcp: .write, metrics: .read)
-    }
-    guard let header else {
-      guard !proxied else { throw ServerError.forbidden("Forbidden") }
-      return Capabilities(graphql: .write, mcp: .write, metrics: .read)
-    }
-    guard header.utf8.count <= 16_384,
+  // A Listeners socket: who can connect is limited by the plist, so every API is open.
+  static let full = Capabilities(graphql: .write, mcp: .write, metrics: .read)
+  // Sockets dedicated to one API.
+  static let metricsOnly = Capabilities(metrics: .read)
+  static let graphqlOnly = Capabilities(graphql: .write)
+  static let mcpOnly = Capabilities(mcp: .write)
+
+  // A TailscaleServe socket: Serve sends the caller's grants for the capability; a
+  // request without them gets nothing.
+  static func parse(header: String?, capability: String) throws -> Capabilities {
+    guard let header, header.utf8.count <= 16_384,
       let grants = try? grantDecoder(capability).decode(Grants.self, from: decodeHeader(header))
     else { throw ServerError.forbidden("Forbidden") }
 

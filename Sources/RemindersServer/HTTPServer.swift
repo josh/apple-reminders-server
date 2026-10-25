@@ -58,17 +58,9 @@ private enum RequestHeader: String {
   case userAgent = "user-agent"
   case corsRequestHeaders = "access-control-request-headers"
   case forwardedFor = "x-forwarded-for"
-  case forwardedHost = "x-forwarded-host"
-  case forwardedProto = "x-forwarded-proto"
-  case forwarded
-  case funnelRequest = "tailscale-funnel-request"
   // Read as one value, so a repeat is ambiguous. Every other header may repeat per
   // RFC 9110 and is joined with a comma, as proxies expect.
   var isSingleValue: Bool { [.origin, .contentType, .appCapabilities].contains(self) }
-  // Present only when a proxy forwarded the request.
-  var isProxy: Bool {
-    [.forwardedFor, .forwardedHost, .forwardedProto, .forwarded, .funnelRequest].contains(self)
-  }
 }
 extension [String: String] {
   fileprivate subscript(header header: RequestHeader) -> String? { self[header.rawValue] }
@@ -109,17 +101,18 @@ private func withRequestDeadline<T: Sendable>(
 }
 
 func serve(
-  port: UInt16, metricsInterval: Int, allowedOrigins: [String], tailscaleAppCapability: String?,
-  authorizing: OSAllocatedUnfairLock<Bool>
+  sockets: [LaunchdSocket], config: ServerConfig, authorizing: OSAllocatedUnfairLock<Bool>
 ) async throws {
   let metricsCollector = MetricsCollector()
-  let collectionTask = Task { await metricsCollector.run(intervalSeconds: metricsInterval) }
+  let collectionTask = Task {
+    await metricsCollector.run(intervalSeconds: config.metricsInterval)
+  }
   defer { collectionTask.cancel() }
   let handlers: [Route: APIHandler] = [
     .graphql: try makeGraphQLHandler(),
     .mcp: { try await handleMCP(method: $0, headers: $1, body: $2, access: $3) },
   ]
-  let origins = Set(["http://127.0.0.1:\(port)", "http://localhost:\(port)"] + allowedOrigins)
+  let origins = Set(config.allowedOrigins)
   let responder: Responder = { request in
     let started = ContinuousClock.now
     let route = Route(rawValue: request.path)
@@ -191,12 +184,20 @@ func serve(
       {
         response = .error("Content-Type application/json required", status: .unsupportedMediaType)
       } else {
-        guard
-          let capabilities = try? Capabilities.parse(
-            header: headers[header: .appCapabilities], capability: tailscaleAppCapability,
-            proxied: headers.keys.contains { RequestHeader(rawValue: $0)?.isProxy == true }),
-          capabilities.allows(route)
-        else { return respond(.error("Forbidden", status: .forbidden)) }
+        let capabilities: Capabilities? =
+          switch request.label {
+          case .listeners: .full
+          case .metrics: .metricsOnly
+          case .graphql: .graphqlOnly
+          case .mcp: .mcpOnly
+          case .tailscaleServe:
+            config.tailscaleAppCapability.flatMap {
+              try? Capabilities.parse(header: headers[header: .appCapabilities], capability: $0)
+            }
+          }
+        guard let capabilities, capabilities.allows(route) else {
+          return respond(.error("Forbidden", status: .forbidden))
+        }
         if route != .metrics && authorizing.withLock({ $0 }) {
           return respond(.error("Reminders authorization pending", status: .serviceUnavailable))
         }
@@ -229,11 +230,13 @@ func serve(
       return respond(.error("Internal server error", status: .internalServerError))
     }
   }
-  try await listen(port: port, responder: responder)
+  let idle = config.exitWhenIdle.map(IdleExit.init)
+  try await listen(sockets: sockets, idle: idle, responder: responder)
 }
 
 // One HTTP/1.1 request with its body collected; nil when the body exceeded the limit.
 struct CollectedRequest: Sendable {
+  let label: SocketLabel
   let head: HTTPRequestHead
   let body: Data?
   var path: String { String(head.uri.prefix { $0 != "?" }) }
@@ -241,25 +244,68 @@ struct CollectedRequest: Sendable {
 typealias Responder = @Sendable (CollectedRequest) async -> ServiceResponse
 private let maxBodyBytes = 1_048_576
 
-// Serves HTTP/1.1 on loopback until the process exits. NIO parses requests, answers
-// malformed ones with 400, and handles keep-alive and pipelining.
-private func listen(port: UInt16, responder: @escaping Responder) async throws {
-  let server = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
-    .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
-    // A client may half-close after sending; keep writing its responses.
-    .childChannelOption(.allowRemoteHalfClosure, value: true)
-    .bind(host: "127.0.0.1", port: Int(port)) { channel in
-      channel.eventLoop.makeCompletedFuture {
-        try channel.pipeline.syncOperations.configureHTTPServerPipeline(withErrorHandling: true)
-        return try NIOAsyncChannel<HTTPServerRequestPart, HTTPServerResponsePart>(
-          wrappingChannelSynchronously: channel)
+// Serves HTTP/1.1 on launchd's sockets until the process exits. NIO parses requests,
+// answers malformed ones with 400, and handles keep-alive and pipelining.
+private func listen(sockets: [LaunchdSocket], idle: IdleExit?, responder: @escaping Responder)
+  async throws
+{
+  try await withThrowingDiscardingTaskGroup { group in
+    for socket in sockets {
+      let server = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
+        // A client may half-close after sending; keep writing its responses.
+        .childChannelOption(.allowRemoteHalfClosure, value: true)
+        .bind(socket.descriptor) { channel in
+          channel.eventLoop.makeCompletedFuture {
+            try channel.pipeline.syncOperations.configureHTTPServerPipeline(
+              withErrorHandling: true)
+            return try NIOAsyncChannel<HTTPServerRequestPart, HTTPServerResponsePart>(
+              wrappingChannelSynchronously: channel)
+          }
+        }
+      // launchd binds unix sockets at a temporary path and renames them into place, so only
+      // a TCP address is worth logging.
+      let address = server.channel.localAddress
+      let host = address?.ipAddress.map { $0.contains(":") ? "[\($0)]" : $0 } ?? "?"
+      let location = address?.protocol == .unix ? "(unix)" : "at \(host):\(address?.port ?? 0)"
+      serverLogger.info("Listening on launchd socket \(socket.label.rawValue) \(location)")
+      group.addTask {
+        try await server.executeThenClose { connections in
+          try await withThrowingDiscardingTaskGroup { open in
+            for try await connection in connections {
+              idle?.opened()
+              open.addTask {
+                await serveConnection(connection, label: socket.label, responder: responder)
+                idle?.closed()
+              }
+            }
+          }
+        }
       }
     }
-  serverLogger.info("Server started and listening on 127.0.0.1:\(port)")
-  try await withThrowingDiscardingTaskGroup { group in
-    try await server.executeThenClose { connections in
-      for try await connection in connections {
-        group.addTask { await serveConnection(connection, responder: responder) }
+    if let idle { group.addTask { await idle.run() } }
+  }
+}
+
+// Exits once no connection has been open for the window. launchd keeps the sockets and
+// starts the server again on the next connection.
+final class IdleExit: Sendable {
+  private let window: Duration
+  private let state = OSAllocatedUnfairLock(
+    initialState: (open: 0, since: ContinuousClock.now))
+  init(window: Duration) { self.window = window }
+  func opened() { state.withLock { $0.open += 1 } }
+  func closed() {
+    state.withLock {
+      $0.open -= 1
+      $0.since = .now
+    }
+  }
+  func run() async {
+    while (try? await Task.sleep(for: min(window, .seconds(5)))) != nil {
+      let idle = state.withLock { $0.open == 0 && $0.since.duration(to: .now) >= window }
+      if idle {
+        serverLogger.info("Exiting after \(window) without connections")
+        exit(0)
       }
     }
   }
@@ -267,7 +313,7 @@ private func listen(port: UInt16, responder: @escaping Responder) async throws {
 
 private func serveConnection(
   _ connection: NIOAsyncChannel<HTTPServerRequestPart, HTTPServerResponsePart>,
-  responder: Responder
+  label: SocketLabel, responder: Responder
 ) async {
   // A connection error only ends that connection; NIO has already answered parse errors.
   try? await connection.executeThenClose { inbound, outbound in
@@ -290,7 +336,8 @@ private func serveConnection(
       case .end:
         guard let request = head else { continue }
         let response = await responder(
-          CollectedRequest(head: request, body: oversized ? nil : Data(body.readableBytesView)))
+          CollectedRequest(
+            label: label, head: request, body: oversized ? nil : Data(body.readableBytesView)))
         var headers = response.headers
         if response.status != .noContent {
           headers.replaceOrAdd(name: "Content-Length", value: String(response.body.count))

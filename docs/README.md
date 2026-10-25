@@ -2,7 +2,7 @@
 
 ## Interfaces
 
-- [Server](SERVER.md): startup options, permissions, HTTP behavior, and limits.
+- [Server](SERVER.md): launchd setup, sockets, configuration, permissions, HTTP behavior, and limits.
 - [GraphQL API](GRAPHQL.md) and [schema](reminders.graphql): queries, mutations, validation, and partial-save errors.
 - [MCP API](MCP.md) and [tool catalog](mcp-tools.json): current tool interface.
 - [Metrics](METRICS.md) and [exposition example](metrics.prom): EventKit-only counts and background collection.
