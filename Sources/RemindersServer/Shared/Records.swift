@@ -170,7 +170,7 @@ struct RecurrenceRecord: Encodable, Sendable {
 }
 struct ReminderRecord: Encodable, Sendable {
   let id: String, externalId: String?, listId: String?, name: String?, body: String?
-  var flagged: Bool? = nil
+  let flagged: Bool?
   let completed: Bool, priority: Int
   let completionDate: String?, creationDate: String?, modificationDate: String?, location: String?,
     url: String?
