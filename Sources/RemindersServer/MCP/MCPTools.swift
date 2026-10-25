@@ -661,8 +661,8 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
   func noArguments() throws {
     guard args.isEmpty else { throw ServerError.invalidArgument("Unknown input field") }
   }
-  func ids(_ field: InputField<[String]>, _ name: String) throws -> [String]? {
-    guard let ids = field.value else { return nil }
+  func ids(_ field: [String]?, _ name: String) throws -> [String]? {
+    guard let ids = field else { return nil }
     guard ids.allSatisfy({ !$0.isEmpty }) else {
       throw ServerError.invalidArgument("\(name) must contain nonempty identifiers")
     }
@@ -671,14 +671,14 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
   // The page at the cursor offset; nextCursor is the following page's offset, and the
   // client keeps the criteria unchanged.
   func page<Item: Encodable>(
-    _ items: [Item], limit: InputField<Int>, cursor: InputField<String>
+    _ items: [Item], limit: Int?, cursor: String?
   ) throws -> PageOutput<Item> {
-    let limit = limit.value ?? 50
+    let limit = limit ?? 50
     guard (1...100).contains(limit) else {
       throw ServerError.invalidArgument("limit must be 1...100")
     }
     let offset =
-      try cursor.value.map { token in
+      try cursor.map { token in
         guard let value = Int(token), value >= 0 else {
           throw ServerError.invalidArgument(
             "cursor must be a nextCursor string from the previous response. Omit cursor for the first page."
@@ -725,7 +725,7 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
   case .listsDelete:
     let delete = try arguments(ListDeleteArguments.self)
     let deleted = try await deleteList(
-      id: delete.id, allowNonEmpty: delete.allowNonEmpty.value ?? false)
+      id: delete.id, allowNonEmpty: delete.allowNonEmpty ?? false)
     return try result(deleted)
   case .remindersShow:
     let id = try arguments(IDArguments.self).id
@@ -745,15 +745,15 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
   case .listsList:
     let search = try arguments(ListSearchArguments.self)
     var criteria = Search()
-    if let filter = search.filter.value {
-      criteria.query = filter.query.value
+    if let filter = search.filter {
+      criteria.query = filter.query
       criteria.accountIds = try ids(filter.accountIds, "accountIds")
-      criteria.allowsContentModifications = filter.allowsContentModifications.value
-      criteria.subscribed = filter.subscribed.value
+      criteria.allowsContentModifications = filter.allowsContentModifications
+      criteria.subscribed = filter.subscribed
     }
-    if let order = search.orderBy.value {
+    if let order = search.orderBy {
       criteria.sortListsByName = true
-      criteria.direction = order.direction.value ?? .ascending
+      criteria.direction = order.direction ?? .ascending
     }
     return try await result(
       page(criteria.lists(readLists()), limit: search.limit, cursor: search.cursor))
@@ -767,7 +767,7 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
     let data = try await readLists()
     return try result(DefaultsOutput(list: data.defaultList, account: data.defaultAccount))
   case .listsSummary:
-    let id = try arguments(SummaryArguments.self).listId.value
+    let id = try arguments(SummaryArguments.self).listId
     let data = try await readRemindersData()
     return try result(
       SummaryOutput(
@@ -781,21 +781,21 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
   case .remindersSearch:
     let search = try arguments(ReminderSearchArguments.self)
     var criteria = Search()
-    if let filter = search.filter.value {
-      criteria.query = filter.query.value
-      criteria.dueFrom = filter.dueFrom.value
-      criteria.dueOnOrAfter = filter.dueOnOrAfter.value
-      criteria.dueBefore = filter.dueBefore.value
+    if let filter = search.filter {
+      criteria.query = filter.query
+      criteria.dueFrom = filter.dueFrom
+      criteria.dueOnOrAfter = filter.dueOnOrAfter
+      criteria.dueBefore = filter.dueBefore
       criteria.accountIds = try ids(filter.accountIds, "accountIds")
       criteria.listIds = try ids(filter.listIds, "listIds")
-      criteria.hasDueDate = filter.hasDueDate.value
-      criteria.completed = filter.completed.value
-      criteria.priorities = filter.priorities.value
-      criteria.dueStatus = filter.dueStatus.value
+      criteria.hasDueDate = filter.hasDueDate
+      criteria.completed = filter.completed
+      criteria.priorities = filter.priorities
+      criteria.dueStatus = filter.dueStatus
     }
-    if let order = search.orderBy.value {
+    if let order = search.orderBy {
       criteria.reminderOrder = order.field
-      criteria.direction = order.direction.value ?? .ascending
+      criteria.direction = order.direction ?? .ascending
     }
     return try await result(
       page(
