@@ -76,10 +76,9 @@ struct GeofenceInput: Decodable, Sendable {
 }
 
 func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderChanges {
-  let patchOnly = [
-    input.completed.isAbsent, input.completionDate.isAbsent, input.clearFields.isAbsent,
-  ]
-  guard creating ? !patchOnly.contains(false) : input.listId.isAbsent else {
+  let patchFieldsAbsent =
+    input.completed.isAbsent && input.completionDate.isAbsent && input.clearFields.isAbsent
+  guard creating ? patchFieldsAbsent : input.listId.isAbsent else {
     throw ServerError.invalidArgument("Unknown input field")
   }
   if !creating, input.containsNull {
