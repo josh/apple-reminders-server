@@ -34,12 +34,12 @@ struct GraphQLReminderSearch: Decodable {
     }
   }
   struct Order: Decodable, Sendable {
-    let field: String
+    let field: ReminderSortField
     let direction: InputField<SortDirection>
     enum CodingKeys: String, CodingKey, CaseIterable { case field, direction }
     init(from decoder: Decoder) throws {
       let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
-      field = try c.decode(String.self, forKey: .field)
+      field = try c.decode(ReminderSortField.self, forKey: .field)
       direction = try c.field(.direction)
     }
   }

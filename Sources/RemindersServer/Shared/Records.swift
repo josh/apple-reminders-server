@@ -113,7 +113,7 @@ enum GeofenceProximity: String, CaseIterable, Codable, Sendable {
   case arrive = "ARRIVE"
   case depart = "DEPART"
 }
-enum ReminderSortField: String, CaseIterable, Sendable {
+enum ReminderSortField: String, CaseIterable, Decodable, Sendable {
   case name = "NAME"
   case dueDate = "DUE_DATE"
   case priority = "PRIORITY"

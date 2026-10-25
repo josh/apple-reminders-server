@@ -46,7 +46,7 @@ private func searchPage(
     search.dueFrom = filter.dueFrom.value
   }
   if let order = arguments.orderBy.value {
-    search.reminderOrder = ReminderSortField(rawValue: order.field)
+    search.reminderOrder = order.field
     search.direction = order.direction.value ?? .ascending
   }
   var items = try search.reminders(data, scope: scope)
