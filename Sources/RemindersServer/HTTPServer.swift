@@ -5,16 +5,23 @@ import Logging
 
 import struct os.OSAllocatedUnfairLock
 
+// Why a request is logged as failed; the raw value is the log's outcome label.
+enum Failure: String {
+  case http
+  case graphql
+  case mcpTool = "mcp_tool"
+  case mcpProtocol = "mcp_protocol"
+}
 struct ServiceResponse {
   var status: Int = 200
   var type = "application/json"
   var body: Data
   var headers: [String: String] = [:]
   // Set by the handler that knows the outcome of a successful HTTP response.
-  var failure: String? = nil
+  var failure: Failure? = nil
   // Extra request details the handler wants logged.
   var logMetadata: [String: String] = [:]
-  static func json(_ object: Any, status: Int = 200, failure: String? = nil) throws
+  static func json(_ object: Any, status: Int = 200, failure: Failure? = nil) throws
     -> ServiceResponse
   {
     ServiceResponse(
@@ -102,13 +109,13 @@ func serve(
       let routeName = route?.rawValue ?? "other"
       // MCP clients probe for an event stream with GET; the spec answer is 405.
       let probe = request.method == .get && route == .mcp && response.status == 405
-      let failure = probe ? nil : response.status >= 400 ? "http" : response.failure
+      let failure = probe ? nil : response.status >= 400 ? .http : response.failure
       let level: Logger.Level =
         response.status >= 500 ? .error : failure == nil ? .debug : .notice
       var metadata: Logger.Metadata = [
         "method": "\(request.method.rawValue)", "route": "\(routeName)",
         "status": "\(response.status)", "duration_ms": "\(String(format: "%.2f", milliseconds))",
-        "outcome": "\(failure ?? "ok")",
+        "outcome": "\(failure?.rawValue ?? "ok")",
       ]
       // Tailscale serve forwards the peer address and, for user-owned nodes, the login.
       if let peer = request.headers[forwardedFor] { metadata["peer"] = "\(peer)" }

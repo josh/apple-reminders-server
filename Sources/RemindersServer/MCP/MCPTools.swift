@@ -884,12 +884,12 @@ func handleMCP(
       .init(method: method.rawValue, headers: headers, body: body, path: Route.mcp.rawValue))
     await server.stop()
     let responseBody = response.bodyData ?? Data()
-    var failure: String? = outcome.failed ? "mcp_tool" : nil
+    var failure: Failure? = outcome.failed ? .mcpTool : nil
     // Protocol replies (no tool or catalog handler ran) report errors in the JSON-RPC body.
     if !outcome.ran,
       (try? JSONSerialization.jsonObject(with: responseBody) as? [String: Any])?["error"] != nil
     {
-      failure = "mcp_protocol"
+      failure = .mcpProtocol
     }
     return ServiceResponse(
       status: response.statusCode, type: response.headers["Content-Type"] ?? "application/json",
