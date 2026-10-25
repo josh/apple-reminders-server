@@ -67,13 +67,6 @@ private func array(_ item: Value) -> Value { .object(["type": "array", "items": 
 private func enumeration(_ values: [String]) -> Value {
   .object(["type": "string", "enum": .array(values.map(Value.string))])
 }
-private let reminderFilterKeys: Set<String> = [
-  "accountIds", "listIds", "query", "completed", "priorities", "hasDueDate",
-  "dueFrom", "dueBefore", "dueOnOrAfter", "dueStatus",
-]
-private let listFilterKeys: Set<String> = [
-  "query", "accountIds", "allowsContentModifications", "subscribed",
-]
 private func nullable(_ value: Value) -> Value {
   .object(["anyOf": .array([value, primitive("null")])])
 }
@@ -561,23 +554,6 @@ private func rejectNulls(_ value: Value) throws {
   default: break
   }
 }
-private struct ListOrderInput: Decodable {
-  let direction: InputField<String>
-  enum CodingKeys: String, CodingKey, CaseIterable { case direction }
-  init(from decoder: Decoder) throws {
-    direction = try decoder.inputContainer(keyedBy: CodingKeys.self).field(.direction)
-  }
-}
-private struct ReminderOrderInput: Decodable {
-  let field: String
-  let direction: InputField<String>
-  enum CodingKeys: String, CodingKey, CaseIterable { case field, direction }
-  init(from decoder: Decoder) throws {
-    let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
-    field = try c.decode(String.self, forKey: .field)
-    direction = try c.field(.direction)
-  }
-}
 private func result<T: Encodable>(_ value: T) throws -> CallTool.Result {
   let bytes = try JSONEncoder().encode(value)
   return try .init(
@@ -586,65 +562,38 @@ private func result<T: Encodable>(_ value: T) throws -> CallTool.Result {
 }
 private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Result {
   let args = params.arguments ?? [:]
-  func filters(_ allowed: Set<String>) throws -> [String: Value] {
-    guard let value = args["filter"] else { return [:] }
-    guard case .object(let filter) = value, Set(filter.keys).isSubset(of: allowed) else {
-      throw ServerError.invalidArgument("filter must be an object with known fields")
-    }
-    return filter
+  try rejectNulls(.object(args))
+  func arguments<T: Decodable>(_ type: T.Type) throws -> T { try decodeInput(type, from: args) }
+  func noArguments() throws {
+    guard args.isEmpty else { throw ServerError.invalidArgument("Unknown input field") }
   }
-  func keys(_ allowed: Set<String>) throws {
-    guard Set(args.keys).isSubset(of: allowed) else {
-      throw ServerError.invalidArgument("Unknown argument")
+  func ids(_ field: InputField<[String]>, _ name: String) throws -> [String]? {
+    guard let ids = field.value else { return nil }
+    guard ids.allSatisfy({ !$0.isEmpty }) else {
+      throw ServerError.invalidArgument("\(name) must contain nonempty identifiers")
     }
+    return ids
   }
-  func string(_ key: String, from values: [String: Value]? = nil) throws -> String? {
-    guard let value = (values ?? args)[key] else { return nil }
-    guard let text = value.stringValue else {
-      throw ServerError.invalidArgument("\(key) must be a string")
-    }
-    return text
-  }
-  // A cursor is the next page's offset; the client keeps the criteria unchanged.
-  func cursor() throws -> Int {
-    guard let value = args["cursor"] else { return 0 }
-    guard let token = value.stringValue, let offset = Int(token), offset >= 0 else {
-      throw ServerError.invalidArgument(
-        "cursor must be a nextCursor string from the previous response. Omit cursor for the first page."
-      )
-    }
-    return offset
-  }
-  func bool(_ key: String, from values: [String: Value]? = nil) throws -> Bool? {
-    guard let value = (values ?? args)[key] else { return nil }
-    guard case .bool(let result) = value else {
-      throw ServerError.invalidArgument("\(key) must be boolean")
-    }
-    return result
-  }
-  func ids(_ key: String, from values: [String: Value]? = nil) throws -> [String]? {
-    guard let value = (values ?? args)[key] else { return nil }
-    guard case .array(let values) = value else {
-      throw ServerError.invalidArgument("\(key) must be an array")
-    }
-    return try values.map { value in
-      guard case .string(let id) = value, !id.isEmpty else {
-        throw ServerError.invalidArgument("\(key) must contain nonempty identifiers")
-      }
-      return id
-    }
-  }
-  func limit() throws -> Int {
-    guard let value = args["limit"] else { return 50 }
-    guard case .int(let number) = value, (1...100).contains(number) else {
+  // The page at the cursor offset; nextCursor is the following page's offset, and the
+  // client keeps the criteria unchanged.
+  func page<Item: Encodable>(
+    _ items: [Item], limit: InputField<Int>, cursor: InputField<String>
+  ) throws -> PageOutput<Item> {
+    let limit = limit.value ?? 50
+    guard (1...100).contains(limit) else {
       throw ServerError.invalidArgument("limit must be 1...100")
     }
-    return number
-  }
-  // The page at the cursor offset; nextCursor is the following page's offset.
-  func page<Item: Encodable>(_ items: [Item]) throws -> PageOutput<Item> {
-    let start = try min(cursor(), items.count)
-    let end = try min(start + limit(), items.count)
+    var offset = 0
+    if let token = cursor.value {
+      guard let value = Int(token), value >= 0 else {
+        throw ServerError.invalidArgument(
+          "cursor must be a nextCursor string from the previous response. Omit cursor for the first page."
+        )
+      }
+      offset = value
+    }
+    let start = min(offset, items.count)
+    let end = min(start + limit, items.count)
     return PageOutput(
       items: Array(items[start..<end]), totalCount: items.count,
       nextCursor: end < items.count ? String(end) : nil)
@@ -656,67 +605,49 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     return direction == "DESC"
   }
-  switch params.name {
-  case "reminders_create", "reminders_update":
-    let request: ReminderWrite
-    if params.name == "reminders_create" {
-      try rejectNulls(.object(args))
-      let input = try decodeInput(ReminderInput.self, from: args)
-      request = .create(
-        listID: input.listId.value, changes: try reminderChanges(input, creating: true))
-    } else {
-      try keys(["id", "patch"])
-      guard let id = try string("id"), !id.isEmpty, let patch = args["patch"] else {
-        throw ServerError.invalidArgument("id and patch required")
-      }
-      try rejectNulls(patch)
-      request = .update(
-        id: id,
-        changes: try reminderChanges(decodeInput(ReminderInput.self, from: patch), creating: false))
-    }
+  func savedReminder(_ request: ReminderWrite) async throws -> CallTool.Result {
     let saved = try await writeReminder(request).savedRecord()
     do { return try result(GetOutput(reminder: MCPReminder(record: saved))) } catch {
       throw ServerError.writeApplied(
         "reminder \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying."
       )
     }
-  case "lists_create", "lists_update":
-    let request: ListWrite
-    if params.name == "lists_create" {
-      try rejectNulls(.object(args))
-      let input = try decodeInput(ListInput.self, from: args)
-      request = .create(
-        accountID: try input.accountId.required("accountId"),
-        changes: try listChanges(input, creating: true))
-    } else {
-      try keys(["id", "patch"])
-      guard let id = try string("id"), !id.isEmpty, let value = args["patch"] else {
-        throw ServerError.invalidArgument("id and patch required")
-      }
-      try rejectNulls(value)
-      request = .update(
-        id: id, changes: try listChanges(decodeInput(ListInput.self, from: value), creating: false))
-    }
+  }
+  func savedList(_ request: ListWrite) async throws -> CallTool.Result {
     let saved = try await writeList(request).savedRecord()
     do { return try result(ListOutput(list: saved)) } catch {
       throw ServerError.writeApplied(
         "list \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying"
       )
     }
+  }
+  switch params.name {
+  case "reminders_create":
+    let input = try arguments(ReminderInput.self)
+    return try await savedReminder(
+      .create(listID: input.listId.value, changes: reminderChanges(input, creating: true)))
+  case "reminders_update":
+    let update = try arguments(PatchArguments<ReminderInput>.self)
+    return try await savedReminder(
+      .update(id: update.id, changes: reminderChanges(update.patch, creating: false)))
+  case "lists_create":
+    let input = try arguments(ListInput.self)
+    return try await savedList(
+      .create(
+        accountID: input.accountId.required("accountId"),
+        changes: listChanges(input, creating: true)))
+  case "lists_update":
+    let update = try arguments(PatchArguments<ListInput>.self)
+    return try await savedList(
+      .update(id: update.id, changes: listChanges(update.patch, creating: false)))
   case "lists_delete":
-    try keys(["id", "allowNonEmpty"])
-    guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.invalidArgument("id required")
-    }
+    let delete = try arguments(ListDeleteArguments.self)
     let deleted = try await writeList(
-      .delete(id: id, allowNonEmpty: try bool("allowNonEmpty") ?? false)
+      .delete(id: delete.id, allowNonEmpty: delete.allowNonEmpty.value ?? false)
     ).deletion()
     return try result(deleted)
   case "reminders_show":
-    try keys(["id"])
-    guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.invalidArgument("id required")
-    }
+    let id = try arguments(IDArguments.self).id
     guard case .reminder(let shown) = try await showRemindersObject(id, isList: false) else {
       throw ServerError.internalError("Expected a reminder")
     }
@@ -725,10 +656,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
         "reminder \(id) was shown, but response projection failed: \(error)")
     }
   case "lists_show":
-    try keys(["id"])
-    guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.invalidArgument("id required")
-    }
+    let id = try arguments(IDArguments.self).id
     guard case .list(let shown) = try await showRemindersObject(id, isList: true) else {
       throw ServerError.internalError("Expected a list")
     }
@@ -737,53 +665,37 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
         "list \(id) was shown, but response projection failed: \(error)")
     }
   case "reminders_delete":
-    try keys(["id"])
-    guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.invalidArgument("id required")
-    }
-    let deleted = try await writeReminder(.delete(id: id)).deletion()
+    let deleted = try await writeReminder(.delete(id: arguments(IDArguments.self).id)).deletion()
     return try result(deleted)
   case "accounts_get":
-    try keys(["id"])
-    guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.invalidArgument("id required")
-    }
+    let id = try arguments(IDArguments.self).id
     return try result(AccountOutput(account: await readLists().accounts.first { $0.id == id }))
   case "lists_list":
-    try keys(["filter", "orderBy", "limit", "cursor"])
-    let filter = try filters(listFilterKeys)
-    var search = Search()
-    search.query = try string("query", from: filter)
-    search.accountIds = try ids("accountIds", from: filter)
-    search.allowsContentModifications = try bool("allowsContentModifications", from: filter)
-    search.subscribed = try bool("subscribed", from: filter)
-    if let rawOrder = args["orderBy"] {
-      try rejectNulls(rawOrder)
-      let order = try decodeInput(ListOrderInput.self, from: rawOrder)
-      search.orderField = "NAME"
-      search.descending = try descending(order.direction)
+    let search = try arguments(ListSearchArguments.self)
+    var criteria = Search()
+    if let filter = search.filter.value {
+      criteria.query = filter.query.value
+      criteria.accountIds = try ids(filter.accountIds, "accountIds")
+      criteria.allowsContentModifications = filter.allowsContentModifications.value
+      criteria.subscribed = filter.subscribed.value
     }
-    return try await result(page(search.lists(readLists())))
+    if let order = search.orderBy.value {
+      criteria.orderField = "NAME"
+      criteria.descending = try descending(order.direction)
+    }
+    return try await result(
+      page(criteria.lists(readLists()), limit: search.limit, cursor: search.cursor))
   case "accounts_list":
-    try keys([])
+    try noArguments()
     return try result(AccountsOutput(items: await readLists().accounts))
   case "lists_get":
-    try keys(["id"])
-    guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.invalidArgument("id required")
-    }
-    return try result(ListOutput(list: await readList(id: id)))
+    return try result(ListOutput(list: await readList(id: arguments(IDArguments.self).id)))
   case "defaults_get":
-    try keys([])
+    try noArguments()
     let data = try await readLists()
-    return try result(
-      DefaultsOutput(
-        list: data.defaultList,
-        account: data.defaultAccount))
+    return try result(DefaultsOutput(list: data.defaultList, account: data.defaultAccount))
   case "lists_summary":
-    try keys(["listId"])
-    let id = try string("listId")
-    guard id != "" else { throw ServerError.invalidArgument("listId must not be empty") }
+    let id = try arguments(SummaryArguments.self).listId.value
     let data = try await readRemindersData()
     return try result(
       SummaryOutput(
@@ -791,50 +703,44 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
           summarize(data, listId: $0.id)
         }))
   case "reminders_get":
-    try keys(["id"])
-    guard let id = try string("id"), !id.isEmpty else {
-      throw ServerError.invalidArgument("id required")
-    }
+    let id = try arguments(IDArguments.self).id
     return try result(GetOutput(reminder: await readReminder(id: id).map(MCPReminder.init)))
   case "reminders_search":
-    try keys(["filter", "orderBy", "limit", "cursor"])
-    let filter = try filters(reminderFilterKeys)
-    var search = Search(
-      query: try string("query", from: filter),
-      dueOnOrAfter: try string("dueOnOrAfter", from: filter),
-      dueBefore: try string("dueBefore", from: filter))
-    search.accountIds = try ids("accountIds", from: filter)
-    search.listIds = try ids("listIds", from: filter)
-    search.hasDueDate = try bool("hasDueDate", from: filter)
-    search.dueFrom = try string("dueFrom", from: filter)
-    if let value = args["orderBy"] {
-      try rejectNulls(value)
-      let order = try decodeInput(ReminderOrderInput.self, from: value)
+    let search = try arguments(ReminderSearchArguments.self)
+    var criteria = Search()
+    if let filter = search.filter.value {
+      criteria.query = filter.query.value
+      criteria.dueFrom = filter.dueFrom.value
+      criteria.dueOnOrAfter = filter.dueOnOrAfter.value
+      criteria.dueBefore = filter.dueBefore.value
+      criteria.accountIds = try ids(filter.accountIds, "accountIds")
+      criteria.listIds = try ids(filter.listIds, "listIds")
+      criteria.hasDueDate = filter.hasDueDate.value
+      criteria.completed = filter.completed.value
+      if let priorities = filter.priorities.value {
+        guard priorities.allSatisfy((0...9).contains) else {
+          throw ServerError.invalidArgument("priorities must be 0...9")
+        }
+        criteria.priorities = priorities
+      }
+      if let value = filter.dueStatus.value {
+        guard let status = DueStatus(rawValue: value) else {
+          throw ServerError.invalidArgument("invalid dueStatus")
+        }
+        criteria.dueStatus = status
+      }
+    }
+    if let order = search.orderBy.value {
       guard reminderSortFields.contains(order.field) else {
         throw ServerError.invalidArgument("invalid order field")
       }
-      search.orderField = order.field
-      search.descending = try descending(order.direction)
+      criteria.orderField = order.field
+      criteria.descending = try descending(order.direction)
     }
-    search.completed = try bool("completed", from: filter)
-    if let value = filter["priorities"] {
-      guard case .array(let values) = value else {
-        throw ServerError.invalidArgument("priorities must be an integer array")
-      }
-      search.priorities = try values.map { value in
-        guard case .int(let number) = value, (0...9).contains(number) else {
-          throw ServerError.invalidArgument("priorities must be 0...9")
-        }
-        return number
-      }
-    }
-    if let value = try string("dueStatus", from: filter) {
-      guard let status = DueStatus(rawValue: value) else {
-        throw ServerError.invalidArgument("invalid dueStatus")
-      }
-      search.dueStatus = status
-    }
-    return try await result(page(search.reminders(readRemindersData()).map(MCPReminder.init)))
+    return try await result(
+      page(
+        criteria.reminders(readRemindersData()).map(MCPReminder.init), limit: search.limit,
+        cursor: search.cursor))
   default: throw MCPError.invalidParams("Unknown tool")
   }
 }
