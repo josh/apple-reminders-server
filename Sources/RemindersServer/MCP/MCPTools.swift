@@ -654,7 +654,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   }
   func savedReminder(_ request: ReminderWrite) async throws -> CallTool.Result {
     let saved = try await writeReminder(request)
-    do { return try result(GetOutput(reminder: MCPReminder(record: saved))) } catch {
+    do { return try result(GetOutput(reminder: try MCPReminder(record: saved))) } catch {
       throw ServerError.writeApplied(
         "reminder \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying."
       )
@@ -695,7 +695,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   case "reminders_show":
     let id = try arguments(IDArguments.self).id
     let shown = try await showReminder(id: id)
-    do { return try result(GetOutput(reminder: MCPReminder(record: shown))) } catch {
+    do { return try result(GetOutput(reminder: try MCPReminder(record: shown))) } catch {
       throw ServerError.showApplied(
         "reminder \(id) was shown, but response projection failed: \(error)")
     }
@@ -746,7 +746,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
         }))
   case "reminders_get":
     let id = try arguments(IDArguments.self).id
-    return try result(GetOutput(reminder: await readReminder(id: id).map(MCPReminder.init)))
+    return try result(
+      GetOutput(reminder: await readReminder(id: id).map(MCPReminder.init(record:))))
   case "reminders_search":
     let search = try arguments(ReminderSearchArguments.self)
     var criteria = Search()
@@ -781,7 +782,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
     return try await result(
       page(
-        criteria.reminders(readRemindersData()).map(MCPReminder.init), limit: search.limit,
+        criteria.reminders(readRemindersData()).map(MCPReminder.init(record:)), limit: search.limit,
         cursor: search.cursor))
   default: throw MCPError.invalidParams("Unknown tool")
   }

@@ -119,33 +119,6 @@ struct ReminderRecord: Codable, Sendable {
   let dueStatus: DueStatus
   let alarms: [AlarmRecord]
   let recurrenceRules: [RecurrenceRecord]
-  enum CodingKeys: String, CodingKey {
-    case id, externalId, listId, name, body, completed, flagged, priority, completionDate,
-      creationDate, modificationDate, location, url, startDateComponents, dueDateComponents, dueDay,
-      dueStatus, alarms, recurrenceRules
-  }
-  func encode(to encoder: Encoder) throws {
-    var values = encoder.container(keyedBy: CodingKeys.self)
-    try values.encode(id, forKey: .id)
-    try values.encode(completed, forKey: .completed)
-    try values.encode(priority, forKey: .priority)
-    try values.encodeIfPresent(flagged, forKey: .flagged)
-    try values.encode(dueDay, forKey: .dueDay)
-    try values.encode(dueStatus, forKey: .dueStatus)
-    try values.encode(alarms, forKey: .alarms)
-    try values.encode(recurrenceRules, forKey: .recurrenceRules)
-    try values.encodeIfPresent(externalId, forKey: .externalId)
-    try values.encodeIfPresent(listId, forKey: .listId)
-    try values.encodeIfPresent(name, forKey: .name)
-    try values.encodeIfPresent(body, forKey: .body)
-    try values.encodeIfPresent(completionDate, forKey: .completionDate)
-    try values.encodeIfPresent(creationDate, forKey: .creationDate)
-    try values.encodeIfPresent(modificationDate, forKey: .modificationDate)
-    try values.encodeIfPresent(location, forKey: .location)
-    try values.encodeIfPresent(url, forKey: .url)
-    try values.encodeIfPresent(startDateComponents, forKey: .startDateComponents)
-    try values.encodeIfPresent(dueDateComponents, forKey: .dueDateComponents)
-  }
 }
 
 struct RemindersData: Codable, Sendable {
