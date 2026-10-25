@@ -56,9 +56,7 @@ func metricEscape(_ text: String) -> String {
     .replacingOccurrences(of: "\"", with: "\\\"")
 }
 actor MetricsCollector {
-  private var exposition: String?
-
-  func cachedExposition() -> String? { exposition }
+  private(set) var exposition: String?
 
   func run(intervalSeconds: Int) async {
     var failed = false

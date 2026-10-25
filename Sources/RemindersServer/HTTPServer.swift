@@ -218,7 +218,7 @@ func serve(
           return respond(ServiceResponse(status: .payloadTooLarge, body: Data()))
         }
         if route == .metrics && request.head.method == .GET {
-          let eventKit = await metricsCollector.cachedExposition()
+          let eventKit = await metricsCollector.exposition
           let runtime = runtimeMetrics(
             eventKitUp: eventKit != nil, authorizing: authorizing.withLock { $0 })
           response = ServiceResponse(
