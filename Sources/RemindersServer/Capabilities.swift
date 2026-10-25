@@ -18,28 +18,48 @@ struct Capabilities {
       return Capabilities(graphql: .write, mcp: .write, metrics: .read)
     }
     guard header.utf8.count <= 16_384,
-      let object = try JSONSerialization.jsonObject(with: decodeHeader(header)) as? [String: Any],
-      let grants = object[capability] as? [[String: Any]]
+      let grants = try? grantDecoder(capability).decode(Grants.self, from: decodeHeader(header))
     else { throw ServerError.forbidden("Forbidden") }
 
     var result = Capabilities()
-    for grant in grants {
-      for (name, value) in grant {
-        guard let value = value as? String, value == "r" || value == "rw" else {
-          throw ServerError.forbidden("Forbidden")
-        }
-        let access: Access = value == "rw" ? .write : .read
-        switch name {
-        case "graphql": result.graphql = max(result.graphql, access)
-        case "mcp": result.mcp = max(result.mcp, access)
-        case "metrics":
+    for grant in grants.grants {
+      for (api, level) in grant {
+        let access: Access = level == .rw ? .write : .read
+        switch api {
+        case .graphql: result.graphql = max(result.graphql, access)
+        case .mcp: result.mcp = max(result.mcp, access)
+        case .metrics:
           guard access == .read else { throw ServerError.forbidden("Forbidden") }
           result.metrics = .read
-        default: throw ServerError.forbidden("Forbidden")
         }
       }
     }
     return result
+  }
+
+  // The capability's grants: a list of objects mapping API names to "r" or "rw".
+  // Unknown API names or levels fail decoding, which denies the request.
+  private enum API: String, Decodable, CodingKeyRepresentable { case graphql, mcp, metrics }
+  private enum Level: String, Decodable { case r, rw }
+  private struct Grants: Decodable {
+    static let capability = CodingUserInfoKey(rawValue: "capability")!
+    struct Key: CodingKey {
+      let stringValue: String
+      var intValue: Int? { nil }
+      init(stringValue: String) { self.stringValue = stringValue }
+      init?(intValue: Int) { nil }
+    }
+    let grants: [[API: Level]]
+    init(from decoder: Decoder) throws {
+      let name = decoder.userInfo[Self.capability] as? String ?? ""
+      grants = try decoder.container(keyedBy: Key.self).decode(
+        [[API: Level]].self, forKey: Key(stringValue: name))
+    }
+  }
+  private static func grantDecoder(_ capability: String) -> JSONDecoder {
+    let decoder = JSONDecoder()
+    decoder.userInfo[Grants.capability] = capability
+    return decoder
   }
 
   // An unknown path is allowed through so the server can answer 404.
