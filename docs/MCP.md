@@ -20,13 +20,14 @@ hints, not permission enforcement.
 
 ## Results and search
 
-Search criteria follow the GraphQL [search rules](GRAPHQL.md#reads), except that
-due statuses are lowercase. Missing single-object lookups return null.
+Search criteria follow the GraphQL filter and order rules in the
+[schema](reminders.graphql), except that due statuses are lowercase. Missing
+single-object lookups return null.
 
 Read tools never use Reminders automation, so they never need Automation
 permission or fail on it; MCP clients cannot deselect fields. Flags, alert
 dates, container references, and list emblems are not part of MCP results; read
-them through [GraphQL](GRAPHQL.md#reads), which exposes
+them through [GraphQL](GRAPHQL.md), which exposes
 them per selected field. `reminders_create`/`reminders_update` still write
 `flagged` and `remindMeDate`, and `lists_create`/`lists_update` still write
 `emblem`; a reminder write result echoes the `flagged` value it applied.
@@ -41,8 +42,9 @@ Projection failures fail the tool call.
 
 ## Writes
 
-Write tools follow the GraphQL [mutation rules](GRAPHQL.md#mutations), except
-that optional inputs, including nested ones, must be omitted rather than null.
+Write tools follow the GraphQL input rules in the [schema](reminders.graphql),
+except that optional inputs, including nested ones, must be omitted rather than
+null.
 
 ## Errors
 

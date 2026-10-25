@@ -5,7 +5,7 @@ type Query {
   accounts: [Account!]
 
   """
-  Find an account by its unique identifier.
+  Find an account by its unique identifier; null when missing.
   """
   account(id: ID!): Account
 
@@ -20,7 +20,7 @@ type Query {
   ): ListPage
 
   """
-  Find a list by its unique identifier.
+  Find a list by its unique identifier; null when missing.
   """
   list(id: ID!): ReminderList
 
@@ -35,7 +35,7 @@ type Query {
   ): ReminderPage
 
   """
-  Find a reminder by its unique identifier.
+  Find a reminder by its unique identifier; null when missing.
   """
   reminder(id: ID!): Reminder
 
@@ -62,7 +62,7 @@ type Account {
   name: String
 
   """
-  Lists in this account.
+  Lists in this account; filters apply within it.
   """
   lists(
     limit: Int! = 50
@@ -72,7 +72,7 @@ type Account {
   ): ListPage
 
   """
-  Reminders in this account, including completed items.
+  Reminders in this account, including completed items; filters apply within it.
   """
   reminders(
     limit: Int! = 50
@@ -89,7 +89,7 @@ input ListFilter {
   query: String
 
   """
-  Match lists in any of these accounts, intersected with the parent scope.
+  Match lists in any of these accounts, intersected with the parent scope; [] matches nothing.
   """
   accountIds: [ID!]
 
@@ -106,7 +106,7 @@ input ListFilter {
 
 input ListOrder {
   """
-  Direction of name ordering. Without orderBy, lists use identifier order.
+  Direction of name ordering. Ties use identifier order; without orderBy, lists use identifier order.
   """
   direction: SortDirection = ASC
 }
@@ -172,18 +172,18 @@ type ReminderList {
   color: String
 
   """
-  The emblem icon name displayed beside the list.
+  The emblem icon name displayed beside the list. Read through Reminders automation, which may need Automation permission.
   """
   emblem: String
 
   """
-  The account or parent list containing this list.
+  The account or parent list containing this list. Read through Reminders automation, which may need Automation permission.
   """
   container: ListContainer
   account: Account
 
   """
-  Reminders in this list, including completed items.
+  Reminders in this list, including completed items; filters apply within it.
   """
   reminders(
     limit: Int! = 50
@@ -203,7 +203,7 @@ input ReminderOrder {
   field: ReminderSortField!
 
   """
-  Direction of ordering.
+  Direction of ordering. Nulls sort last either way and ties use identifier order; without orderBy, reminders use identifier order.
   """
   direction: SortDirection = ASC
 }
@@ -247,12 +247,12 @@ input ReminderFilter {
   query: String
 
   """
-  Match reminders belonging to these accounts.
+  Match reminders belonging to these accounts; [] matches nothing.
   """
   accountIds: [ID!]
 
   """
-  Match flagged or unflagged reminders.
+  Match flagged or unflagged reminders. Uses Reminders automation; a failed read fails the collection.
   """
   flagged: Boolean
 
@@ -267,7 +267,7 @@ input ReminderFilter {
   dueFrom: DateTime
 
   """
-  Match reminders belonging to these lists.
+  Match reminders belonging to these lists; [] matches nothing.
   """
   listIds: [ID!]
 
@@ -275,7 +275,15 @@ input ReminderFilter {
   Match any of these exact numeric priorities; [] matches nothing.
   """
   priorities: [Int!]
+
+  """
+  Match a deadline status, independent of completion.
+  """
   dueStatus: DueStatus
+
+  """
+  Inclusive lower deadline bound as YYYY-MM-DD, using the host zone for timed deadlines. Do not mix timestamp and calendar-day bounds.
+  """
   dueOnOrAfter: String
 
   """
@@ -287,6 +295,10 @@ input ReminderFilter {
   Match completed or incomplete reminders; omission includes both.
   """
   completed: Boolean
+
+  """
+  Case-insensitive substring of the reminder name.
+  """
   nameContains: String
 }
 
@@ -365,6 +377,10 @@ type Reminder {
   Descriptive location text, separate from location-triggered alarms.
   """
   location: String
+
+  """
+  The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable.
+  """
   dueDay: String
   listId: ID
 
@@ -378,33 +394,33 @@ type Reminder {
   rawAlarms: [RawAlarm!]!
 
   """
-  Configured alerts. An empty list means no alerts; null indicates a read failure.
+  Configured alerts. An empty list means no alerts; null indicates a read failure or a trigger this union cannot represent, and rawAlarms holds the stored values.
   """
   alarms: [ReminderAlarm!]
   recurrenceRules: [RecurrenceRule!]!
 
   """
-  A single repeating schedule; null when no recurrence is configured. Multiple rules produce a field error.
+  A single repeating schedule; null when no recurrence is configured. Multiple rules produce a field error, and recurrenceRules holds the stored rules.
   """
   recurrence: ReminderRecurrence
 
   """
-  Whether the reminder is flagged. This is independent of its priority.
+  Whether the reminder is flagged. This is independent of its priority. Read through Reminders automation, which may need Automation permission.
   """
   flagged: Boolean
 
   """
-  The date and time at which to remind the user.
+  The date and time at which to remind the user. Read through Reminders automation, which may need Automation permission.
   """
   remindMeDate: DateTime
 
   """
-  The date and time by which the reminder is due.
+  The date and time by which the reminder is due. Unsupported components produce a field error; dueDateComponents holds the stored value.
   """
   dueDate: DateTime
 
   """
-  The date and time at which work on the reminder starts.
+  The date and time at which work on the reminder starts. Unsupported components produce a field error; startDateComponents holds the stored value.
   """
   startDate: DateTime
 
@@ -419,12 +435,12 @@ type Reminder {
   allDayStartDate: LocalDate
 
   """
-  IANA time-zone identifier, or null for floating/local date interpretation.
+  IANA time-zone identifier, or null for floating/local date interpretation. Different start and due zones produce a field error.
   """
   timeZone: String
 
   """
-  The list or parent reminder containing this reminder.
+  The list or parent reminder containing this reminder. Read through Reminders automation, which may need Automation permission.
   """
   container: ReminderContainer
   list: ReminderList
@@ -567,7 +583,7 @@ type ReminderRecurrence {
   interval: Int!
 
   """
-  Weekday constraints. Null means unconstrained.
+  Weekday constraints. Null means unconstrained. Not allowed for daily rules.
   """
   daysOfWeek: [ReminderRecurrenceDay!]
 
@@ -577,27 +593,27 @@ type ReminderRecurrence {
   end: ReminderRecurrenceEnd
 
   """
-  Days 1..31 or -31..-1 counting backward from the end of the month.
+  Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.
   """
   daysOfMonth: [Int!]
 
   """
-  Months 1..12.
+  Months 1..12. Yearly rules only.
   """
   monthsOfYear: [Int!]
 
   """
-  Week numbers 1..53 or -53..-1 counting backward from year end.
+  Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.
   """
   weeksOfYear: [Int!]
 
   """
-  Year days 1..366 or -366..-1 counting backward from year end.
+  Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.
   """
   daysOfYear: [Int!]
 
   """
-  Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period.
+  Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.
   """
   setPositions: [Int!]
 }
@@ -854,7 +870,7 @@ input CreateReminderInput {
   allDayDueDate: LocalDate
 
   """
-  The date and time at which work on the reminder starts.
+  The date and time at which work on the reminder starts. It cannot be later than the due date.
   """
   startDate: DateTime
 
@@ -864,7 +880,7 @@ input CreateReminderInput {
   allDayStartDate: LocalDate
 
   """
-  IANA time-zone identifier for the start and due dates; omission stores timed dates in UTC.
+  IANA time-zone identifier for the start and due dates, which requires at least one of them; omission stores timed dates in UTC.
   """
   timeZone: String
 
@@ -874,7 +890,7 @@ input CreateReminderInput {
   flagged: Boolean
 
   """
-  Date and time at which to remind the user; mutually exclusive with alarms.
+  Date and time at which to remind the user; cannot be combined with alarms, start, due, or timeZone.
   """
   remindMeDate: DateTime
 
@@ -901,7 +917,7 @@ input ReminderAlarmInput {
   absoluteDate: DateTime
 
   """
-  Seconds from the reminder's start date; negative means before.
+  Seconds from the reminder's start date; negative means before. Requires a resulting start date.
   """
   relativeOffsetSeconds: Float
 
@@ -950,7 +966,7 @@ input RecurrenceRuleInput {
   interval: Int!
 
   """
-  Weekday constraints. Null means unconstrained.
+  Weekday constraints. Null means unconstrained. Not allowed for daily rules.
   """
   daysOfWeek: [RecurrenceDayInput!]
 
@@ -960,27 +976,27 @@ input RecurrenceRuleInput {
   end: RecurrenceEndInput
 
   """
-  Days 1..31 or -31..-1 counting backward from the end of the month.
+  Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.
   """
   daysOfMonth: [Int!]
 
   """
-  Months 1..12.
+  Months 1..12. Yearly rules only.
   """
   monthsOfYear: [Int!]
 
   """
-  Week numbers 1..53 or -53..-1 counting backward from year end.
+  Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.
   """
   weeksOfYear: [Int!]
 
   """
-  Year days 1..366 or -366..-1 counting backward from year end.
+  Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.
   """
   daysOfYear: [Int!]
 
   """
-  Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period.
+  Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.
   """
   setPositions: [Int!]
 }
@@ -1046,7 +1062,7 @@ input ReminderPatch {
   allDayDueDate: LocalDate
 
   """
-  The date and time at which work on the reminder starts.
+  The date and time at which work on the reminder starts. It cannot be later than the due date.
   """
   startDate: DateTime
 
@@ -1056,7 +1072,7 @@ input ReminderPatch {
   allDayStartDate: LocalDate
 
   """
-  Set an IANA time-zone identifier. Use clearFields for floating/local interpretation.
+  Set an IANA time-zone identifier; requires a resulting start or due date. Use clearFields for floating/local interpretation.
   """
   timeZone: String
 
@@ -1066,7 +1082,7 @@ input ReminderPatch {
   flagged: Boolean
 
   """
-  Set the date and time at which to remind the user.
+  Set the date and time at which to remind the user. Cannot be combined with date, time-zone, or alarm changes, or cleared.
   """
   remindMeDate: DateTime
 
@@ -1081,17 +1097,17 @@ input ReminderPatch {
   recurrence: RecurrenceRuleInput
 
   """
-  Set the date and time the reminder was completed.
+  Set the date and time the reminder was completed, which marks it completed. Cannot be combined with completed.
   """
   completionDate: DateTime
 
   """
-  Whether to mark the reminder completed.
+  Whether to mark the reminder completed. Cannot be combined with completionDate changes.
   """
   completed: Boolean
 
   """
-  Remove these values. Omission preserves them; explicit null is rejected.
+  Remove these values. Omission preserves them; explicit null is rejected. Do not set and clear the same field, or clear both forms of one date.
   """
   clearFields: [ReminderClearField!] = []
 }

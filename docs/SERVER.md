@@ -4,7 +4,7 @@ The server runs on macOS 14+ and exposes `POST /graphql`, `POST /mcp`, and
 `GET /metrics` on `127.0.0.1`.
 
 Reminder and list writes honor EventKit authorization and editability. See
-[GraphQL mutations](GRAPHQL.md#mutations) for supported inputs and failures after a save.
+[GraphQL API](GRAPHQL.md) for supported inputs and failures after a save.
 
 ## Startup options
 

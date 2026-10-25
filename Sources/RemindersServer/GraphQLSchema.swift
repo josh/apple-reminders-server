@@ -135,13 +135,15 @@ actor GraphQLContext {
 let recurrenceDescriptions = [
   "frequency": "The unit of repetition.",
   "interval": "Positive number of frequency units between occurrences.",
-  "daysOfWeek": "Weekday constraints. Null means unconstrained.",
-  "daysOfMonth": "Days 1..31 or -31..-1 counting backward from the end of the month.",
-  "monthsOfYear": "Months 1..12.",
-  "weeksOfYear": "Week numbers 1..53 or -53..-1 counting backward from year end.",
-  "daysOfYear": "Year days 1..366 or -366..-1 counting backward from year end.",
+  "daysOfWeek": "Weekday constraints. Null means unconstrained. Not allowed for daily rules.",
+  "daysOfMonth":
+    "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only.",
+  "monthsOfYear": "Months 1..12. Yearly rules only.",
+  "weeksOfYear":
+    "Week numbers 1..53 or -53..-1 counting backward from year end. Yearly rules only.",
+  "daysOfYear": "Year days 1..366 or -366..-1 counting backward from year end. Yearly rules only.",
   "setPositions":
-    "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period.",
+    "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period. Requires another selector.",
   "end": "When repetition stops; null means no specified end.",
   "day": "The weekday to match.",
   "ordinal":
@@ -149,6 +151,7 @@ let recurrenceDescriptions = [
   "count": "Positive number of occurrences; mutually exclusive with until.",
   "until": "Inclusive end timestamp; mutually exclusive with count.",
 ]
+let automationNote = "Read through Reminders automation, which may need Automation permission."
 // Shared by the Geofence output type and GeofenceInput.
 let geofenceDescriptions = [
   "title": "Optional display name of the location.",
@@ -186,7 +189,9 @@ func makeSchema() throws -> GraphQLSchema {
         GraphQLString,
         description: "The color of the list as an sRGB #RRGGBBAA hex string."),
       "emblem": GraphQLField(
-        type: GraphQLString, description: "The emblem icon name displayed beside the list.",
+        type: GraphQLString,
+        description:
+          "The emblem icon name displayed beside the list. \(automationNote)",
         resolve: { source, _, context, _ in
           guard let source = source as? Map, let context = context as? GraphQLContext else {
             return nil
@@ -253,14 +258,19 @@ func makeSchema() throws -> GraphQLSchema {
       "field": InputObjectField(
         type: GraphQLNonNull(orderField), description: "Property to sort by."),
       "direction": InputObjectField(
-        type: direction, defaultValue: "ASC", description: "Direction of ordering."),
+        type: direction, defaultValue: "ASC",
+        description:
+          "Direction of ordering. Nulls sort last either way and ties use identifier order; without orderBy, reminders use identifier order."
+      ),
     ])
   let listOrder = try GraphQLInputObjectType(
     name: "ListOrder",
     fields: [
       "direction": InputObjectField(
         type: direction, defaultValue: "ASC",
-        description: "Direction of name ordering. Without orderBy, lists use identifier order.")
+        description:
+          "Direction of name ordering. Ties use identifier order; without orderBy, lists use identifier order."
+      )
     ])
   let listFilter = try GraphQLInputObjectType(
     name: "ListFilter",
@@ -269,7 +279,9 @@ func makeSchema() throws -> GraphQLSchema {
         type: GraphQLString, description: "Case-insensitive substring of the list name."),
       "accountIds": InputObjectField(
         type: GraphQLList(GraphQLNonNull(GraphQLID)),
-        description: "Match lists in any of these accounts, intersected with the parent scope."),
+        description:
+          "Match lists in any of these accounts, intersected with the parent scope; [] matches nothing."
+      ),
       "allowsContentModifications": InputObjectField(
         type: GraphQLBoolean, description: "Match whether reminders in the list can be modified."),
       "subscribed": InputObjectField(
@@ -394,9 +406,12 @@ func makeSchema() throws -> GraphQLSchema {
         type: GraphQLString, description: "Match text in the reminder name or notes."),
       "accountIds": InputObjectField(
         type: GraphQLList(GraphQLNonNull(GraphQLID)),
-        description: "Match reminders belonging to these accounts."),
+        description: "Match reminders belonging to these accounts; [] matches nothing."),
       "flagged": InputObjectField(
-        type: GraphQLBoolean, description: "Match flagged or unflagged reminders."),
+        type: GraphQLBoolean,
+        description:
+          "Match flagged or unflagged reminders. Uses Reminders automation; a failed read fails the collection."
+      ),
       "hasDueDate": InputObjectField(
         type: GraphQLBoolean,
         description: "Match reminders with or without a timed or all-day deadline."),
@@ -404,12 +419,17 @@ func makeSchema() throws -> GraphQLSchema {
         type: dateTime, description: "Inclusive lower bound on the deadline."),
       "listIds": InputObjectField(
         type: GraphQLList(GraphQLNonNull(GraphQLID)),
-        description: "Match reminders belonging to these lists."),
+        description: "Match reminders belonging to these lists; [] matches nothing."),
       "priorities": InputObjectField(
         type: GraphQLList(GraphQLNonNull(GraphQLInt)),
         description: "Match any of these exact numeric priorities; [] matches nothing."),
-      "dueStatus": InputObjectField(type: dueStatus),
-      "dueOnOrAfter": InputObjectField(type: GraphQLString),
+      "dueStatus": InputObjectField(
+        type: dueStatus, description: "Match a deadline status, independent of completion."),
+      "dueOnOrAfter": InputObjectField(
+        type: GraphQLString,
+        description:
+          "Inclusive lower deadline bound as YYYY-MM-DD, using the host zone for timed deadlines. Do not mix timestamp and calendar-day bounds."
+      ),
       "dueBefore": InputObjectField(
         type: GraphQLString,
         description:
@@ -418,7 +438,8 @@ func makeSchema() throws -> GraphQLSchema {
       "completed": InputObjectField(
         type: GraphQLBoolean,
         description: "Match completed or incomplete reminders; omission includes both."),
-      "nameContains": InputObjectField(type: GraphQLString),
+      "nameContains": InputObjectField(
+        type: GraphQLString, description: "Case-insensitive substring of the reminder name."),
     ])
   let reminder = try GraphQLObjectType(
     name: "Reminder",
@@ -440,7 +461,12 @@ func makeSchema() throws -> GraphQLSchema {
       "location": field(
         GraphQLString,
         description: "Descriptive location text, separate from location-triggered alarms."),
-      "dueDay": field(GraphQLString), "listId": field(GraphQLID),
+      "dueDay": field(
+        GraphQLString,
+        description:
+          "The deadline's calendar day: timed deadlines in the host zone, all-day deadlines as stored. Null when undated or unclassifiable."
+      ),
+      "listId": field(GraphQLID),
       "url": field(
         url,
         description:
@@ -451,7 +477,7 @@ func makeSchema() throws -> GraphQLSchema {
       "alarms": GraphQLField(
         type: GraphQLList(GraphQLNonNull(alarmUnion)),
         description:
-          "Configured alerts. An empty list means no alerts; null indicates a read failure.",
+          "Configured alerts. An empty list means no alerts; null indicates a read failure or a trigger this union cannot represent, and rawAlarms holds the stored values.",
         resolve: { source, _, _, _ in
           guard let source = source as? Map else { return nil }
           return try alarmProjections(source)
@@ -459,14 +485,15 @@ func makeSchema() throws -> GraphQLSchema {
       "recurrence": GraphQLField(
         type: schedule,
         description:
-          "A single repeating schedule; null when no recurrence is configured. Multiple rules produce a field error.",
+          "A single repeating schedule; null when no recurrence is configured. Multiple rules produce a field error, and recurrenceRules holds the stored rules.",
         resolve: { source, _, _, _ in
           guard let source = source as? Map else { return nil }
           return try recurrenceProjection(source)
         }),
       "flagged": GraphQLField(
         type: GraphQLBoolean,
-        description: "Whether the reminder is flagged. This is independent of its priority.",
+        description:
+          "Whether the reminder is flagged. This is independent of its priority. \(automationNote)",
         resolve: { source, _, context, _ in
           guard let item = source as? Map, let context = context as? GraphQLContext else {
             throw ServerError.internalError("Missing reminder resolver context")
@@ -474,7 +501,9 @@ func makeSchema() throws -> GraphQLSchema {
           return try await context.flag(id: item["id"].stringValue())
         }),
       "remindMeDate": GraphQLField(
-        type: dateTime, description: "The date and time at which to remind the user.",
+        type: dateTime,
+        description:
+          "The date and time at which to remind the user. \(automationNote)",
         resolve: { source, _, context, _ in
           guard let source = source as? Map, let context = context as? GraphQLContext else {
             return nil
@@ -484,10 +513,14 @@ func makeSchema() throws -> GraphQLSchema {
         }),
       "dueDate": calendarField(
         dateTime, key: "dueDateComponents", timed: true,
-        description: "The date and time by which the reminder is due."),
+        description:
+          "The date and time by which the reminder is due. Unsupported components produce a field error; dueDateComponents holds the stored value."
+      ),
       "startDate": calendarField(
         dateTime, key: "startDateComponents", timed: true,
-        description: "The date and time at which work on the reminder starts."),
+        description:
+          "The date and time at which work on the reminder starts. Unsupported components produce a field error; startDateComponents holds the stored value."
+      ),
       "allDayDueDate": calendarField(
         localDate, key: "dueDateComponents", timed: false,
         description: "The calendar date on which the reminder is due, without a time of day."),
@@ -496,7 +529,8 @@ func makeSchema() throws -> GraphQLSchema {
         description: "A date-only start, without a time of day."),
       "timeZone": GraphQLField(
         type: GraphQLString,
-        description: "IANA time-zone identifier, or null for floating/local date interpretation.",
+        description:
+          "IANA time-zone identifier, or null for floating/local date interpretation. Different start and due zones produce a field error.",
         resolve: { source, _, _, _ in
           guard let source = source as? Map else { return nil }
           let due = try componentValue(source, key: "dueDateComponents")
@@ -593,14 +627,15 @@ func makeSchema() throws -> GraphQLSchema {
   }
   var accountFields = try account.fields()
   accountFields["lists"] = GraphQLField(
-    type: listPage, description: "Lists in this account.", args: listArgs,
+    type: listPage, description: "Lists in this account; filters apply within it.", args: listArgs,
     resolve: { source, args, context, _ in
       guard let source = source as? Map else { return nil }
       let id = try source["id"].stringValue()
       return try await listSearchPage(remindersData(context), args: args, accountID: id)
     })
   accountFields["reminders"] = GraphQLField(
-    type: reminderPage, description: "Reminders in this account, including completed items.",
+    type: reminderPage,
+    description: "Reminders in this account, including completed items; filters apply within it.",
     args: reminderArgs,
     resolve: { source, args, context, _ in
       guard let source = source as? Map else { return nil }
@@ -614,7 +649,9 @@ func makeSchema() throws -> GraphQLSchema {
   var listFields = try list.fields()
   listFields["container"] = containerField(
     listContainer, property: .listContainers,
-    description: "The account or parent list containing this list.")
+    description:
+      "The account or parent list containing this list. \(automationNote)"
+  )
   listFields["account"] = GraphQLField(
     type: account,
     resolve: { source, _, context, _ in
@@ -623,7 +660,8 @@ func makeSchema() throws -> GraphQLSchema {
       return try await remindersData(context).accounts.first { $0.id == id }.map(graphMap)
     })
   listFields["reminders"] = GraphQLField(
-    type: reminderPage, description: "Reminders in this list, including completed items.",
+    type: reminderPage,
+    description: "Reminders in this list, including completed items; filters apply within it.",
     args: reminderArgs,
     resolve: { source, args, context, _ in
       guard let source = source as? Map else { return nil }
@@ -641,7 +679,9 @@ func makeSchema() throws -> GraphQLSchema {
   var reminderFields = try reminder.fields()
   reminderFields["container"] = containerField(
     reminderContainer, property: .reminderContainers,
-    description: "The list or parent reminder containing this reminder.")
+    description:
+      "The list or parent reminder containing this reminder. \(automationNote)"
+  )
   reminderFields["list"] = GraphQLField(
     type: list,
     resolve: { source, _, context, _ in
@@ -666,7 +706,8 @@ func makeSchema() throws -> GraphQLSchema {
           description: "Accounts available in Reminders.",
           resolve: { _, _, context, _ in try await graphMaps(remindersData(context).accounts) }),
         "account": GraphQLField(
-          type: account, description: "Find an account by its unique identifier.", args: idArg,
+          type: account,
+          description: "Find an account by its unique identifier; null when missing.", args: idArg,
           resolve: { _, args, context, _ in
             let id = try args["id"].stringValue()
             return try await remindersData(context).accounts.first { $0.id == id }.map(graphMap)
@@ -677,7 +718,8 @@ func makeSchema() throws -> GraphQLSchema {
             try await listSearchPage(remindersData(context), args: args)
           }),
         "list": GraphQLField(
-          type: list, description: "Find a list by its unique identifier.", args: idArg,
+          type: list, description: "Find a list by its unique identifier; null when missing.",
+          args: idArg,
           resolve: { _, args, context, _ in
             let id = try args["id"].stringValue()
             return try await remindersData(context).lists.first { $0.id == id }.map(graphMap)
@@ -690,7 +732,8 @@ func makeSchema() throws -> GraphQLSchema {
             try await searchPage(remindersData(context), args: args, context: context)
           }),
         "reminder": GraphQLField(
-          type: reminder, description: "Find a reminder by its unique identifier.", args: idArg,
+          type: reminder,
+          description: "Find a reminder by its unique identifier; null when missing.", args: idArg,
           resolve: { _, args, context, _ in
             let id = try args["id"].stringValue()
             return try await remindersData(context).reminders.first { $0.id == id }.map(graphMap)

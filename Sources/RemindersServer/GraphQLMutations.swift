@@ -26,7 +26,9 @@ func makeMutationType(
       "absoluteDate": InputObjectField(type: dateTime, description: "Trigger at this instant."),
       "relativeOffsetSeconds": InputObjectField(
         type: GraphQLFloat,
-        description: "Seconds from the reminder's start date; negative means before."),
+        description:
+          "Seconds from the reminder's start date; negative means before. Requires a resulting start date."
+      ),
       "geofence": InputObjectField(
         type: geofence, description: "Trigger on arrival at or departure from this region."),
     ])
@@ -80,7 +82,8 @@ func makeMutationType(
   }
   let unsupportedStart =
     "Unsupported: date-only start writes are rejected because storage does not preserve them. Use startDate."
-  let startDate = "The date and time at which work on the reminder starts."
+  let startDate =
+    "The date and time at which work on the reminder starts. It cannot be later than the due date."
   let location = "Descriptive location text, separate from location-triggered alarms."
   let url = "An associated absolute URL; does not promise a rich-link preview in Reminders."
   var createFields = reminderFields([
@@ -91,10 +94,11 @@ func makeMutationType(
     "flagged": "Whether to flag the new reminder.", "location": location,
     "priority": "Priority from 0 through 9.",
     "recurrence": "Repeating schedule; omission creates a non-repeating reminder.",
-    "remindMeDate": "Date and time at which to remind the user; mutually exclusive with alarms.",
+    "remindMeDate":
+      "Date and time at which to remind the user; cannot be combined with alarms, start, due, or timeZone.",
     "startDate": startDate,
     "timeZone":
-      "IANA time-zone identifier for the start and due dates; omission stores timed dates in UTC.",
+      "IANA time-zone identifier for the start and due dates, which requires at least one of them; omission stores timed dates in UTC.",
     "url": url,
   ])
   createFields["name"] = InputObjectField(
@@ -113,21 +117,29 @@ func makeMutationType(
     "location": location, "name": "The new name of the reminder.",
     "priority": "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low.",
     "recurrence": "Replace the repeating schedule. Use clearFields to stop repetition.",
-    "remindMeDate": "Set the date and time at which to remind the user.",
+    "remindMeDate":
+      "Set the date and time at which to remind the user. Cannot be combined with date, time-zone, or alarm changes, or cleared.",
     "startDate": startDate,
     "timeZone":
-      "Set an IANA time-zone identifier. Use clearFields for floating/local interpretation.",
+      "Set an IANA time-zone identifier; requires a resulting start or due date. Use clearFields for floating/local interpretation.",
     "url": url,
   ])
   fields["completionDate"] = InputObjectField(
-    type: dateTime, description: "Set the date and time the reminder was completed.")
+    type: dateTime,
+    description:
+      "Set the date and time the reminder was completed, which marks it completed. Cannot be combined with completed."
+  )
   fields["completed"] = InputObjectField(
-    type: GraphQLBoolean, description: "Whether to mark the reminder completed.")
+    type: GraphQLBoolean,
+    description:
+      "Whether to mark the reminder completed. Cannot be combined with completionDate changes.")
   // Nullable because GraphQLSwift rejects omitted non-null defaults in variables;
   // input validation still rejects explicit null.
   fields["clearFields"] = InputObjectField(
     type: GraphQLList(GraphQLNonNull(clear)), defaultValue: [],
-    description: "Remove these values. Omission preserves them; explicit null is rejected.")
+    description:
+      "Remove these values. Omission preserves them; explicit null is rejected. Do not set and clear the same field, or clear both forms of one date."
+  )
   let patch = try GraphQLInputObjectType(name: "ReminderPatch", fields: fields)
   let deleted = try GraphQLObjectType(
     name: "DeleteResult",
