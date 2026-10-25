@@ -1,15 +1,15 @@
 import Foundation
 
 // Transport-neutral JSON input. Both HTTP APIs validate the same changes before
-// invoking the typed mutation entrypoint.
-indirect enum MutationInput: Decodable, Equatable, Sendable {
+// invoking the typed write entrypoint.
+indirect enum JSONInput: Decodable, Equatable, Sendable {
   case undefined, null
   case string(String)
   case int(Int)
   case double(Double)
   case bool(Bool)
-  case array([MutationInput])
-  case object([String: MutationInput])
+  case array([JSONInput])
+  case object([String: JSONInput])
   init(from decoder: Decoder) throws {
     let c = try decoder.singleValueContainer()
     if c.decodeNil() {
@@ -22,13 +22,13 @@ indirect enum MutationInput: Decodable, Equatable, Sendable {
       self = .double(v)
     } else if let v = try? c.decode(String.self) {
       self = .string(v)
-    } else if let v = try? c.decode([MutationInput].self) {
+    } else if let v = try? c.decode([JSONInput].self) {
       self = .array(v)
     } else {
-      self = .object(try c.decode([String: MutationInput].self))
+      self = .object(try c.decode([String: JSONInput].self))
     }
   }
-  subscript(_ key: String) -> MutationInput {
+  subscript(_ key: String) -> JSONInput {
     if case .object(let v) = self { return v[key] ?? .undefined }
     return .undefined
   }
@@ -53,11 +53,11 @@ indirect enum MutationInput: Decodable, Equatable, Sendable {
     default: throw invalid("Expected a number")
     }
   }
-  func arrayValue() throws -> [MutationInput] {
+  func arrayValue() throws -> [JSONInput] {
     guard case .array(let v) = self else { throw invalid("Expected an array") }
     return v
   }
-  func dictionaryValue() throws -> [String: MutationInput] {
+  func dictionaryValue() throws -> [String: JSONInput] {
     guard case .object(let v) = self else { throw invalid("Expected an object") }
     return v
   }
@@ -78,11 +78,11 @@ indirect enum MutationInput: Decodable, Equatable, Sendable {
   }
   private func invalid(_ text: String) -> ServerError { .invalidArgument(text) }
 }
-func mutationInput<T: Encodable>(_ value: T) throws -> MutationInput {
-  try JSONDecoder().decode(MutationInput.self, from: JSONEncoder().encode(value))
+func jsonInput<T: Encodable>(_ value: T) throws -> JSONInput {
+  try JSONDecoder().decode(JSONInput.self, from: JSONEncoder().encode(value))
 }
 
-func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderChanges {
+func reminderChanges(_ input: JSONInput, creating: Bool) throws -> ReminderChanges {
   let common: Set<String> = [
     "name", "body", "priority", "location", "url", "dueDate", "allDayDueDate", "startDate",
     "allDayStartDate", "alarms", "recurrence", "timeZone", "flagged", "remindMeDate",
@@ -226,7 +226,7 @@ func reminderChanges(_ input: MutationInput, creating: Bool) throws -> ReminderC
   return result
 }
 
-func parseAlarmInput(_ input: MutationInput) throws -> ReminderAlarmChange {
+func parseAlarmInput(_ input: JSONInput) throws -> ReminderAlarmChange {
   try input.checkKeys(["absoluteDate", "relativeOffsetSeconds", "geofence"])
   let keys = ["absoluteDate", "relativeOffsetSeconds", "geofence"].filter { input[$0].isSet }
   guard keys.count == 1 else {

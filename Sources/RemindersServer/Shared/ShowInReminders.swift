@@ -1,6 +1,6 @@
 import Foundation
 
-/// UI navigation is deliberately separate from data mutations: it performs no save.
+/// UI navigation is deliberately separate from data writes: it performs no save.
 @MainActor
 func remindersShow(id: String, isList: Bool) throws -> ShownObject {
   guard let uuid = UUID(uuidString: id) else {

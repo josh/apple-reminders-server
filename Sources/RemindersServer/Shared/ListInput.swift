@@ -1,6 +1,6 @@
 import Foundation
 
-func listChanges(_ input: MutationInput, creating: Bool) throws -> ListChanges {
+func listChanges(_ input: JSONInput, creating: Bool) throws -> ListChanges {
   try input.checkKeys(
     creating ? ["name", "accountId", "color", "emblem"] : ["name", "color", "emblem"])
   let values = try input.dictionaryValue()

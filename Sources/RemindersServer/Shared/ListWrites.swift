@@ -7,7 +7,7 @@ struct ListChanges: Sendable {
   var color: [Double]?
   var emblem: String?
 }
-enum ListMutation: Sendable {
+enum ListWrite: Sendable {
   case create(accountID: String, changes: ListChanges)
   case update(id: String, changes: ListChanges)
   case delete(id: String, allowNonEmpty: Bool)
@@ -18,13 +18,13 @@ struct PendingEmblem: Sendable {
   let listID: String
   let emblem: String
 }
-enum ListMutationPhase: Sendable {
-  case finished(MutationResult<ListRecord>)
+enum ListWritePhase: Sendable {
+  case finished(WriteResult<ListRecord>)
   case automation(PendingEmblem)
 }
 
 @MainActor
-func remindersMutateList(_ request: ListMutation) async throws -> ListMutationPhase {
+func executeListWrite(_ request: ListWrite) async throws -> ListWritePhase {
   try requireAccess()
   let store = EKEventStore()
   let list: EKCalendar

@@ -49,7 +49,7 @@ struct ReminderChanges: Equatable, Sendable {
   var start: DateComponents?
   var clear: Set<ReminderClearValue> = []
 }
-enum ReminderMutation: Sendable {
+enum ReminderWrite: Sendable {
   case create(listID: String?, changes: ReminderChanges)
   case update(id: String, changes: ReminderChanges)
   case delete(id: String)
@@ -62,14 +62,14 @@ struct PendingAutomation: Sendable {
   let flagged: Bool?
   let remindMeDate: Date?
 }
-enum ReminderMutationPhase: Sendable {
-  case finished(MutationResult<ReminderRecord>)
+enum ReminderWritePhase: Sendable {
+  case finished(WriteResult<ReminderRecord>)
   case automation(PendingAutomation)
 }
 
-// Mutations honor EventKit authorization and the destination list capabilities.
+// Writes honor EventKit authorization and the destination list capabilities.
 @MainActor
-func executeMutation(_ request: ReminderMutation) throws -> ReminderMutationPhase {
+func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase {
   try requireAccess()
   let store = EKEventStore()
   let item: EKReminder
@@ -171,7 +171,7 @@ func executeMutation(_ request: ReminderMutation) throws -> ReminderMutationPhas
       "relative alarms require a start date on the resulting reminder")
   }
   if let start = item.startDateComponents, let due = item.dueDateComponents {
-    guard let startDate = mutationDate(start), let dueDate = mutationDate(due) else {
+    guard let startDate = resolvedInstant(start), let dueDate = resolvedInstant(due) else {
       throw ServerError.unsupportedOperation(
         "cannot validate the existing start/due date combination")
     }
@@ -219,7 +219,7 @@ func applyReminderAutomation(_ pending: PendingAutomation) throws -> ReminderRec
   return try ReminderRecord(refreshed, now: Date(), flagged: pending.flagged)
 }
 
-private func mutationDate(_ value: DateComponents) -> Date? {
+private func resolvedInstant(_ value: DateComponents) -> Date? {
   (try? projectDate(ComponentDate(value)))?.instant
 }
 
@@ -233,7 +233,7 @@ private func changingZone(_ value: DateComponents?, to zone: TimeZone, floating:
     throw ServerError.unsupportedOperation(
       "time-zone writes require Gregorian date components")
   }
-  guard let instant = mutationDate(value) else {
+  guard let instant = resolvedInstant(value) else {
     throw ServerError.unsupportedOperation(
       "incomplete date or clock-transition gap in time-zone change")
   }

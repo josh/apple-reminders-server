@@ -143,9 +143,9 @@ func makeMutationType(
       "accountId": InputObjectField(
         type: GraphQLNonNull(GraphQLID), description: FieldDocs.CreateListInput.accountId),
     ])
-  @Sendable func runList(_ request: ListMutation, context: (any Sendable)?) async throws -> Map {
+  @Sendable func runList(_ request: ListWrite, context: (any Sendable)?) async throws -> Map {
     do {
-      let value = try graphMap(await mutateList(request))
+      let value = try graphMap(await writeList(request))
       await invalidate(context)
       return value
     } catch {
@@ -153,9 +153,9 @@ func makeMutationType(
       throw error
     }
   }
-  @Sendable func run(_ request: ReminderMutation, context: (any Sendable)?) async throws -> Map {
+  @Sendable func run(_ request: ReminderWrite, context: (any Sendable)?) async throws -> Map {
     do {
-      let value = try graphMap(await mutateReminder(request))
+      let value = try graphMap(await writeReminder(request))
       await invalidate(context)
       return value
     } catch {
@@ -172,7 +172,7 @@ func makeMutationType(
           "Create a list. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails.",
         args: ["input": GraphQLArgument(type: GraphQLNonNull(createList))],
         resolve: { _, args, context, _ in
-          let input = try mutationInput(args["input"])
+          let input = try jsonInput(args["input"])
           return try await runList(
             .create(
               accountID: input["accountId"].stringValue(),
@@ -190,7 +190,7 @@ func makeMutationType(
           try await runList(
             .update(
               id: args["id"].stringValue(),
-              changes: listChanges(mutationInput(args["patch"]), creating: false)),
+              changes: listChanges(jsonInput(args["patch"]), creating: false)),
             context: context
           )
         }),
@@ -238,7 +238,7 @@ func makeMutationType(
           return try await run(
             .create(
               listID: try? input["listId"].stringValue(),
-              changes: reminderChanges(mutationInput(input), creating: true)), context: context)
+              changes: reminderChanges(jsonInput(input), creating: true)), context: context)
         }),
       "updateReminder": GraphQLField(
         type: reminder,
@@ -252,7 +252,7 @@ func makeMutationType(
           try await run(
             .update(
               id: args["id"].stringValue(),
-              changes: reminderChanges(mutationInput(args["patch"]), creating: false)),
+              changes: reminderChanges(jsonInput(args["patch"]), creating: false)),
             context: context)
         }),
       "clearCompletedReminders": GraphQLField(

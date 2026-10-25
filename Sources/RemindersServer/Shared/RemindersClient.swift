@@ -28,8 +28,8 @@ func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async thro
     return try readScriptProperty(property)
   }
 }
-func mutateReminder(_ request: ReminderMutation) async throws -> MutationResult<ReminderRecord> {
-  switch try await onMainActor({ try executeMutation(request) }) {
+func writeReminder(_ request: ReminderWrite) async throws -> WriteResult<ReminderRecord> {
+  switch try await onMainActor({ try executeReminderWrite(request) }) {
   case .finished(let result): return result
   case .automation(let pending):
     do {
@@ -39,8 +39,8 @@ func mutateReminder(_ request: ReminderMutation) async throws -> MutationResult<
     }
   }
 }
-func mutateList(_ request: ListMutation) async throws -> MutationResult<ListRecord> {
-  switch try await remindersMutateList(request) {
+func writeList(_ request: ListWrite) async throws -> WriteResult<ListRecord> {
+  switch try await executeListWrite(request) {
   case .finished(let result): return result
   case .automation(let pending):
     do {
@@ -67,7 +67,7 @@ func showRemindersObject(_ id: String, isList: Bool) async throws -> ShownObject
 }
 
 struct DeletedReminder: Codable, Sendable { let deletedId: String }
-enum MutationResult<Record: Encodable & Sendable>: Encodable, Sendable {
+enum WriteResult<Record: Encodable & Sendable>: Encodable, Sendable {
   case saved(Record)
   case deleted(DeletedReminder)
   func savedRecord() throws -> Record {

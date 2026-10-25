@@ -1,6 +1,6 @@
 import Foundation
 
-func parseRecurrenceInput(_ input: MutationInput) throws -> ReminderRecurrenceChange {
+func parseRecurrenceInput(_ input: JSONInput) throws -> ReminderRecurrenceChange {
   try input.checkKeys([
     "frequency", "interval", "daysOfWeek", "daysOfMonth", "monthsOfYear", "weeksOfYear",
     "daysOfYear", "setPositions", "end",

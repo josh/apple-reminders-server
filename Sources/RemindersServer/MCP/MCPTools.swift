@@ -623,7 +623,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       items: Array(items[start..<end]), totalCount: items.count,
       nextCursor: end < items.count ? String(end) : nil)
   }
-  func descending(_ order: MutationInput) throws -> Bool {
+  func descending(_ order: JSONInput) throws -> Bool {
     let direction = try order["direction"].isSet ? order["direction"].stringValue() : "ASC"
     guard ["ASC", "DESC"].contains(direction) else {
       throw ServerError.invalidArgument("invalid order direction")
@@ -632,10 +632,10 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   }
   switch params.name {
   case "reminders_create", "reminders_update":
-    let input: MutationInput
-    let request: ReminderMutation
+    let input: JSONInput
+    let request: ReminderWrite
     if params.name == "reminders_create" {
-      input = try mutationInput(args)
+      input = try jsonInput(args)
       try input.rejectNulls()
       let changes = try reminderChanges(input, creating: true)
       request = .create(listID: try string("listId"), changes: changes)
@@ -644,20 +644,20 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       guard let id = try string("id"), !id.isEmpty, let patch = args["patch"] else {
         throw ServerError.invalidArgument("id and patch required")
       }
-      input = try mutationInput(patch)
+      input = try jsonInput(patch)
       try input.rejectNulls()
       request = .update(id: id, changes: try reminderChanges(input, creating: false))
     }
-    let saved = try await mutateReminder(request).savedRecord()
+    let saved = try await writeReminder(request).savedRecord()
     do { return try result(GetOutput(reminder: MCPReminder(record: saved))) } catch {
       throw ServerError.writeApplied(
         "reminder \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying."
       )
     }
   case "lists_create", "lists_update":
-    let request: ListMutation
+    let request: ListWrite
     if params.name == "lists_create" {
-      let input = try mutationInput(Value.object(args))
+      let input = try jsonInput(Value.object(args))
       try input.rejectNulls()
       request = .create(
         accountID: try input["accountId"].stringValue(),
@@ -667,11 +667,11 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       guard let id = try string("id"), !id.isEmpty, let value = args["patch"] else {
         throw ServerError.invalidArgument("id and patch required")
       }
-      let input = try mutationInput(value)
+      let input = try jsonInput(value)
       try input.rejectNulls()
       request = .update(id: id, changes: try listChanges(input, creating: false))
     }
-    let saved = try await mutateList(request).savedRecord()
+    let saved = try await writeList(request).savedRecord()
     do { return try result(ListOutput(list: saved)) } catch {
       throw ServerError.writeApplied(
         "list \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying"
@@ -682,7 +682,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.invalidArgument("id required")
     }
-    let deleted = try await mutateList(
+    let deleted = try await writeList(
       .delete(id: id, allowNonEmpty: try bool("allowNonEmpty") ?? false)
     ).deletion()
     return try result(deleted)
@@ -715,7 +715,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     guard let id = try string("id"), !id.isEmpty else {
       throw ServerError.invalidArgument("id required")
     }
-    let deleted = try await mutateReminder(.delete(id: id)).deletion()
+    let deleted = try await writeReminder(.delete(id: id)).deletion()
     return try result(deleted)
   case "accounts_get":
     try keys(["id"])
@@ -732,7 +732,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     search.allowsContentModifications = try bool("allowsContentModifications", from: filter)
     search.subscribed = try bool("subscribed", from: filter)
     if let rawOrder = args["orderBy"] {
-      let order = try mutationInput(rawOrder)
+      let order = try jsonInput(rawOrder)
       try order.rejectNulls()
       try order.checkKeys(["direction"])
       search.orderField = "NAME"
@@ -783,7 +783,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     search.hasDueDate = try bool("hasDueDate", from: filter)
     search.dueFrom = try string("dueFrom", from: filter)
     if let value = args["orderBy"] {
-      let order = try mutationInput(value)
+      let order = try jsonInput(value)
       try order.rejectNulls()
       try order.checkKeys(["field", "direction"])
       let field = try order["field"].stringValue()
