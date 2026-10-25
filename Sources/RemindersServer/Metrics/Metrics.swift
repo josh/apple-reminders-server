@@ -10,19 +10,25 @@ func recordRequest(route: String, code: Int) {
   requestCounts.withLock { $0[RequestKey(route: route, code: code), default: 0] += 1 }
 }
 
+// Prometheus metric types the exposition uses.
+enum MetricType: String { case counter, gauge }
+private func familyHeader(_ name: String, _ type: MetricType, _ help: String) -> [String] {
+  ["# HELP \(name) \(help)", "# TYPE \(name) \(type.rawValue)"]
+}
+
 // Served even when the EventKit gauges are not: a failed EventKit read must not
 // blank the request and liveness series that explain it.
 func runtimeMetrics(eventKitUp: Bool, authorizing: Bool) -> String {
   var lines: [String] = []
-  func family(_ name: String, _ type: String, _ help: String) {
-    lines += ["# HELP \(name) \(help)", "# TYPE \(name) \(type)"]
+  func family(_ name: String, _ type: MetricType, _ help: String) {
+    lines += familyHeader(name, type, help)
   }
   family(
-    "process_start_time_seconds", "gauge",
+    "process_start_time_seconds", .gauge,
     "Start time of the process since the Unix epoch; a change is a restart.")
   lines.append("process_start_time_seconds \(Int(processStart.timeIntervalSince1970))")
   family(
-    "reminders_http_requests_total", "counter", "HTTP requests answered, by route and status code.")
+    "reminders_http_requests_total", .counter, "HTTP requests answered, by route and status code.")
   let counts = requestCounts.withLock { $0 }
   for (key, count) in counts.sorted(by: {
     ($0.key.route, $0.key.code) < ($1.key.route, $1.key.code)
@@ -32,19 +38,19 @@ func runtimeMetrics(eventKitUp: Bool, authorizing: Bool) -> String {
     )
   }
   family(
-    "reminders_main_actor_heartbeat_age_seconds", "gauge",
+    "reminders_main_actor_heartbeat_age_seconds", .gauge,
     "Seconds since the main actor last ran a watchdog heartbeat; the process exits past 120.")
   let age = mainActorHeartbeatAge().components
   lines.append(
     "reminders_main_actor_heartbeat_age_seconds \(Double(age.seconds) + Double(age.attoseconds) / 1e18)"
   )
   family(
-    "reminders_authorization_pending", "gauge",
+    "reminders_authorization_pending", .gauge,
     "1 while the startup Reminders access request has not finished; /graphql and /mcp answer 503 meanwhile."
   )
   lines.append("reminders_authorization_pending \(authorizing ? 1 : 0)")
   family(
-    "reminders_eventkit_up", "gauge",
+    "reminders_eventkit_up", .gauge,
     "1 when the last background EventKit read succeeded and its gauges follow.")
   lines.append("reminders_eventkit_up \(eventKitUp ? 1 : 0)")
   return lines.joined(separator: "\n") + "\n"
@@ -86,9 +92,7 @@ func collectMetrics() async throws -> String {
   let reminders = data.reminders
   let accounts = Set(lists.map { $0.source.id })
   var lines: [String] = []
-  func family(_ name: String, _ help: String) {
-    lines += ["# HELP \(name) \(help)", "# TYPE \(name) gauge"]
-  }
+  func family(_ name: String, _ help: String) { lines += familyHeader(name, .gauge, help) }
   family("reminders_accounts", "Number of accounts with accessible reminder lists.")
   lines.append("reminders_accounts \(accounts.count)")
   family("reminders_lists", "Number of accessible reminder lists in an account.")
