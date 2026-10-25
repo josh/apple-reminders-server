@@ -122,24 +122,25 @@ private func toolsCatalog() -> [Tool] {
       "radiusMeters": describe(primitive("number"), FieldDocs.Geofence.radiusMeters),
       "proximity": describe(enumeration(["ARRIVE", "DEPART"]), FieldDocs.Geofence.proximity),
     ], required: ["latitude", "longitude", "radiusMeters", "proximity"])
+  let alarmKind = "The alarm's trigger type."
   reminder["alarms"] = array(
     .object([
       "oneOf": .array([
         schema(
           [
-            "kind": enumeration(["AbsoluteAlarm"]),
+            "kind": describe(enumeration(["AbsoluteAlarm"]), alarmKind),
             "at": describe(primitive("string"), FieldDocs.AbsoluteAlarm.at),
           ],
           required: ["kind", "at"]),
         schema(
           [
-            "kind": enumeration(["RelativeAlarm"]),
+            "kind": describe(enumeration(["RelativeAlarm"]), alarmKind),
             "offsetSeconds": describe(primitive("number"), FieldDocs.RelativeAlarm.offsetSeconds),
           ],
           required: ["kind", "offsetSeconds"]),
         schema(
           [
-            "kind": enumeration(["LocationAlarm"]),
+            "kind": describe(enumeration(["LocationAlarm"]), alarmKind),
             "geofence": describe(geofence, FieldDocs.LocationAlarm.geofence),
           ],
           required: ["kind", "geofence"]),
@@ -224,6 +225,9 @@ private func toolsCatalog() -> [Tool] {
     "recurrence":
       "A single repeating schedule; null when no recurrence is configured. recurrenceRules holds the stored rules.",
   ] { reminder[name] = reminder[name].map { describe($0, text) } }
+  reminder["externalId"] = reminder["externalId"].map {
+    describe($0, "Identifier assigned by the account's server; unlike id, copies may share it.")
+  }
   reminder = describing(
     reminder,
     [
@@ -256,9 +260,17 @@ private func toolsCatalog() -> [Tool] {
       "id": describe(primitive("string"), FieldDocs.ReminderList.id),
       "name": describe(primitive("string"), FieldDocs.ReminderList.name),
       "color": describe(primitive("string"), FieldDocs.ReminderList.color),
-      "source": schema(
-        ["id": primitive("string"), "title": primitive("string"), "type": primitive("integer")],
-        required: ["id", "title", "type"]),
+      "source": describe(
+        schema(
+          [
+            "id": describe(primitive("string"), FieldDocs.Account.id),
+            "title": describe(primitive("string"), FieldDocs.Account.name),
+            "type": describe(
+              primitive("integer"),
+              "EventKit source type: 0 local, 1 Exchange, 2 CalDAV including iCloud, 3 MobileMe, 4 subscribed, 5 birthdays."
+            ),
+          ], required: ["id", "title", "type"]),
+        "The account that owns the list."),
       "allowsContentModifications": describe(
         primitive("boolean"), FieldDocs.ReminderList.allowsContentModifications),
       "isImmutable": primitive("boolean"), "isSubscribed": primitive("boolean"),
@@ -272,46 +284,54 @@ private func toolsCatalog() -> [Tool] {
       "direction": describe(enumeration(["ASC", "DESC"]), FieldDocs.ReminderOrder.direction),
     ], required: ["field"])
   let pagination: [String: Value] = [
-    "limit": .object(["type": "integer", "minimum": 1, "maximum": 100, "default": 50]),
+    "limit": .object([
+      "type": "integer", "minimum": 1, "maximum": 100, "default": 50,
+      "description": "Maximum number of items in the page.",
+    ]),
     "cursor": .object([
       "type": "string", "minLength": 1,
       "description":
         "Omit for the first page. Otherwise use nextCursor from the previous response with the same filter, orderBy, and limit. Each page reads live data, so concurrent changes can cause omissions or repeats.",
     ]),
   ]
+  let filterNote = "Search criteria; all given criteria must match."
+  let orderNote = "Result order; without it, results use identifier order."
   let search = schema(
     pagination.merging([
-      "orderBy": order,
-      "filter": schema(
-        [
-          "dueFrom": describe(primitive("string"), FieldDocs.ReminderFilter.dueFrom),
-          "accountIds": describe(array(primitive("string")), FieldDocs.ReminderFilter.accountIds),
-          "listIds": describe(array(primitive("string")), FieldDocs.ReminderFilter.listIds),
-          "hasDueDate": describe(primitive("boolean"), FieldDocs.ReminderFilter.hasDueDate),
-          "dueOnOrAfter": describe(primitive("string"), FieldDocs.ReminderFilter.dueOnOrAfter),
-          "dueBefore": describe(primitive("string"), FieldDocs.ReminderFilter.dueBefore),
-          "priorities": describe(
-            array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
-            FieldDocs.ReminderFilter.priorities),
-          "dueStatus": describe(
-            enumeration(DueStatus.allCases.map(\.rawValue)), FieldDocs.ReminderFilter.dueStatus),
-          "completed": describe(primitive("boolean"), FieldDocs.ReminderFilter.completed),
-          "query": describe(primitive("string"), FieldDocs.ReminderFilter.query),
-        ]),
+      "orderBy": describe(order, orderNote),
+      "filter": describe(
+        schema(
+          [
+            "dueFrom": describe(primitive("string"), FieldDocs.ReminderFilter.dueFrom),
+            "accountIds": describe(array(primitive("string")), FieldDocs.ReminderFilter.accountIds),
+            "listIds": describe(array(primitive("string")), FieldDocs.ReminderFilter.listIds),
+            "hasDueDate": describe(primitive("boolean"), FieldDocs.ReminderFilter.hasDueDate),
+            "dueOnOrAfter": describe(primitive("string"), FieldDocs.ReminderFilter.dueOnOrAfter),
+            "dueBefore": describe(primitive("string"), FieldDocs.ReminderFilter.dueBefore),
+            "priorities": describe(
+              array(.object(["type": "integer", "minimum": 0, "maximum": 9])),
+              FieldDocs.ReminderFilter.priorities),
+            "dueStatus": describe(
+              enumeration(DueStatus.allCases.map(\.rawValue)), FieldDocs.ReminderFilter.dueStatus),
+            "completed": describe(primitive("boolean"), FieldDocs.ReminderFilter.completed),
+            "query": describe(primitive("string"), FieldDocs.ReminderFilter.query),
+          ]), filterNote),
     ]) { _, new in new })
   let listSearch = schema(
     pagination.merging([
-      "filter": schema(
-        [
-          "query": describe(primitive("string"), FieldDocs.ListFilter.query),
-          "accountIds": describe(array(primitive("string")), FieldDocs.ListFilter.accountIds),
-          "allowsContentModifications": describe(
-            primitive("boolean"), FieldDocs.ListFilter.allowsContentModifications),
-          "subscribed": describe(primitive("boolean"), FieldDocs.ListFilter.subscribed),
-        ]),
-      "orderBy": schema([
-        "direction": describe(enumeration(["ASC", "DESC"]), FieldDocs.ListOrder.direction)
-      ]),
+      "filter": describe(
+        schema(
+          [
+            "query": describe(primitive("string"), FieldDocs.ListFilter.query),
+            "accountIds": describe(array(primitive("string")), FieldDocs.ListFilter.accountIds),
+            "allowsContentModifications": describe(
+              primitive("boolean"), FieldDocs.ListFilter.allowsContentModifications),
+            "subscribed": describe(primitive("boolean"), FieldDocs.ListFilter.subscribed),
+          ]), filterNote),
+      "orderBy": describe(
+        schema([
+          "direction": describe(enumeration(["ASC", "DESC"]), FieldDocs.ListOrder.direction)
+        ]), orderNote),
     ]) { _, new in new })
   let account = schema(
     [
@@ -322,7 +342,7 @@ private func toolsCatalog() -> [Tool] {
     "total", "completed", "incomplete", "overdue", "scheduled", "recurring", "withAlarms",
   ]
   var summary = Dictionary(uniqueKeysWithValues: counts.map { ($0, primitive("integer")) })
-  summary["listId"] = primitive("string")
+  summary["listId"] = describe(primitive("string"), "The list these counts describe.")
   summary = describing(
     summary,
     [
@@ -421,6 +441,9 @@ private func toolsCatalog() -> [Tool] {
       "color": describe(primitive("string"), FieldDocs.CreateListInput.color),
       "emblem": describe(primitive("string"), FieldDocs.CreateListInput.emblem),
     ], required: ["name", "accountId"])
+  let nextCursorNote = "Pass as cursor to fetch the next page; absent on the last page."
+  func id(_ noun: String) -> Value { describe(primitive("string"), "Identifier of the \(noun).") }
+  let patchNote = "The changes to make; omitted fields stay unchanged."
   let navigation = Tool.Annotations(
     readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
   return [
@@ -429,22 +452,26 @@ private func toolsCatalog() -> [Tool] {
       description:
         "Create a list in an explicit account. Colors use opaque #RRGGBB or #RRGGBBFF. Emblems are Reminders icon names. If the emblem write fails after the save, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly.",
       inputSchema: listCreate, annotations: created,
-      outputSchema: schema(["list": list], required: ["list"])),
+      outputSchema: schema(["list": describe(list, "The saved list.")], required: ["list"])),
     Tool(
       name: "lists_update",
       description:
         "Update list name, color or emblem. Omitted values are unchanged; nulls and empty patches are invalid. If the emblem write fails after the save, the error has code WRITE_APPLIED and names the saved ID; refetch before retrying.",
       inputSchema: schema(
-        ["id": primitive("string"), "patch": listPatch], required: ["id", "patch"]),
-      annotations: changed, outputSchema: schema(["list": list], required: ["list"])),
+        ["id": id("list"), "patch": describe(listPatch, patchNote)], required: ["id", "patch"]),
+      annotations: changed,
+      outputSchema: schema(["list": describe(list, "The saved list.")], required: ["list"])),
     Tool(
       name: "lists_delete",
       description:
         "Delete a list. Nonempty lists require allowNonEmpty=true, which also deletes their reminders. The emptiness check does not lock out concurrent external edits.",
       inputSchema: schema(
         [
-          "id": primitive("string"),
-          "allowNonEmpty": .object(["type": "boolean", "default": false]),
+          "id": id("list"),
+          "allowNonEmpty": .object([
+            "type": "boolean", "default": false,
+            "description": "Also delete the list's reminders when it is not empty.",
+          ]),
         ], required: ["id"]), annotations: changed,
       outputSchema: schema(
         ["deletedId": describe(primitive("string"), FieldDocs.DeleteResult.deletedId)],
@@ -452,33 +479,37 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "reminders_show",
       description: "Show a reminder in Reminders. Changes the application UI, not reminder data.",
-      inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: navigation,
-      outputSchema: schema(["reminder": item], required: ["reminder"])),
+      inputSchema: schema(["id": id("reminder")], required: ["id"]), annotations: navigation,
+      outputSchema: schema(
+        ["reminder": describe(item, "The shown reminder.")], required: ["reminder"])),
     Tool(
       name: "lists_show",
       description: "Show a list in Reminders. Changes the application UI, not list data.",
-      inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: navigation,
-      outputSchema: schema(["list": list], required: ["list"])),
+      inputSchema: schema(["id": id("list")], required: ["id"]), annotations: navigation,
+      outputSchema: schema(["list": describe(list, "The shown list.")], required: ["list"])),
     Tool(
       name: "reminders_create",
       description:
         "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
       inputSchema: schema(createFields, required: ["name"]),
       annotations: created,
-      outputSchema: schema(["reminder": item], required: ["reminder"])),
+      outputSchema: schema(
+        ["reminder": describe(item, "The saved reminder.")], required: ["reminder"])),
     Tool(
       name: "reminders_update",
       description:
         "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch before retrying.",
       inputSchema: schema(
-        ["id": primitive("string"), "patch": schema(writeFields)],
+        ["id": id("reminder"), "patch": describe(schema(writeFields), patchNote)],
         required: ["id", "patch"]),
-      annotations: changed, outputSchema: schema(["reminder": item], required: ["reminder"])),
+      annotations: changed,
+      outputSchema: schema(
+        ["reminder": describe(item, "The saved reminder.")], required: ["reminder"])),
     Tool(
       name: "reminders_delete",
       description:
         "Delete one reminder. Missing IDs return a NOT_FOUND tool error. Refetch before retrying after uncertain failures.",
-      inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: changed,
+      inputSchema: schema(["id": id("reminder")], required: ["id"]), annotations: changed,
       outputSchema: schema(
         ["deletedId": describe(primitive("string"), FieldDocs.DeleteResult.deletedId)],
         required: ["deletedId"])),
@@ -486,34 +517,46 @@ private func toolsCatalog() -> [Tool] {
       name: "accounts_get",
       description:
         "Read an account by identifier; returns null when it has no accessible reminder lists or is absent.",
-      inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: annotations,
-      outputSchema: schema(["account": nullable(account)], required: ["account"])),
+      inputSchema: schema(["id": id("account")], required: ["id"]), annotations: annotations,
+      outputSchema: schema(
+        ["account": describe(nullable(account), "The account, or null when absent.")],
+        required: ["account"])),
     Tool(
       name: "accounts_list",
       description: "Read accounts with accessible reminder lists, ordered by identifier.",
       inputSchema: schema([:]), annotations: annotations,
-      outputSchema: schema(["items": array(account)], required: ["items"])),
+      outputSchema: schema(
+        ["items": describe(array(account), "Accounts with accessible reminder lists.")],
+        required: ["items"])),
     Tool(
       name: "lists_get",
       description:
         "Read a list by ID; absent identifiers return null. Emblems and containers are not included; read them through GraphQL.",
-      inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: annotations,
-      outputSchema: schema(["list": nullable(list)], required: ["list"])),
+      inputSchema: schema(["id": id("list")], required: ["id"]), annotations: annotations,
+      outputSchema: schema(
+        ["list": describe(nullable(list), "The list, or null when absent.")], required: ["list"])),
     Tool(
       name: "defaults_get",
       description:
         "Read the accessible default list and its account; unavailable defaults return null.",
       inputSchema: schema([:]), annotations: annotations,
       outputSchema: schema(
-        ["list": nullable(list), "account": nullable(account)], required: ["list", "account"])),
+        [
+          "list": describe(nullable(list), "The default list, or null when unavailable."),
+          "account": describe(nullable(account), "The default list's account, or null."),
+        ], required: ["list", "account"])),
     Tool(
       name: "lists_summary",
       description:
         "Count all reminders per accessible list, optionally restricted to listId. Counts overlap and include completed items except overdue.",
-      inputSchema: schema(["listId": primitive("string")]), annotations: annotations,
+      inputSchema: schema([
+        "listId": describe(
+          primitive("string"), "Count only this list; omit for every accessible list.")
+      ]), annotations: annotations,
       outputSchema: schema(
         [
-          "items": array(schema(summary, required: counts + ["listId"]))
+          "items": describe(
+            array(schema(summary, required: counts + ["listId"])), "Counts for each list.")
         ], required: ["items"])),
     Tool(
       name: "lists_list",
@@ -524,7 +567,7 @@ private func toolsCatalog() -> [Tool] {
         [
           "items": describe(array(list), FieldDocs.ListPage.items),
           "totalCount": describe(primitive("integer"), FieldDocs.ListPage.totalCount),
-          "nextCursor": primitive("string"),
+          "nextCursor": describe(primitive("string"), nextCursorNote),
         ], required: ["items", "totalCount"])),
     Tool(
       name: "reminders_search",
@@ -535,14 +578,16 @@ private func toolsCatalog() -> [Tool] {
         [
           "items": describe(array(item), FieldDocs.ReminderPage.items),
           "totalCount": describe(primitive("integer"), FieldDocs.ReminderPage.totalCount),
-          "nextCursor": primitive("string"),
+          "nextCursor": describe(primitive("string"), nextCursorNote),
         ], required: ["items", "totalCount"])),
     Tool(
       name: "reminders_get",
       description:
         "Read one reminder with component and projected dates, alarms and recurrence; returns null when absent. Dates, alarms, or recurrence that cannot be projected fail the call. Flags, alert dates, containers, and emblems are not included; read them through GraphQL.",
-      inputSchema: schema(["id": primitive("string")], required: ["id"]), annotations: annotations,
-      outputSchema: schema(["reminder": nullable(item)], required: ["reminder"])),
+      inputSchema: schema(["id": id("reminder")], required: ["id"]), annotations: annotations,
+      outputSchema: schema(
+        ["reminder": describe(nullable(item), "The reminder, or null when absent.")],
+        required: ["reminder"])),
   ]
 }
 // MCP inputs omit optional values; an explicit null anywhere is invalid.

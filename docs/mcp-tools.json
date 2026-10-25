@@ -37,6 +37,7 @@
         "properties": {
           "list": {
             "additionalProperties": false,
+            "description": "The saved list.",
             "properties": {
               "allowsContentModifications": {
                 "description": "Whether reminders can be added, edited, and deleted in this list.",
@@ -66,14 +67,18 @@
               },
               "source": {
                 "additionalProperties": false,
+                "description": "The account that owns the list.",
                 "properties": {
                   "id": {
+                    "description": "Unique identifier of the account. Treat this value as opaque.",
                     "type": "string"
                   },
                   "title": {
+                    "description": "The name of the account.",
                     "type": "string"
                   },
                   "type": {
+                    "description": "EventKit source type: 0 local, 1 Exchange, 2 CalDAV including iCloud, 3 MobileMe, 4 subscribed, 5 birthdays.",
                     "type": "integer"
                   }
                 },
@@ -112,10 +117,12 @@
         "additionalProperties": false,
         "properties": {
           "id": {
+            "description": "Identifier of the list.",
             "type": "string"
           },
           "patch": {
             "additionalProperties": false,
+            "description": "The changes to make; omitted fields stay unchanged.",
             "properties": {
               "color": {
                 "description": "The new opaque sRGB list color: #RRGGBB or #RRGGBBFF.",
@@ -143,6 +150,7 @@
         "properties": {
           "list": {
             "additionalProperties": false,
+            "description": "The saved list.",
             "properties": {
               "allowsContentModifications": {
                 "description": "Whether reminders can be added, edited, and deleted in this list.",
@@ -172,14 +180,18 @@
               },
               "source": {
                 "additionalProperties": false,
+                "description": "The account that owns the list.",
                 "properties": {
                   "id": {
+                    "description": "Unique identifier of the account. Treat this value as opaque.",
                     "type": "string"
                   },
                   "title": {
+                    "description": "The name of the account.",
                     "type": "string"
                   },
                   "type": {
+                    "description": "EventKit source type: 0 local, 1 Exchange, 2 CalDAV including iCloud, 3 MobileMe, 4 subscribed, 5 birthdays.",
                     "type": "integer"
                   }
                 },
@@ -219,9 +231,11 @@
         "properties": {
           "allowNonEmpty": {
             "default": false,
+            "description": "Also delete the list's reminders when it is not empty.",
             "type": "boolean"
           },
           "id": {
+            "description": "Identifier of the list.",
             "type": "string"
           }
         },
@@ -253,6 +267,7 @@
         "additionalProperties": false,
         "properties": {
           "id": {
+            "description": "Identifier of the reminder.",
             "type": "string"
           }
         },
@@ -265,6 +280,7 @@
         "properties": {
           "reminder": {
             "additionalProperties": false,
+            "description": "The shown reminder.",
             "properties": {
               "alarms": {
                 "description": "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
@@ -278,6 +294,7 @@
                           "type": "string"
                         },
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["AbsoluteAlarm"],
                           "type": "string"
                         }
@@ -289,6 +306,7 @@
                       "additionalProperties": false,
                       "properties": {
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["RelativeAlarm"],
                           "type": "string"
                         },
@@ -338,6 +356,7 @@
                           "type": "object"
                         },
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["LocationAlarm"],
                           "type": "string"
                         }
@@ -480,6 +499,7 @@
                 "type": "string"
               },
               "externalId": {
+                "description": "Identifier assigned by the account's server; unlike id, copies may share it.",
                 "type": "string"
               },
               "flagged": {
@@ -897,6 +917,7 @@
         "additionalProperties": false,
         "properties": {
           "id": {
+            "description": "Identifier of the list.",
             "type": "string"
           }
         },
@@ -909,6 +930,7 @@
         "properties": {
           "list": {
             "additionalProperties": false,
+            "description": "The shown list.",
             "properties": {
               "allowsContentModifications": {
                 "description": "Whether reminders can be added, edited, and deleted in this list.",
@@ -938,14 +960,18 @@
               },
               "source": {
                 "additionalProperties": false,
+                "description": "The account that owns the list.",
                 "properties": {
                   "id": {
+                    "description": "Unique identifier of the account. Treat this value as opaque.",
                     "type": "string"
                   },
                   "title": {
+                    "description": "The name of the account.",
                     "type": "string"
                   },
                   "type": {
+                    "description": "EventKit source type: 0 local, 1 Exchange, 2 CalDAV including iCloud, 3 MobileMe, 4 subscribed, 5 birthdays.",
                     "type": "integer"
                   }
                 },
@@ -1201,6 +1227,7 @@
         "properties": {
           "reminder": {
             "additionalProperties": false,
+            "description": "The saved reminder.",
             "properties": {
               "alarms": {
                 "description": "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
@@ -1214,6 +1241,7 @@
                           "type": "string"
                         },
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["AbsoluteAlarm"],
                           "type": "string"
                         }
@@ -1225,6 +1253,7 @@
                       "additionalProperties": false,
                       "properties": {
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["RelativeAlarm"],
                           "type": "string"
                         },
@@ -1274,6 +1303,7 @@
                           "type": "object"
                         },
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["LocationAlarm"],
                           "type": "string"
                         }
@@ -1416,6 +1446,7 @@
                 "type": "string"
               },
               "externalId": {
+                "description": "Identifier assigned by the account's server; unlike id, copies may share it.",
                 "type": "string"
               },
               "flagged": {
@@ -1833,10 +1864,12 @@
         "additionalProperties": false,
         "properties": {
           "id": {
+            "description": "Identifier of the reminder.",
             "type": "string"
           },
           "patch": {
             "additionalProperties": false,
+            "description": "The changes to make; omitted fields stay unchanged.",
             "properties": {
               "alarms": {
                 "description": "Replace all configured alerts. An empty list removes all alerts.",
@@ -2082,6 +2115,7 @@
         "properties": {
           "reminder": {
             "additionalProperties": false,
+            "description": "The saved reminder.",
             "properties": {
               "alarms": {
                 "description": "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
@@ -2095,6 +2129,7 @@
                           "type": "string"
                         },
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["AbsoluteAlarm"],
                           "type": "string"
                         }
@@ -2106,6 +2141,7 @@
                       "additionalProperties": false,
                       "properties": {
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["RelativeAlarm"],
                           "type": "string"
                         },
@@ -2155,6 +2191,7 @@
                           "type": "object"
                         },
                         "kind": {
+                          "description": "The alarm's trigger type.",
                           "enum": ["LocationAlarm"],
                           "type": "string"
                         }
@@ -2297,6 +2334,7 @@
                 "type": "string"
               },
               "externalId": {
+                "description": "Identifier assigned by the account's server; unlike id, copies may share it.",
                 "type": "string"
               },
               "flagged": {
@@ -2714,6 +2752,7 @@
         "additionalProperties": false,
         "properties": {
           "id": {
+            "description": "Identifier of the reminder.",
             "type": "string"
           }
         },
@@ -2745,6 +2784,7 @@
         "additionalProperties": false,
         "properties": {
           "id": {
+            "description": "Identifier of the account.",
             "type": "string"
           }
         },
@@ -2775,7 +2815,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The account, or null when absent."
           }
         },
         "required": ["account"],
@@ -2801,6 +2842,7 @@
         "additionalProperties": false,
         "properties": {
           "items": {
+            "description": "Accounts with accessible reminder lists.",
             "items": {
               "additionalProperties": false,
               "properties": {
@@ -2835,6 +2877,7 @@
         "additionalProperties": false,
         "properties": {
           "id": {
+            "description": "Identifier of the list.",
             "type": "string"
           }
         },
@@ -2878,14 +2921,18 @@
                   },
                   "source": {
                     "additionalProperties": false,
+                    "description": "The account that owns the list.",
                     "properties": {
                       "id": {
+                        "description": "Unique identifier of the account. Treat this value as opaque.",
                         "type": "string"
                       },
                       "title": {
+                        "description": "The name of the account.",
                         "type": "string"
                       },
                       "type": {
+                        "description": "EventKit source type: 0 local, 1 Exchange, 2 CalDAV including iCloud, 3 MobileMe, 4 subscribed, 5 birthdays.",
                         "type": "integer"
                       }
                     },
@@ -2910,7 +2957,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The list, or null when absent."
           }
         },
         "required": ["list"],
@@ -2955,7 +3003,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The default list's account, or null."
           },
           "list": {
             "anyOf": [
@@ -2990,14 +3039,18 @@
                   },
                   "source": {
                     "additionalProperties": false,
+                    "description": "The account that owns the list.",
                     "properties": {
                       "id": {
+                        "description": "Unique identifier of the account. Treat this value as opaque.",
                         "type": "string"
                       },
                       "title": {
+                        "description": "The name of the account.",
                         "type": "string"
                       },
                       "type": {
+                        "description": "EventKit source type: 0 local, 1 Exchange, 2 CalDAV including iCloud, 3 MobileMe, 4 subscribed, 5 birthdays.",
                         "type": "integer"
                       }
                     },
@@ -3022,7 +3075,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The default list, or null when unavailable."
           }
         },
         "required": ["list", "account"],
@@ -3041,6 +3095,7 @@
         "additionalProperties": false,
         "properties": {
           "listId": {
+            "description": "Count only this list; omit for every accessible list.",
             "type": "string"
           }
         },
@@ -3052,6 +3107,7 @@
         "additionalProperties": false,
         "properties": {
           "items": {
+            "description": "Counts for each list.",
             "items": {
               "additionalProperties": false,
               "properties": {
@@ -3064,6 +3120,7 @@
                   "type": "integer"
                 },
                 "listId": {
+                  "description": "The list these counts describe.",
                   "type": "string"
                 },
                 "overdue": {
@@ -3124,6 +3181,7 @@
           },
           "filter": {
             "additionalProperties": false,
+            "description": "Search criteria; all given criteria must match.",
             "properties": {
               "accountIds": {
                 "description": "Match lists in any of these accounts, intersected with the parent scope; [] matches nothing.",
@@ -3150,12 +3208,14 @@
           },
           "limit": {
             "default": 50,
+            "description": "Maximum number of items in the page.",
             "maximum": 100,
             "minimum": 1,
             "type": "integer"
           },
           "orderBy": {
             "additionalProperties": false,
+            "description": "Result order; without it, results use identifier order.",
             "properties": {
               "direction": {
                 "description": "Direction of name ordering. Ties use identifier order; without orderBy, lists use identifier order.",
@@ -3207,14 +3267,18 @@
                 },
                 "source": {
                   "additionalProperties": false,
+                  "description": "The account that owns the list.",
                   "properties": {
                     "id": {
+                      "description": "Unique identifier of the account. Treat this value as opaque.",
                       "type": "string"
                     },
                     "title": {
+                      "description": "The name of the account.",
                       "type": "string"
                     },
                     "type": {
+                      "description": "EventKit source type: 0 local, 1 Exchange, 2 CalDAV including iCloud, 3 MobileMe, 4 subscribed, 5 birthdays.",
                       "type": "integer"
                     }
                   },
@@ -3239,6 +3303,7 @@
             "type": "array"
           },
           "nextCursor": {
+            "description": "Pass as cursor to fetch the next page; absent on the last page.",
             "type": "string"
           },
           "totalCount": {
@@ -3268,6 +3333,7 @@
           },
           "filter": {
             "additionalProperties": false,
+            "description": "Search criteria; all given criteria must match.",
             "properties": {
               "accountIds": {
                 "description": "Match reminders belonging to these accounts; [] matches nothing.",
@@ -3333,12 +3399,14 @@
           },
           "limit": {
             "default": 50,
+            "description": "Maximum number of items in the page.",
             "maximum": 100,
             "minimum": 1,
             "type": "integer"
           },
           "orderBy": {
             "additionalProperties": false,
+            "description": "Result order; without it, results use identifier order.",
             "properties": {
               "direction": {
                 "description": "Direction of ordering. Nulls sort last either way and ties use identifier order; without orderBy, reminders use identifier order.",
@@ -3386,6 +3454,7 @@
                             "type": "string"
                           },
                           "kind": {
+                            "description": "The alarm's trigger type.",
                             "enum": ["AbsoluteAlarm"],
                             "type": "string"
                           }
@@ -3397,6 +3466,7 @@
                         "additionalProperties": false,
                         "properties": {
                           "kind": {
+                            "description": "The alarm's trigger type.",
                             "enum": ["RelativeAlarm"],
                             "type": "string"
                           },
@@ -3446,6 +3516,7 @@
                             "type": "object"
                           },
                           "kind": {
+                            "description": "The alarm's trigger type.",
                             "enum": ["LocationAlarm"],
                             "type": "string"
                           }
@@ -3588,6 +3659,7 @@
                   "type": "string"
                 },
                 "externalId": {
+                  "description": "Identifier assigned by the account's server; unlike id, copies may share it.",
                   "type": "string"
                 },
                 "flagged": {
@@ -3991,6 +4063,7 @@
             "type": "array"
           },
           "nextCursor": {
+            "description": "Pass as cursor to fetch the next page; absent on the last page.",
             "type": "string"
           },
           "totalCount": {
@@ -4014,6 +4087,7 @@
         "additionalProperties": false,
         "properties": {
           "id": {
+            "description": "Identifier of the reminder.",
             "type": "string"
           }
         },
@@ -4041,6 +4115,7 @@
                               "type": "string"
                             },
                             "kind": {
+                              "description": "The alarm's trigger type.",
                               "enum": ["AbsoluteAlarm"],
                               "type": "string"
                             }
@@ -4052,6 +4127,7 @@
                           "additionalProperties": false,
                           "properties": {
                             "kind": {
+                              "description": "The alarm's trigger type.",
                               "enum": ["RelativeAlarm"],
                               "type": "string"
                             },
@@ -4101,6 +4177,7 @@
                               "type": "object"
                             },
                             "kind": {
+                              "description": "The alarm's trigger type.",
                               "enum": ["LocationAlarm"],
                               "type": "string"
                             }
@@ -4243,6 +4320,7 @@
                     "type": "string"
                   },
                   "externalId": {
+                    "description": "Identifier assigned by the account's server; unlike id, copies may share it.",
                     "type": "string"
                   },
                   "flagged": {
@@ -4646,7 +4724,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "The reminder, or null when absent."
           }
         },
         "required": ["reminder"],
