@@ -26,7 +26,7 @@ func listSearchPage(_ data: RemindersData, args: Map, accountID: String? = nil) 
   search.allowsContentModifications = try? filter["allowsContentModifications"].boolValue()
   search.subscribed = try? filter["subscribed"].boolValue()
   if args["orderBy"] != .null && args["orderBy"] != .undefined {
-    search.orderField = "NAME"
+    search.sortListsByName = true
     search.descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
   }
   return try page(search.lists(data, accountID: accountID), args: args)

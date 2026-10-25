@@ -84,7 +84,7 @@ func parseTimestamp(_ value: String) throws -> Date {
   return date
 }
 
-func orderReminders(_ items: [ReminderRecord], field: String, descending: Bool) throws
+func orderReminders(_ items: [ReminderRecord], by field: ReminderSortField, descending: Bool) throws
   -> [ReminderRecord]
 {
   // Resolve fallible dates before sorting; never hide a failed projection in a comparator.
@@ -92,13 +92,13 @@ func orderReminders(_ items: [ReminderRecord], field: String, descending: Bool) 
   for item in items {
     let value: String?
     switch field {
-    case "DUE_DATE":
+    case .dueDate:
       dates[item.id] = try projectDate(item.dueDateComponents)?.instant
       continue
-    case "CREATION_DATE": value = item.creationDate
-    case "MODIFICATION_DATE": value = item.modificationDate
-    case "COMPLETION_DATE": value = item.completionDate
-    default: continue
+    case .creationDate: value = item.creationDate
+    case .modificationDate: value = item.modificationDate
+    case .completionDate: value = item.completionDate
+    case .name, .priority: continue
     }
     if let value { dates[item.id] = try parseTimestamp(value) }
   }
@@ -111,9 +111,10 @@ func orderReminders(_ items: [ReminderRecord], field: String, descending: Bool) 
   return items.sorted { a, b in
     let result: Bool?
     switch field {
-    case "NAME": result = compare(a.name?.lowercased(), b.name?.lowercased())
-    case "PRIORITY": result = compare(a.priority, b.priority)
-    default: result = compare(dates[a.id], dates[b.id])
+    case .name: result = compare(a.name?.lowercased(), b.name?.lowercased())
+    case .priority: result = compare(a.priority, b.priority)
+    case .dueDate, .creationDate, .modificationDate, .completionDate:
+      result = compare(dates[a.id], dates[b.id])
     }
     return result ?? (a.id < b.id)
   }

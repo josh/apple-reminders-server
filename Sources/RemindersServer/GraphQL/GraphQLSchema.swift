@@ -50,7 +50,7 @@ private func searchPage(
   search.dueBefore = try? criteria["dueBefore"].stringValue()
   search.dueFrom = try? criteria["dueFrom"].stringValue()
   if args["orderBy"] != .null && args["orderBy"] != .undefined {
-    search.orderField = try args["orderBy"]["field"].stringValue()
+    search.reminderOrder = ReminderSortField(rawValue: try args["orderBy"]["field"].stringValue())
     search.descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
   }
   var items = try search.reminders(data, scope: scope)
@@ -225,7 +225,7 @@ func makeSchema() throws -> GraphQLSchema {
     "SortDirection", ["ASC", "DESC"],
     descriptions: ["ASC": "Smallest or earliest first.", "DESC": "Largest or latest first."])
   let orderField = try enumeration(
-    "ReminderSortField", reminderSortFields,
+    "ReminderSortField", ReminderSortField.allCases.map(\.rawValue),
     descriptions: [
       "NAME": "Reminder name.", "DUE_DATE": "Timed or all-day deadline.",
       "PRIORITY": "Numeric priority.", "CREATION_DATE": "Creation timestamp.",

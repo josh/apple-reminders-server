@@ -2,7 +2,9 @@ import Foundation
 
 // One filter for GraphQL and MCP searches.
 struct Search: Sendable {
-  var orderField: String?
+  // Reminders sort by this field when set; lists sort by name when sortListsByName is set.
+  var reminderOrder: ReminderSortField?
+  var sortListsByName = false
   var descending = false
   var query: String?
   var accountIds: [String]?
@@ -59,7 +61,7 @@ struct Search: Sendable {
         && (name == nil || name!.isEmpty || itemName.contains(name!))
         && matchesDays(item.dueDay, dueOnOrAfter, dayUpper)
     }
-    return try orderField.map { try orderReminders(items, field: $0, descending: descending) }
+    return try reminderOrder.map { try orderReminders(items, by: $0, descending: descending) }
       ?? items
   }
 
@@ -74,7 +76,7 @@ struct Search: Sendable {
           || $0.allowsContentModifications == allowsContentModifications)
         && (subscribed == nil || $0.subscribed == subscribed)
     }
-    if orderField != nil {
+    if sortListsByName {
       items.sort {
         let a = $0.name.lowercased()
         let b = $1.name.lowercased()

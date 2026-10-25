@@ -70,9 +70,14 @@ enum DueStatus: String, Codable, Sendable, CaseIterable {
 }
 // Index + 1 is the Gregorian weekday number EventKit uses.
 let weekdayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
-let reminderSortFields = [
-  "NAME", "DUE_DATE", "PRIORITY", "CREATION_DATE", "MODIFICATION_DATE", "COMPLETION_DATE",
-]
+enum ReminderSortField: String, CaseIterable, Sendable {
+  case name = "NAME"
+  case dueDate = "DUE_DATE"
+  case priority = "PRIORITY"
+  case creationDate = "CREATION_DATE"
+  case modificationDate = "MODIFICATION_DATE"
+  case completionDate = "COMPLETION_DATE"
+}
 struct StructuredLocation: Codable, Sendable {
   let title: String?
   let latitude: Double?

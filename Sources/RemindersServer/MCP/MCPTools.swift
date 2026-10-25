@@ -282,7 +282,8 @@ private func toolsCatalog() -> [Tool] {
     ])
   let order = schema(
     [
-      "field": describe(enumeration(reminderSortFields), FieldDocs.ReminderOrder.field),
+      "field": describe(
+        enumeration(ReminderSortField.allCases.map(\.rawValue)), FieldDocs.ReminderOrder.field),
       "direction": describe(enumeration(["ASC", "DESC"]), FieldDocs.ReminderOrder.direction),
     ], required: ["field"])
   let pagination: [String: Value] = [
@@ -722,7 +723,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       criteria.subscribed = filter.subscribed.value
     }
     if let order = search.orderBy.value {
-      criteria.orderField = "NAME"
+      criteria.sortListsByName = true
       criteria.descending = try descending(order.direction)
     }
     return try await result(
@@ -774,10 +775,10 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       }
     }
     if let order = search.orderBy.value {
-      guard reminderSortFields.contains(order.field) else {
+      guard let field = ReminderSortField(rawValue: order.field) else {
         throw ServerError.invalidArgument("invalid order field")
       }
-      criteria.orderField = order.field
+      criteria.reminderOrder = field
       criteria.descending = try descending(order.direction)
     }
     return try await result(
