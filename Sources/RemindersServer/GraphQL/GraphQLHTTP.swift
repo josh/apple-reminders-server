@@ -15,22 +15,14 @@ private func handleGraphQL(
   method: String, body: Data, schema: GraphQLSchema, access: Capabilities.Access
 ) async throws -> ServiceResponse {
   guard method == "POST" else { return try .json(["error": "POST required"], status: 405) }
-  guard let request = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
-    return try .json(["errors": [["message": "Expected one JSON object"]]], status: 400)
+  let request: GraphQLRequest
+  do { request = try JSONDecoder().decode(GraphQLRequest.self, from: body) } catch {
+    let message = (error as? GraphQLRequest.Invalid)?.message ?? "Expected one JSON object"
+    return try .json(["errors": [["message": message]]], status: 400)
   }
-  guard let query = request["query"] as? String else {
-    return try .json(["errors": [["message": "query must be a string"]]], status: 400)
-  }
-  if let variables = request["variables"], !(variables is NSNull), !(variables is [String: Any]) {
-    return try .json(["errors": [["message": "variables must be an object"]]], status: 400)
-  }
-  if let operation = request["operationName"], !(operation is NSNull), !(operation is String) {
-    return try .json(["errors": [["message": "operationName must be a string"]]], status: 400)
-  }
-  let variables = try JSONDecoder().decode(
-    [String: Map].self,
-    from: JSONSerialization.data(withJSONObject: request["variables"] as? [String: Any] ?? [:]))
-  let operation = request["operationName"] as? String
+  let query = request.query
+  let variables = request.variables
+  let operation = request.operationName
   do {
     if access != .write {
       let document = try parse(source: query)
@@ -53,6 +45,28 @@ private func handleGraphQL(
       body: try GraphQLJSONEncoder().encode(result),
       failure: result.errors.isEmpty ? nil : "graphql")
   } catch { return try .json(["errors": [graphQLError(error)]], failure: "graphql") }
+}
+
+// The POST body. Null variables or operationName mean absent.
+private struct GraphQLRequest: Decodable {
+  struct Invalid: Error { let message: String }
+  let query: String
+  let variables: [String: Map]
+  let operationName: String?
+  enum CodingKeys: String, CodingKey { case query, variables, operationName }
+  init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    guard let query = try? c.decode(String.self, forKey: .query) else {
+      throw Invalid(message: "query must be a string")
+    }
+    self.query = query
+    do { variables = try c.decodeIfPresent([String: Map].self, forKey: .variables) ?? [:] } catch {
+      throw Invalid(message: "variables must be an object")
+    }
+    do { operationName = try c.decodeIfPresent(String.self, forKey: .operationName) } catch {
+      throw Invalid(message: "operationName must be a string")
+    }
+  }
 }
 
 // The executor wraps resolver errors; put the server's code where GraphQL clients expect it.
