@@ -677,20 +677,19 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
     guard (1...100).contains(limit) else {
       throw ServerError.invalidArgument("limit must be 1...100")
     }
-    var offset = 0
-    if let token = cursor.value {
-      guard let value = Int(token), value >= 0 else {
-        throw ServerError.invalidArgument(
-          "cursor must be a nextCursor string from the previous response. Omit cursor for the first page."
-        )
-      }
-      offset = value
-    }
-    let start = min(offset, items.count)
-    let end = min(start + limit, items.count)
+    let offset =
+      try cursor.value.map { token in
+        guard let value = Int(token), value >= 0 else {
+          throw ServerError.invalidArgument(
+            "cursor must be a nextCursor string from the previous response. Omit cursor for the first page."
+          )
+        }
+        return value
+      } ?? 0
+    let pageItems = Array(items.dropFirst(offset).prefix(limit))
+    let end = offset + pageItems.count
     return PageOutput(
-      items: Array(items[start..<end]), totalCount: items.count,
-      nextCursor: end < items.count ? String(end) : nil)
+      items: pageItems, totalCount: items.count, nextCursor: end < items.count ? String(end) : nil)
   }
   func savedReminder(_ request: ReminderWrite) async throws -> CallTool.Result {
     let saved = try await writeReminder(request)
