@@ -25,6 +25,18 @@ let usage = """
   use automation after the EventKit save. EventKit prompts only at explicit startup.
   """
 
+// Serving options; each takes a value except --request-access.
+enum StartupOption: String {
+  case port = "--port"
+  case requestAccess = "--request-access"
+  case metricsInterval = "--metrics-interval-seconds"
+  case logLevel = "--log-level"
+  case allowedOrigin = "--allowed-origin"
+  case tailscaleAppCapability = "--tailscale-app-capability"
+  // Only allowed origins accumulate; any other option given twice is an error.
+  var repeatable: Bool { self == .allowedOrigin }
+}
+
 Task.detached {
   do {
     let arguments = Array(CommandLine.arguments.dropFirst())
@@ -42,29 +54,31 @@ Task.detached {
       var allowedOrigins: [String] = []
       var tailscaleAppCapability: String?
       var index = 0
-      var seen = Set<String>()
+      var seen = Set<StartupOption>()
       while index < arguments.count {
-        let option = arguments[index]
-        guard option == "--allowed-origin" || seen.insert(option).inserted else {
-          throw ServerError.internalError("Duplicate option: \(option)")
+        guard let option = StartupOption(rawValue: arguments[index]) else {
+          throw ServerError.internalError("Use --help for server options")
+        }
+        guard option.repeatable || seen.insert(option).inserted else {
+          throw ServerError.internalError("Duplicate option: \(option.rawValue)")
         }
         func next() throws -> String {
           index += 1
           guard index < arguments.count else {
-            throw ServerError.internalError("Missing value for \(option)")
+            throw ServerError.internalError("Missing value for \(option.rawValue)")
           }
           return arguments[index]
         }
         switch option {
-        case "--request-access": requestAccess = true
-        case "--tailscale-app-capability":
+        case .requestAccess: requestAccess = true
+        case .tailscaleAppCapability:
           let value = try next()
           let parts = value.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
           guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty,
             !value.contains(where: { $0.isWhitespace }), !value.hasPrefix("--")
           else { throw ServerError.internalError("Capability must be a domain/path name") }
           tailscaleAppCapability = value
-        case "--allowed-origin":
+        case .allowedOrigin:
           let value = try next()
           guard let url = URL(string: value),
             let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
@@ -83,24 +97,23 @@ Task.detached {
           let defaultPort = scheme == "https" ? 443 : 80
           let port = url.port.flatMap { $0 == defaultPort ? nil : ":\($0)" } ?? ""
           allowedOrigins.append("\(scheme)://\(host)\(port)")
-        case "--port":
+        case .port:
           guard let value = UInt16(try next()), value > 0 else {
             throw ServerError.internalError("Port must be between 1 and 65535")
           }
           port = value
-        case "--log-level":
+        case .logLevel:
           guard let value = Logger.Level(rawValue: try next()) else {
             throw ServerError.internalError(
               "Log level must be trace, debug, info, notice, warning, error, or critical")
           }
           logLevel = value
-        case "--metrics-interval-seconds":
+        case .metricsInterval:
           guard let value = Int(try next()), (1...604800).contains(value) else {
             throw ServerError.internalError(
               "Metrics interval must be between 1 and 604800 seconds")
           }
           metricsInterval = value
-        default: throw ServerError.internalError("Use --help for server options")
         }
         index += 1
       }
