@@ -2,7 +2,17 @@ import Carbon
 import Foundation
 
 // GraphQL reads flags, emblems, alert dates, and containers through Reminders automation.
-enum ScriptObjectKind: Sendable { case account, list, reminder }
+enum ScriptObjectKind: Sendable {
+  case account, list, reminder
+  // The class name in Reminders' scripting dictionary.
+  var scriptName: String {
+    switch self {
+    case .account: "account"
+    case .list: "list"
+    case .reminder: "reminder"
+    }
+  }
+}
 struct ContainerReference: Sendable {
   let kind: ScriptObjectKind
   let id: String
@@ -21,23 +31,23 @@ func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async thro
 // timeout applies to each event, not to app launch or the complete operation.
 // Typed descriptors bind each fixed script expression to its result decoder.
 struct ScriptProperty<Value: Sendable>: Sendable {
-  let entity: String
+  let entity: ScriptObjectKind
   let expression: String
   let decode: @Sendable (NSAppleEventDescriptor) throws -> Value
 }
 extension ScriptProperty where Value == Bool {
   static let flags = Self(
-    entity: "reminder", expression: "flagged of every reminder", decode: automationFlag)
+    entity: .reminder, expression: "flagged of every reminder", decode: automationFlag)
 }
 extension ScriptProperty where Value == String? {
-  static let emblems = Self(entity: "list", expression: "emblem of every list") { value in
+  static let emblems = Self(entity: .list, expression: "emblem of every list") { value in
     if value.typeCodeValue == OSType(cMissingValue) { return nil }
     guard let text = value.stringValue else {
       throw ServerError.internalError("Unsupported list emblem value")
     }
     return text
   }
-  static let alerts = Self(entity: "reminder", expression: "remind me date of every reminder") {
+  static let alerts = Self(entity: .reminder, expression: "remind me date of every reminder") {
     value in
     if value.typeCodeValue == OSType(cMissingValue) { return nil }
     guard let date = value.dateValue else {
@@ -47,10 +57,10 @@ extension ScriptProperty where Value == String? {
   }
 }
 extension ScriptProperty where Value == ContainerReference {
-  static let listContainers = containers(entity: "list")
-  static let reminderContainers = containers(entity: "reminder")
-  private static func containers(entity: String) -> Self {
-    Self(entity: entity, expression: "container of every \(entity)") { value in
+  static let listContainers = containers(entity: .list)
+  static let reminderContainers = containers(entity: .reminder)
+  private static func containers(entity: ScriptObjectKind) -> Self {
+    Self(entity: entity, expression: "container of every \(entity.scriptName)") { value in
       guard value.descriptorType == DescType(typeObjectSpecifier),
         value.forKeyword(AEKeyword(keyAEKeyForm))?.enumCodeValue == OSType(formUniqueID),
         let parentID = value.forKeyword(AEKeyword(keyAEKeyData))?.stringValue
@@ -59,7 +69,7 @@ extension ScriptProperty where Value == ContainerReference {
         classCode("acct"): .account, classCode("list"): .list, classCode("remi"): .reminder,
       ]
       guard let kind = kinds[value.forKeyword(AEKeyword(keyAEDesiredClass))?.typeCodeValue ?? 0],
-        (entity == "list" ? [.account, .list] : [.list, .reminder]).contains(kind)
+        (entity == .list ? [.account, .list] : [.list, .reminder]).contains(kind)
       else { throw ServerError.internalError("Unsupported container class") }
       return ContainerReference(kind: kind, id: try scriptIdentifier(parentID, kind: kind))
     }
@@ -71,7 +81,7 @@ private func classCode(_ code: String) -> OSType {
 }
 @MainActor
 func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [String: Value] {
-  let entity = property.entity
+  let entity = property.entity.scriptName
   let expression = property.expression
   let source = """
     with timeout of 10 seconds
@@ -102,7 +112,7 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
       let id = before.atIndex(index + 1)?.stringValue,
       id == after.atIndex(index + 1)?.stringValue
     else { throw ServerError.internalError("Automation objects changed during read; retry") }
-    let key = try scriptIdentifier(id, kind: entity == "list" ? .list : .reminder)
+    let key = try scriptIdentifier(id, kind: property.entity)
     guard output[key] == nil else {
       throw ServerError.internalError("Duplicate automation identifier")
     }
