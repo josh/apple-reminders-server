@@ -30,9 +30,12 @@ struct ServiceResponse {
     // Bodies here are plain structs of strings, which always encode.
     return ServiceResponse(status: status, body: try! encoder.encode(body), failure: failure)
   }
-  // {"error": message}, the body of every failure outside GraphQL's own error format.
+  // {"error": message}, the body of every failure outside GraphQL's own error format. The
+  // message is logged too, since the status alone does not say which check failed.
   static func error(_ message: String, status: HTTPResponseStatus) -> ServiceResponse {
-    .json(ErrorBody(error: message), status: status)
+    var response = ServiceResponse.json(ErrorBody(error: message), status: status)
+    response.logMetadata["error"] = message
+    return response
   }
 }
 private struct ErrorBody: Encodable { let error: String }
