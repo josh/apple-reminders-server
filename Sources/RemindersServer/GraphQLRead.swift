@@ -5,9 +5,11 @@ func componentValue(_ source: Map, key: String) throws -> ComponentDate? {
   guard source[key] != .null && source[key] != .undefined else { return nil }
   return try JSONDecoder().decode(ComponentDate.self, from: JSONEncoder().encode(source[key]))
 }
-func calendarField(_ type: GraphQLOutputType, key: String, timed: Bool) -> GraphQLField {
+func calendarField(_ type: GraphQLOutputType, key: String, timed: Bool, description: String)
+  -> GraphQLField
+{
   GraphQLField(
-    type: type,
+    type: type, description: description,
     resolve: { source, _, _, _ in
       guard let source = source as? Map,
         let date = try projectDate(componentValue(source, key: key)), date.timed == timed

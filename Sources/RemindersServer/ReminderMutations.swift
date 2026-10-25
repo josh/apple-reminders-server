@@ -12,6 +12,20 @@ enum ReminderClearValue: String, Sendable, CaseIterable {
   case timeZone = "TIME_ZONE"
   case startDate = "START_DATE"
   case allDayStartDate = "ALL_DAY_START_DATE"
+
+  var description: String {
+    switch self {
+    case .location: "Remove descriptive location text."
+    case .url: "Remove the associated URL."
+    case .dueDate: "Remove the timed due date."
+    case .allDayDueDate: "Remove the all-day due date."
+    case .completionDate: "Remove the completion date."
+    case .recurrence: "Stop repetition."
+    case .timeZone: "Use floating/local time-zone interpretation."
+    case .startDate: "Remove the timed start date."
+    case .allDayStartDate: "Remove the all-day start date."
+    }
+  }
 }
 enum ReminderAlarmChange: Equatable, Sendable {
   case absolute(Date)

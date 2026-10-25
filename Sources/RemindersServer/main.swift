@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import GraphQL
 import Logging
 
 import struct os.OSAllocatedUnfairLock
@@ -32,6 +33,8 @@ Task.detached {
       print(usage)
     } else if arguments == ["--dump-mcp-tools"] {
       print(try mcpToolsJSON())
+    } else if arguments == ["--dump-graphql-schema"] {
+      print(printSchema(schema: try makeSchema()))
     } else {
       var port: UInt16 = 8171
       var metricsInterval = 3600

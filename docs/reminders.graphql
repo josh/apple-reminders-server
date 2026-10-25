@@ -1,103 +1,299 @@
-# Current server schema, exported from introspection.
-# Field comments supplement runtime descriptions; unsupported writes are noted below.
+type Query {
+  """
+  Accounts available in Reminders.
+  """
+  accounts: [Account!]
 
-schema {
-  query: Query
-  mutation: Mutation
-}
+  """
+  Find an account by its unique identifier.
+  """
+  account(id: ID!): Account
 
-type AbsoluteAlarm {
-  "The date and time at which the alert triggers."
-  at: DateTime!
+  """
+  Lists available in Reminders.
+  """
+  lists(
+    limit: Int! = 50
+    offset: Int! = 0
+    filter: ListFilter
+    orderBy: ListOrder
+  ): ListPage
+
+  """
+  Find a list by its unique identifier.
+  """
+  list(id: ID!): ReminderList
+
+  """
+  Reminders available in the application, including completed items.
+  """
+  reminders(
+    limit: Int! = 50
+    offset: Int! = 0
+    orderBy: ReminderOrder
+    filter: ReminderFilter
+  ): ReminderPage
+
+  """
+  Find a reminder by its unique identifier.
+  """
+  reminder(id: ID!): Reminder
+
+  """
+  The default account in Reminders, or null if none is available.
+  """
+  defaultAccount: Account
+
+  """
+  The default reminder list, or null if none is available.
+  """
+  defaultList: ReminderList
 }
 
 type Account {
-  "Unique identifier of the account. Treat this value as opaque."
+  """
+  Unique identifier of the account. Treat this value as opaque.
+  """
   id: ID!
-  "Lists in this account."
-  lists(limit: Int! = 50, offset: Int! = 0, filter: ListFilter, orderBy: ListOrder): ListPage
-  "The name of the account."
+
+  """
+  The name of the account.
+  """
   name: String
-  "Reminders in this account, including completed items."
-  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter): ReminderPage
+
+  """
+  Lists in this account.
+  """
+  lists(
+    limit: Int! = 50
+    offset: Int! = 0
+    filter: ListFilter
+    orderBy: ListOrder
+  ): ListPage
+
+  """
+  Reminders in this account, including completed items.
+  """
+  reminders(
+    limit: Int! = 50
+    offset: Int! = 0
+    orderBy: ReminderOrder
+    filter: ReminderFilter
+  ): ReminderPage
 }
 
-input CreateListInput {
-  "Account in which to create the list."
-  accountId: ID!
-  "List color as an application-defined string."
+input ListFilter {
+  """
+  Case-insensitive substring of the list name.
+  """
+  query: String
+
+  """
+  Match lists in any of these accounts, intersected with the parent scope.
+  """
+  accountIds: [ID!]
+
+  """
+  Match whether reminders in the list can be modified.
+  """
+  allowsContentModifications: Boolean
+
+  """
+  Match subscribed or unsubscribed lists.
+  """
+  subscribed: Boolean
+}
+
+input ListOrder {
+  """
+  Direction of name ordering. Without orderBy, lists use identifier order.
+  """
+  direction: SortDirection = ASC
+}
+
+enum SortDirection {
+  """
+  Smallest or earliest first.
+  """
+  ASC
+
+  """
+  Largest or latest first.
+  """
+  DESC
+}
+
+type ListPage {
+  """
+  Lists in this page.
+  """
+  items: [ReminderList!]!
+
+  """
+  Number of matching lists before pagination.
+  """
+  totalCount: Int!
+
+  """
+  Position and availability of neighboring pages.
+  """
+  pageInfo: PageInfo!
+}
+
+type ReminderList {
+  """
+  Unique identifier of the list. Treat this value as opaque.
+  """
+  id: ID!
+
+  """
+  The name of the list.
+  """
+  name: String
+
+  """
+  Whether reminders can be added, edited, and deleted in this list.
+  """
+  allowsContentModifications: Boolean
+
+  """
+  Whether the list's own properties can be edited and the list deleted.
+  """
+  allowsListModifications: Boolean
+
+  """
+  Whether the list is a subscription.
+  """
+  subscribed: Boolean
+
+  """
+  The color of the list as an sRGB #RRGGBBAA hex string.
+  """
   color: String
-  "Emblem icon name."
+
+  """
+  The emblem icon name displayed beside the list.
+  """
   emblem: String
-  "Name of the new list."
-  name: String!
+
+  """
+  The account or parent list containing this list.
+  """
+  container: ListContainer
+  account: Account
+
+  """
+  Reminders in this list, including completed items.
+  """
+  reminders(
+    limit: Int! = 50
+    offset: Int! = 0
+    orderBy: ReminderOrder
+    filter: ReminderFilter
+  ): ReminderPage
+  summary: ListSummary
 }
 
-input CreateReminderInput {
-  "Alerts to configure; omission or an empty list configures no explicit alerts."
-  alarms: [ReminderAlarmInput!]
-  "A date-only deadline; mutually exclusive with dueDate."
-  allDayDueDate: LocalDate
-  "Unsupported: date-only start writes are rejected because storage does not preserve them. Use startDate."
-  allDayStartDate: LocalDate
-  "Notes to attach to the reminder."
-  body: String
-  "A deadline including a time of day."
-  dueDate: DateTime
-  "Whether to flag the new reminder."
+union ListContainer = Account | ReminderList
+
+input ReminderOrder {
+  """
+  Property to sort by.
+  """
+  field: ReminderSortField!
+
+  """
+  Direction of ordering.
+  """
+  direction: SortDirection = ASC
+}
+
+enum ReminderSortField {
+  """
+  Reminder name.
+  """
+  NAME
+
+  """
+  Timed or all-day deadline.
+  """
+  DUE_DATE
+
+  """
+  Numeric priority.
+  """
+  PRIORITY
+
+  """
+  Creation timestamp.
+  """
+  CREATION_DATE
+
+  """
+  Last modification timestamp.
+  """
+  MODIFICATION_DATE
+
+  """
+  Completion timestamp.
+  """
+  COMPLETION_DATE
+}
+
+input ReminderFilter {
+  """
+  Match text in the reminder name or notes.
+  """
+  query: String
+
+  """
+  Match reminders belonging to these accounts.
+  """
+  accountIds: [ID!]
+
+  """
+  Match flagged or unflagged reminders.
+  """
   flagged: Boolean
-  "Destination list; omission uses the default list. No default produces an error."
-  listId: ID
-  "Descriptive location text, separate from location-triggered alarms."
-  location: String
-  "Name of the new reminder."
-  name: String!
-  "Priority from 0 through 9."
-  priority: Int
-  "Repeating schedule; omission creates a non-repeating reminder."
-  recurrence: RecurrenceRuleInput
-  "Date and time at which to remind the user; mutually exclusive with alarms."
-  remindMeDate: DateTime
-  "The date and time at which work on the reminder starts."
-  startDate: DateTime
-  "IANA time-zone identifier; omission uses local date interpretation."
-  timeZone: String
-  "An associated absolute URL; does not promise a rich-link preview in Reminders."
-  url: String
+
+  """
+  Match reminders with or without a timed or all-day deadline.
+  """
+  hasDueDate: Boolean
+
+  """
+  Inclusive lower bound on the deadline.
+  """
+  dueFrom: DateTime
+
+  """
+  Match reminders belonging to these lists.
+  """
+  listIds: [ID!]
+
+  """
+  Match any of these exact numeric priorities; [] matches nothing.
+  """
+  priorities: [Int!]
+  dueStatus: DueStatus
+  dueOnOrAfter: String
+
+  """
+  Exclusive upper deadline bound: timestamp or YYYY-MM-DD. Do not mix timestamp and calendar-day bounds.
+  """
+  dueBefore: String
+
+  """
+  Match completed or incomplete reminders; omission includes both.
+  """
+  completed: Boolean
+  nameContains: String
 }
 
-type DateComponents {
-  calendar: String
-  day: Int
-  era: Int
-  hour: Int
-  isLeapMonth: Boolean
-  minute: Int
-  month: Int
-  nanosecond: Int
-  quarter: Int
-  second: Int
-  timeZone: String
-  weekOfMonth: Int
-  weekOfYear: Int
-  weekday: Int
-  weekdayOrdinal: Int
-  year: Int
-  yearForWeekOfYear: Int
-}
-
-"RFC 3339 timestamp with an explicit offset, serialized in UTC."
+"""
+RFC 3339 timestamp with an explicit offset, serialized in UTC.
+"""
 scalar DateTime
-
-type ClearCompletedResult {
-  listId: ID!
-  deletedCount: Int!
-}
-
-type DeleteResult {
-  "The deleted object's identifier."
-  deletedId: ID!
-}
 
 enum DueStatus {
   OVERDUE
@@ -107,149 +303,246 @@ enum DueStatus {
   UNKNOWN
 }
 
-type Geofence {
-  "Latitude in degrees, between -90 and 90."
-  latitude: Float!
-  "Longitude in degrees, between -180 and 180."
-  longitude: Float!
-  "Whether entering or leaving the region triggers the alert."
-  proximity: GeofenceProximity!
-  "Radius in meters. Zero requests the system default; positive values request a minimum radius."
-  radiusMeters: Float!
-  "Optional display name of the location."
-  title: String
-}
+type ReminderPage {
+  """
+  Reminders in this page.
+  """
+  items: [Reminder!]!
 
-input GeofenceInput {
-  "Latitude in degrees, between -90 and 90."
-  latitude: Float!
-  "Longitude in degrees, between -180 and 180."
-  longitude: Float!
-  "Whether entering or leaving the region triggers the alert."
-  proximity: GeofenceProximity!
-  "Radius in meters. Zero requests the system default; positive values request a minimum radius."
-  radiusMeters: Float!
-  "Optional display name of the location."
-  title: String
-}
-
-enum GeofenceProximity {
-  "Trigger when entering the region."
-  ARRIVE
-  "Trigger when leaving the region."
-  DEPART
-}
-
-union ListContainer = Account | ReminderList
-
-input ListFilter {
-  "Match lists in any of these accounts, intersected with the parent scope."
-  accountIds: [ID!]
-  "Match whether reminders in the list can be modified."
-  allowsContentModifications: Boolean
-  "Case-insensitive substring of the list name."
-  query: String
-  "Match subscribed or unsubscribed lists."
-  subscribed: Boolean
-}
-
-input ListOrder {
-  "Direction of name ordering. Without orderBy, lists use identifier order."
-  direction: SortDirection
-}
-
-type ListPage {
-  "Lists in this page."
-  items: [ReminderList!]!
-  "Position and availability of neighboring pages."
-  pageInfo: PageInfo!
-  "Number of matching lists before pagination."
+  """
+  Number of matching reminders before pagination.
+  """
   totalCount: Int!
+
+  """
+  Position and availability of neighboring pages.
+  """
+  pageInfo: PageInfo!
 }
 
-input ListPatch {
-  "The new list color as an application-defined string."
-  color: String
-  "The new emblem icon name for the list."
-  emblem: String
-  "The new name of the list."
+type Reminder {
+  """
+  Unique identifier of the reminder. Treat this value as opaque.
+  """
+  id: ID!
+
+  """
+  The name of the reminder.
+  """
   name: String
+
+  """
+  The notes attached to the reminder.
+  """
+  body: String
+
+  """
+  Whether the reminder is marked completed.
+  """
+  completed: Boolean
+
+  """
+  The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low.
+  """
+  priority: Int
+
+  """
+  The date and time the reminder was created.
+  """
+  creationDate: DateTime
+
+  """
+  The date and time the reminder was completed.
+  """
+  completionDate: DateTime
+
+  """
+  The date and time the reminder was last modified.
+  """
+  modificationDate: DateTime
+
+  """
+  Descriptive location text, separate from location-triggered alarms.
+  """
+  location: String
+  dueDay: String
+  listId: ID
+
+  """
+  An associated absolute URL; does not promise a rich-link preview in Reminders.
+  """
+  url: URL
+  startDateComponents: DateComponents
+  dueDateComponents: DateComponents
+  dueStatus: DueStatus!
+  rawAlarms: [RawAlarm!]!
+
+  """
+  Configured alerts. An empty list means no alerts; null indicates a read failure.
+  """
+  alarms: [ReminderAlarm!]
+  recurrenceRules: [RecurrenceRule!]!
+
+  """
+  A single repeating schedule; null when no recurrence is configured. Multiple rules produce a field error.
+  """
+  recurrence: ReminderRecurrence
+
+  """
+  Whether the reminder is flagged. This is independent of its priority.
+  """
+  flagged: Boolean
+
+  """
+  The date and time at which to remind the user.
+  """
+  remindMeDate: DateTime
+
+  """
+  The date and time by which the reminder is due.
+  """
+  dueDate: DateTime
+
+  """
+  The date and time at which work on the reminder starts.
+  """
+  startDate: DateTime
+
+  """
+  The calendar date on which the reminder is due, without a time of day.
+  """
+  allDayDueDate: LocalDate
+
+  """
+  A date-only start, without a time of day.
+  """
+  allDayStartDate: LocalDate
+
+  """
+  IANA time-zone identifier, or null for floating/local date interpretation.
+  """
+  timeZone: String
+
+  """
+  The list or parent reminder containing this reminder.
+  """
+  container: ReminderContainer
+  list: ReminderList
 }
 
-type ListSummary {
-  completed: Int!
-  incomplete: Int!
-  overdue: Int!
-  recurring: Int!
-  scheduled: Int!
-  total: Int!
-  withAlarms: Int!
-}
+"""
+Absolute URL serialized as a string.
+"""
+scalar URL
 
-"Calendar date in YYYY-MM-DD form, without a time or offset."
-scalar LocalDate
-
-type LocationAlarm {
-  "Region and direction that trigger the alert."
-  geofence: Geofence!
-}
-
-type Mutation {
-  "Delete completed reminders in one list. Keep incomplete reminders and the list."
-  clearCompletedReminders(listId: ID!): ClearCompletedResult
-  "Create a list. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails."
-  createList(input: CreateListInput!): ReminderList
-  "Create an incomplete reminder in an editable list. Omitted listId uses the application default. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails."
-  createReminder(input: CreateReminderInput!): Reminder
-  "Delete a list; nonempty lists require allowNonEmpty. Concurrent external edits are not locked."
-  deleteList(id: ID!, allowNonEmpty: Boolean! = false): DeleteResult
-  "Delete a reminder in an editable list. Missing identifiers return a NOT_FOUND error."
-  deleteReminder(id: ID!): DeleteResult
-  "Show a list in the Reminders UI without changing its data."
-  showList(id: ID!): ReminderList
-  "Show a reminder in the Reminders UI without changing its data."
-  showReminder(id: ID!): Reminder
-  "Update list properties. An error with code WRITE_APPLIED means the save succeeded before a later failure; refetch the saved ID before retrying."
-  updateList(id: ID!, patch: ListPatch!): ReminderList
-  "Update supplied fields. Null patch values are rejected; clearFields removes optional values. Dates can affect alerts. An error with code WRITE_APPLIED means the save succeeded before a later failure; refetch the saved ID before retrying."
-  updateReminder(id: ID!, patch: ReminderPatch!): Reminder
-}
-
-type PageInfo {
-  "Whether results exist after this page."
-  hasNextPage: Boolean!
-  "Whether matching results exist before the requested offset."
-  hasPreviousPage: Boolean!
-  "Requested maximum page size."
-  limit: Int!
-  "Requested zero-based offset."
-  offset: Int!
-}
-
-type Query {
-  "Find an account by its unique identifier."
-  account(id: ID!): Account
-  "Accounts available in Reminders."
-  accounts: [Account!]
-  "The default account in Reminders, or null if none is available."
-  defaultAccount: Account
-  "The default reminder list, or null if none is available."
-  defaultList: ReminderList
-  "Find a list by its unique identifier."
-  list(id: ID!): ReminderList
-  "Lists available in Reminders."
-  lists(limit: Int! = 50, offset: Int! = 0, filter: ListFilter, orderBy: ListOrder): ListPage
-  "Find a reminder by its unique identifier."
-  reminder(id: ID!): Reminder
-  "Reminders available in the application, including completed items."
-  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter): ReminderPage
+type DateComponents {
+  era: Int
+  year: Int
+  month: Int
+  day: Int
+  hour: Int
+  minute: Int
+  second: Int
+  nanosecond: Int
+  weekday: Int
+  weekdayOrdinal: Int
+  quarter: Int
+  weekOfMonth: Int
+  weekOfYear: Int
+  yearForWeekOfYear: Int
+  calendar: String
+  timeZone: String
+  isLeapMonth: Boolean
 }
 
 type RawAlarm {
   absoluteDate: DateTime
-  proximity: String!
   relativeOffset: Float!
+  proximity: String!
   structuredLocation: StructuredLocation
+}
+
+type StructuredLocation {
+  title: String
+  latitude: Float
+  longitude: Float
+  radius: Float!
+}
+
+union ReminderAlarm = AbsoluteAlarm | RelativeAlarm | LocationAlarm
+
+type AbsoluteAlarm {
+  """
+  The date and time at which the alert triggers.
+  """
+  at: DateTime!
+}
+
+type RelativeAlarm {
+  """
+  Seconds from the start date: negative before, zero at, positive after.
+  """
+  offsetSeconds: Float!
+}
+
+type LocationAlarm {
+  """
+  Region and direction that trigger the alert.
+  """
+  geofence: Geofence!
+}
+
+type Geofence {
+  """
+  Optional display name of the location.
+  """
+  title: String
+
+  """
+  Latitude in degrees, between -90 and 90.
+  """
+  latitude: Float!
+
+  """
+  Longitude in degrees, between -180 and 180.
+  """
+  longitude: Float!
+
+  """
+  Radius in meters. Zero requests the system default; positive values request a minimum radius.
+  """
+  radiusMeters: Float!
+
+  """
+  Whether entering or leaving the region triggers the alert.
+  """
+  proximity: GeofenceProximity!
+}
+
+enum GeofenceProximity {
+  """
+  Trigger when entering the region.
+  """
+  ARRIVE
+
+  """
+  Trigger when leaving the region.
+  """
+  DEPART
+}
+
+type RecurrenceRule {
+  frequency: String!
+  calendarIdentifier: String!
+  interval: Int!
+  firstDayOfTheWeek: Int!
+  daysOfTheWeek: [RecurrenceDay!]!
+  end: RecurrenceEnd
+  daysOfTheMonth: [Int!]!
+  daysOfTheYear: [Int!]!
+  weeksOfTheYear: [Int!]!
+  monthsOfTheYear: [Int!]!
+  setPositions: [Int!]!
 }
 
 type RecurrenceDay {
@@ -257,341 +550,600 @@ type RecurrenceDay {
   weekNumber: Int!
 }
 
-input RecurrenceDayInput {
-  "The weekday to match."
-  day: Weekday!
-  "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency."
-  ordinal: Int
-}
-
 type RecurrenceEnd {
   endDate: DateTime
   occurrenceCount: Int!
 }
 
-input RecurrenceEndInput {
-  "Positive number of occurrences; mutually exclusive with until."
-  count: Int
-  "Inclusive end timestamp; mutually exclusive with count."
-  until: DateTime
+type ReminderRecurrence {
+  """
+  The unit of repetition.
+  """
+  frequency: RecurrenceFrequency!
+
+  """
+  Positive number of frequency units between occurrences.
+  """
+  interval: Int!
+
+  """
+  Weekday constraints. Null means unconstrained.
+  """
+  daysOfWeek: [ReminderRecurrenceDay!]
+
+  """
+  When repetition stops; null means no specified end.
+  """
+  end: ReminderRecurrenceEnd
+
+  """
+  Days 1..31 or -31..-1 counting backward from the end of the month.
+  """
+  daysOfMonth: [Int!]
+
+  """
+  Months 1..12.
+  """
+  monthsOfYear: [Int!]
+
+  """
+  Week numbers 1..53 or -53..-1 counting backward from year end.
+  """
+  weeksOfYear: [Int!]
+
+  """
+  Year days 1..366 or -366..-1 counting backward from year end.
+  """
+  daysOfYear: [Int!]
+
+  """
+  Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period.
+  """
+  setPositions: [Int!]
 }
 
 enum RecurrenceFrequency {
-  "Repeat in day intervals."
+  """
+  Repeat in day intervals.
+  """
   DAILY
-  "Repeat in week intervals."
+
+  """
+  Repeat in week intervals.
+  """
   WEEKLY
-  "Repeat in month intervals."
+
+  """
+  Repeat in month intervals.
+  """
   MONTHLY
-  "Repeat in year intervals."
+
+  """
+  Repeat in year intervals.
+  """
   YEARLY
 }
 
-type RecurrenceRule {
-  calendarIdentifier: String!
-  daysOfTheMonth: [Int!]!
-  daysOfTheWeek: [RecurrenceDay!]!
-  daysOfTheYear: [Int!]!
-  end: RecurrenceEnd
-  firstDayOfTheWeek: Int!
-  frequency: String!
-  interval: Int!
-  monthsOfTheYear: [Int!]!
-  setPositions: [Int!]!
-  weeksOfTheYear: [Int!]!
-}
-
-input RecurrenceRuleInput {
-  "Days 1..31 or -31..-1 counting backward from the end of the month."
-  daysOfMonth: [Int!]
-  "Weekday constraints. Null means unconstrained."
-  daysOfWeek: [RecurrenceDayInput!]
-  "Year days 1..366 or -366..-1 counting backward from year end."
-  daysOfYear: [Int!]
-  "When repetition stops; null means no specified end."
-  end: RecurrenceEndInput
-  "The unit of repetition."
-  frequency: RecurrenceFrequency!
-  "Positive number of frequency units between occurrences."
-  interval: Int!
-  "Months 1..12."
-  monthsOfYear: [Int!]
-  "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period."
-  setPositions: [Int!]
-  "Week numbers 1..53 or -53..-1 counting backward from year end."
-  weeksOfYear: [Int!]
-}
-
-type RelativeAlarm {
-  "Seconds from the start date: negative before, zero at, positive after."
-  offsetSeconds: Float!
-}
-
-type Reminder {
-  "Configured alerts. An empty list means no alerts; null indicates a read failure."
-  alarms: [ReminderAlarm!]
-  "The calendar date on which the reminder is due, without a time of day."
-  allDayDueDate: LocalDate
-  "A date-only start, without a time of day."
-  allDayStartDate: LocalDate
-  "The notes attached to the reminder."
-  body: String
-  "Whether the reminder is marked completed."
-  completed: Boolean
-  "The date and time the reminder was completed."
-  completionDate: DateTime
-  "The list or parent reminder containing this reminder."
-  container: ReminderContainer
-  "The date and time the reminder was created."
-  creationDate: DateTime
-  "The date and time by which the reminder is due."
-  dueDate: DateTime
-  dueDateComponents: DateComponents
-  dueDay: String
-  dueStatus: DueStatus!
-  "Whether the reminder is flagged. This is independent of its priority."
-  flagged: Boolean
-  "Unique identifier of the reminder. Treat this value as opaque."
-  id: ID!
-  list: ReminderList
-  listId: ID
-  "Descriptive location text, separate from location-triggered alarms."
-  location: String
-  "The date and time the reminder was last modified."
-  modificationDate: DateTime
-  "The name of the reminder."
-  name: String
-  "The priority of the reminder: 0 none, 1–4 high, 5 medium, or 6–9 low."
-  priority: Int
-  rawAlarms: [RawAlarm!]!
-  "A single repeating schedule; null when no recurrence is configured. Multiple rules produce a field error."
-  recurrence: ReminderRecurrence
-  recurrenceRules: [RecurrenceRule!]!
-  "The date and time at which to remind the user."
-  remindMeDate: DateTime
-  "The date and time at which work on the reminder starts."
-  startDate: DateTime
-  startDateComponents: DateComponents
-  "IANA time-zone identifier, or null for floating/local date interpretation."
-  timeZone: String
-  "An associated absolute URL; does not promise a rich-link preview in Reminders."
-  url: URL
-}
-
-union ReminderAlarm = AbsoluteAlarm | RelativeAlarm | LocationAlarm
-
-input ReminderAlarmInput {
-  "Trigger at this instant."
-  absoluteDate: DateTime
-  "Trigger on arrival at or departure from this region."
-  geofence: GeofenceInput
-  "Seconds from the reminder's start date; negative means before."
-  relativeOffsetSeconds: Float
-}
-
-enum ReminderClearField {
-  "Remove descriptive location text."
-  LOCATION
-  "Remove the associated URL."
-  URL
-  "Remove the timed due date."
-  DUE_DATE
-  "Remove the all-day due date."
-  ALL_DAY_DUE_DATE
-  "Remove the completion date."
-  COMPLETION_DATE
-  "Stop repetition."
-  RECURRENCE
-  "Use floating/local time-zone interpretation."
-  TIME_ZONE
-  "Remove the timed start date."
-  START_DATE
-  "Remove the all-day start date."
-  ALL_DAY_START_DATE
-}
-
-union ReminderContainer = ReminderList | Reminder
-
-input ReminderFilter {
-  "Match reminders belonging to these accounts."
-  accountIds: [ID!]
-  "Match completed or incomplete reminders; omission includes both."
-  completed: Boolean
-  "Exclusive upper deadline bound: timestamp or YYYY-MM-DD. Do not mix timestamp and calendar-day bounds."
-  dueBefore: String
-  "Inclusive lower bound on the deadline."
-  dueFrom: DateTime
-  dueOnOrAfter: String
-  dueStatus: DueStatus
-  "Match flagged or unflagged reminders."
-  flagged: Boolean
-  "Match reminders with or without a timed or all-day deadline."
-  hasDueDate: Boolean
-  "Match reminders belonging to these lists."
-  listIds: [ID!]
-  nameContains: String
-  "Match any of these exact numeric priorities; [] matches nothing."
-  priorities: [Int!]
-  "Match text in the reminder name or notes."
-  query: String
-}
-
-type ReminderList {
-  account: Account
-  "Whether reminders can be added, edited, and deleted in this list."
-  allowsContentModifications: Boolean
-  "Whether the list's own properties can be edited and the list deleted."
-  allowsListModifications: Boolean
-  "The color of the list, represented by an application-defined string."
-  color: String
-  "The account or parent list containing this list."
-  container: ListContainer
-  "The emblem icon name displayed beside the list."
-  emblem: String
-  "Unique identifier of the list. Treat this value as opaque."
-  id: ID!
-  "The name of the list."
-  name: String
-  "Reminders in this list, including completed items."
-  reminders(limit: Int! = 50, offset: Int! = 0, orderBy: ReminderOrder, filter: ReminderFilter): ReminderPage
-  "Whether the list is a subscription."
-  subscribed: Boolean
-  summary: ListSummary
-}
-
-input ReminderOrder {
-  "Direction of ordering."
-  direction: SortDirection
-  "Property to sort by."
-  field: ReminderSortField!
-}
-
-type ReminderPage {
-  "Reminders in this page."
-  items: [Reminder!]!
-  "Position and availability of neighboring pages."
-  pageInfo: PageInfo!
-  "Number of matching reminders before pagination."
-  totalCount: Int!
-}
-
-input ReminderPatch {
-  "Replace all configured alerts. An empty list removes all alerts."
-  alarms: [ReminderAlarmInput!]
-  "Set a date-only deadline. Cannot be combined with dueDate."
-  allDayDueDate: LocalDate
-  "Unsupported: date-only start writes are rejected because storage does not preserve them. Use startDate."
-  allDayStartDate: LocalDate
-  "The new notes attached to the reminder. An empty string removes the notes."
-  body: String
-  "Remove these values. Omission preserves them; explicit null is rejected."
-  clearFields: [ReminderClearField!]
-  "Whether to mark the reminder completed."
-  completed: Boolean
-  "Set the date and time the reminder was completed."
-  completionDate: DateTime
-  "Set the due date and time. Cannot be combined with allDayDueDate."
-  dueDate: DateTime
-  "Set whether the reminder is flagged, independently of priority."
-  flagged: Boolean
-  "Descriptive location text, separate from location-triggered alarms."
-  location: String
-  "The new name of the reminder."
-  name: String
-  "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low."
-  priority: Int
-  "Replace the repeating schedule. Use clearFields to stop repetition."
-  recurrence: RecurrenceRuleInput
-  "Set the date and time at which to remind the user."
-  remindMeDate: DateTime
-  "The date and time at which work on the reminder starts."
-  startDate: DateTime
-  "Set an IANA time-zone identifier. Use clearFields for floating/local interpretation."
-  timeZone: String
-  "An associated absolute URL; does not promise a rich-link preview in Reminders."
-  url: String
-}
-
-type ReminderRecurrence {
-  "Days 1..31 or -31..-1 counting backward from the end of the month."
-  daysOfMonth: [Int!]
-  "Weekday constraints. Null means unconstrained."
-  daysOfWeek: [ReminderRecurrenceDay!]
-  "Year days 1..366 or -366..-1 counting backward from year end."
-  daysOfYear: [Int!]
-  "When repetition stops; null means no specified end."
-  end: ReminderRecurrenceEnd
-  "The unit of repetition."
-  frequency: RecurrenceFrequency!
-  "Positive number of frequency units between occurrences."
-  interval: Int!
-  "Months 1..12."
-  monthsOfYear: [Int!]
-  "Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period."
-  setPositions: [Int!]
-  "Week numbers 1..53 or -53..-1 counting backward from year end."
-  weeksOfYear: [Int!]
-}
-
 type ReminderRecurrenceDay {
-  "The weekday to match."
+  """
+  The weekday to match.
+  """
   day: Weekday!
-  "Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency."
+
+  """
+  Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.
+  """
   ordinal: Int
 }
 
-type ReminderRecurrenceEnd {
-  "Positive number of occurrences; mutually exclusive with until."
-  count: Int
-  "Inclusive end timestamp; mutually exclusive with count."
-  until: DateTime
-}
-
-enum ReminderSortField {
-  "Reminder name."
-  NAME
-  "Timed or all-day deadline."
-  DUE_DATE
-  "Numeric priority."
-  PRIORITY
-  "Creation timestamp."
-  CREATION_DATE
-  "Last modification timestamp."
-  MODIFICATION_DATE
-  "Completion timestamp."
-  COMPLETION_DATE
-}
-
-enum SortDirection {
-  "Smallest or earliest first."
-  ASC
-  "Largest or latest first."
-  DESC
-}
-
-type StructuredLocation {
-  latitude: Float
-  longitude: Float
-  radius: Float!
-  title: String
-}
-
-"Absolute URL serialized as a string."
-scalar URL
-
 enum Weekday {
-  "Monday."
-  MONDAY
-  "Tuesday."
-  TUESDAY
-  "Wednesday."
-  WEDNESDAY
-  "Thursday."
-  THURSDAY
-  "Friday."
-  FRIDAY
-  "Saturday."
-  SATURDAY
-  "Sunday."
+  """
+  Sunday.
+  """
   SUNDAY
+
+  """
+  Monday.
+  """
+  MONDAY
+
+  """
+  Tuesday.
+  """
+  TUESDAY
+
+  """
+  Wednesday.
+  """
+  WEDNESDAY
+
+  """
+  Thursday.
+  """
+  THURSDAY
+
+  """
+  Friday.
+  """
+  FRIDAY
+
+  """
+  Saturday.
+  """
+  SATURDAY
+}
+
+type ReminderRecurrenceEnd {
+  """
+  Inclusive end timestamp; mutually exclusive with count.
+  """
+  until: DateTime
+
+  """
+  Positive number of occurrences; mutually exclusive with until.
+  """
+  count: Int
+}
+
+"""
+Calendar date in YYYY-MM-DD form, without a time or offset.
+"""
+scalar LocalDate
+
+union ReminderContainer = ReminderList | Reminder
+
+type PageInfo {
+  """
+  Requested zero-based offset.
+  """
+  offset: Int!
+
+  """
+  Requested maximum page size.
+  """
+  limit: Int!
+
+  """
+  Whether results exist after this page.
+  """
+  hasNextPage: Boolean!
+
+  """
+  Whether matching results exist before the requested offset.
+  """
+  hasPreviousPage: Boolean!
+}
+
+type ListSummary {
+  total: Int!
+  completed: Int!
+  incomplete: Int!
+  overdue: Int!
+  scheduled: Int!
+  recurring: Int!
+  withAlarms: Int!
+}
+
+type Mutation {
+  """
+  Create a list. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails.
+  """
+  createList(input: CreateListInput!): ReminderList
+
+  """
+  Update list properties. An error with code WRITE_APPLIED means the save succeeded before a later failure; refetch the saved ID before retrying.
+  """
+  updateList(id: ID!, patch: ListPatch!): ReminderList
+
+  """
+  Delete a list; nonempty lists require allowNonEmpty. Concurrent external edits are not locked.
+  """
+  deleteList(id: ID!, allowNonEmpty: Boolean! = false): DeleteResult
+
+  """
+  Show a reminder in the Reminders UI without changing its data.
+  """
+  showReminder(id: ID!): Reminder
+
+  """
+  Show a list in the Reminders UI without changing its data.
+  """
+  showList(id: ID!): ReminderList
+
+  """
+  Create an incomplete reminder in an editable list. Omitted listId uses the application default. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails.
+  """
+  createReminder(input: CreateReminderInput!): Reminder
+
+  """
+  Update supplied fields. Null patch values are rejected; clearFields removes optional values. Dates can affect alerts. An error with code WRITE_APPLIED means the save succeeded before a later failure; refetch the saved ID before retrying.
+  """
+  updateReminder(id: ID!, patch: ReminderPatch!): Reminder
+
+  """
+  Delete completed reminders in one list. Keep incomplete reminders and the list.
+  """
+  clearCompletedReminders(listId: ID!): ClearCompletedResult
+
+  """
+  Delete a reminder in an editable list. Missing identifiers return a NOT_FOUND error.
+  """
+  deleteReminder(id: ID!): DeleteResult
+}
+
+input CreateListInput {
+  """
+  Name of the new list.
+  """
+  name: String!
+
+  """
+  Opaque sRGB list color: #RRGGBB or #RRGGBBFF.
+  """
+  color: String
+
+  """
+  Emblem icon name.
+  """
+  emblem: String
+
+  """
+  Account in which to create the list.
+  """
+  accountId: ID!
+}
+
+input ListPatch {
+  """
+  The new name of the list.
+  """
+  name: String
+
+  """
+  The new opaque sRGB list color: #RRGGBB or #RRGGBBFF.
+  """
+  color: String
+
+  """
+  The new emblem icon name for the list.
+  """
+  emblem: String
+}
+
+type DeleteResult {
+  """
+  The deleted object's identifier.
+  """
+  deletedId: ID!
+}
+
+input CreateReminderInput {
+  """
+  Name of the new reminder.
+  """
+  name: String!
+
+  """
+  Notes to attach to the reminder.
+  """
+  body: String
+
+  """
+  Priority from 0 through 9.
+  """
+  priority: Int
+
+  """
+  Descriptive location text, separate from location-triggered alarms.
+  """
+  location: String
+
+  """
+  An associated absolute URL; does not promise a rich-link preview in Reminders.
+  """
+  url: String
+
+  """
+  A deadline including a time of day.
+  """
+  dueDate: DateTime
+
+  """
+  A date-only deadline; mutually exclusive with dueDate.
+  """
+  allDayDueDate: LocalDate
+
+  """
+  The date and time at which work on the reminder starts.
+  """
+  startDate: DateTime
+
+  """
+  Unsupported: date-only start writes are rejected because storage does not preserve them. Use startDate.
+  """
+  allDayStartDate: LocalDate
+
+  """
+  IANA time-zone identifier for the start and due dates; omission stores timed dates in UTC.
+  """
+  timeZone: String
+
+  """
+  Whether to flag the new reminder.
+  """
+  flagged: Boolean
+
+  """
+  Date and time at which to remind the user; mutually exclusive with alarms.
+  """
+  remindMeDate: DateTime
+
+  """
+  Alerts to configure; omission or an empty list configures no explicit alerts.
+  """
+  alarms: [ReminderAlarmInput!]
+
+  """
+  Repeating schedule; omission creates a non-repeating reminder.
+  """
+  recurrence: RecurrenceRuleInput
+
+  """
+  Destination list; omission uses the default list. No default produces an error.
+  """
+  listId: ID
+}
+
+input ReminderAlarmInput {
+  """
+  Trigger at this instant.
+  """
+  absoluteDate: DateTime
+
+  """
+  Seconds from the reminder's start date; negative means before.
+  """
+  relativeOffsetSeconds: Float
+
+  """
+  Trigger on arrival at or departure from this region.
+  """
+  geofence: GeofenceInput
+}
+
+input GeofenceInput {
+  """
+  Optional display name of the location.
+  """
+  title: String
+
+  """
+  Latitude in degrees, between -90 and 90.
+  """
+  latitude: Float!
+
+  """
+  Longitude in degrees, between -180 and 180.
+  """
+  longitude: Float!
+
+  """
+  Radius in meters. Zero requests the system default; positive values request a minimum radius.
+  """
+  radiusMeters: Float!
+
+  """
+  Whether entering or leaving the region triggers the alert.
+  """
+  proximity: GeofenceProximity!
+}
+
+input RecurrenceRuleInput {
+  """
+  The unit of repetition.
+  """
+  frequency: RecurrenceFrequency!
+
+  """
+  Positive number of frequency units between occurrences.
+  """
+  interval: Int!
+
+  """
+  Weekday constraints. Null means unconstrained.
+  """
+  daysOfWeek: [RecurrenceDayInput!]
+
+  """
+  When repetition stops; null means no specified end.
+  """
+  end: RecurrenceEndInput
+
+  """
+  Days 1..31 or -31..-1 counting backward from the end of the month.
+  """
+  daysOfMonth: [Int!]
+
+  """
+  Months 1..12.
+  """
+  monthsOfYear: [Int!]
+
+  """
+  Week numbers 1..53 or -53..-1 counting backward from year end.
+  """
+  weeksOfYear: [Int!]
+
+  """
+  Year days 1..366 or -366..-1 counting backward from year end.
+  """
+  daysOfYear: [Int!]
+
+  """
+  Select positions 1..366 or -366..-1 from occurrences matching the other constraints in each period.
+  """
+  setPositions: [Int!]
+}
+
+input RecurrenceDayInput {
+  """
+  The weekday to match.
+  """
+  day: Weekday!
+
+  """
+  Occurrence of this weekday: 1 is first, -1 last; omit for every occurrence. Valid range -53..53 excluding zero; non-null ordinals require monthly or yearly frequency.
+  """
+  ordinal: Int
+}
+
+input RecurrenceEndInput {
+  """
+  Inclusive end timestamp; mutually exclusive with count.
+  """
+  until: DateTime
+
+  """
+  Positive number of occurrences; mutually exclusive with until.
+  """
+  count: Int
+}
+
+input ReminderPatch {
+  """
+  The new name of the reminder.
+  """
+  name: String
+
+  """
+  The new notes attached to the reminder. An empty string removes the notes.
+  """
+  body: String
+
+  """
+  Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low.
+  """
+  priority: Int
+
+  """
+  Descriptive location text, separate from location-triggered alarms.
+  """
+  location: String
+
+  """
+  An associated absolute URL; does not promise a rich-link preview in Reminders.
+  """
+  url: String
+
+  """
+  Set the due date and time. Cannot be combined with allDayDueDate.
+  """
+  dueDate: DateTime
+
+  """
+  Set a date-only deadline. Cannot be combined with dueDate.
+  """
+  allDayDueDate: LocalDate
+
+  """
+  The date and time at which work on the reminder starts.
+  """
+  startDate: DateTime
+
+  """
+  Unsupported: date-only start writes are rejected because storage does not preserve them. Use startDate.
+  """
+  allDayStartDate: LocalDate
+
+  """
+  Set an IANA time-zone identifier. Use clearFields for floating/local interpretation.
+  """
+  timeZone: String
+
+  """
+  Set whether the reminder is flagged, independently of priority.
+  """
+  flagged: Boolean
+
+  """
+  Set the date and time at which to remind the user.
+  """
+  remindMeDate: DateTime
+
+  """
+  Replace all configured alerts. An empty list removes all alerts.
+  """
+  alarms: [ReminderAlarmInput!]
+
+  """
+  Replace the repeating schedule. Use clearFields to stop repetition.
+  """
+  recurrence: RecurrenceRuleInput
+
+  """
+  Set the date and time the reminder was completed.
+  """
+  completionDate: DateTime
+
+  """
+  Whether to mark the reminder completed.
+  """
+  completed: Boolean
+
+  """
+  Remove these values. Omission preserves them; explicit null is rejected.
+  """
+  clearFields: [ReminderClearField!] = []
+}
+
+enum ReminderClearField {
+  """
+  Remove descriptive location text.
+  """
+  LOCATION
+
+  """
+  Remove the associated URL.
+  """
+  URL
+
+  """
+  Remove the timed due date.
+  """
+  DUE_DATE
+
+  """
+  Remove the all-day due date.
+  """
+  ALL_DAY_DUE_DATE
+
+  """
+  Remove the completion date.
+  """
+  COMPLETION_DATE
+
+  """
+  Stop repetition.
+  """
+  RECURRENCE
+
+  """
+  Use floating/local time-zone interpretation.
+  """
+  TIME_ZONE
+
+  """
+  Remove the timed start date.
+  """
+  START_DATE
+
+  """
+  Remove the all-day start date.
+  """
+  ALL_DAY_START_DATE
+}
+
+type ClearCompletedResult {
+  listId: ID!
+  deletedCount: Int!
 }

@@ -26,9 +26,10 @@ on another origin.
 Server configuration and permissions are covered in [docs/SERVER.md](docs/SERVER.md),
 and [docs/README.md](docs/README.md) indexes the rest of the documentation.
 
-Regenerate the MCP tool catalog after changing a tool:
+Regenerate the GraphQL schema and MCP tool catalog after changing either:
 
 ```sh
+swift run apple-reminders-server --dump-graphql-schema >docs/reminders.graphql
 swift run apple-reminders-server --dump-mcp-tools >docs/mcp-tools.json
-prettier --write docs/mcp-tools.json
+prettier --write docs/reminders.graphql docs/mcp-tools.json
 ```
