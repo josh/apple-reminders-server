@@ -10,7 +10,6 @@ struct ListChanges: Sendable {
 enum ListWrite: Sendable {
   case create(accountID: String, changes: ListChanges)
   case update(id: String, changes: ListChanges)
-  case delete(id: String, allowNonEmpty: Bool)
 }
 
 // Emblem changes apply through Reminders automation after the EventKit save.
@@ -19,7 +18,7 @@ struct PendingEmblem: Sendable {
   let emblem: String
 }
 enum ListWritePhase: Sendable {
-  case finished(WriteResult<ListRecord>)
+  case finished(ListRecord)
   case automation(PendingEmblem)
 }
 
@@ -28,43 +27,22 @@ func executeListWrite(_ request: ListWrite) async throws -> ListWritePhase {
   try requireAccess()
   let store = EKEventStore()
   let list: EKCalendar
-  let changes: ListChanges?
+  let patch: ListChanges
   switch request {
-  case .create(let accountID, let patch):
+  case .create(let accountID, let changes):
     guard let source = store.sources.first(where: { $0.sourceIdentifier == accountID }) else {
       throw ServerError.notFound("account is unavailable")
     }
-    guard patch.name != nil else {
+    guard changes.name != nil else {
       throw ServerError.invalidArgument("list name must not be blank")
     }
     list = EKCalendar(for: .reminder, eventStore: store)
     list.source = source
-    changes = patch
-  case .update(let id, let patch):
+    patch = changes
+  case .update(let id, let changes):
     list = try editableList(store, id: id)
-    changes = patch
-  case .delete(let id, let allowNonEmpty):
-    let existing = try editableList(store, id: id)
-    if !allowNonEmpty {
-      let items = try await fetchReminders(
-        store, matching: store.predicateForReminders(in: [existing]))
-      guard store.calendar(withIdentifier: id) != nil,
-        items.allSatisfy({ $0.calendar?.calendarIdentifier == id })
-      else { throw ServerError.internalError("Reminder list changed during read; retry") }
-      guard items.isEmpty else {
-        throw ServerError.listNotEmpty(
-          "pass allowNonEmpty only to intentionally delete the list and its reminders"
-        )
-      }
-    }
-    do { try store.removeCalendar(existing, commit: true) } catch {
-      throw ServerError.writeFailed(
-        "EventKit list deletion failed (code \((error as NSError).code)); refetch before retrying"
-      )
-    }
-    return .finished(.deleted(DeletedReminder(deletedId: id)))
+    patch = changes
   }
-  guard let patch = changes else { throw ServerError.internalError("Missing list changes") }
   if let name = patch.name {
     guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       throw ServerError.invalidArgument("list name must not be blank")
@@ -91,7 +69,32 @@ func executeListWrite(_ request: ListWrite) async throws -> ListWritePhase {
   guard let refreshed = store.calendar(withIdentifier: id) else {
     throw ServerError.writeApplied("list \(id) was saved but is unavailable for refetch")
   }
-  return .finished(.saved(try ListRecord(refreshed)))
+  return .finished(try ListRecord(refreshed))
+}
+
+@MainActor
+func executeListDelete(id: String, allowNonEmpty: Bool) async throws -> DeletedReminder {
+  try requireAccess()
+  let store = EKEventStore()
+  let existing = try editableList(store, id: id)
+  if !allowNonEmpty {
+    let items = try await fetchReminders(
+      store, matching: store.predicateForReminders(in: [existing]))
+    guard store.calendar(withIdentifier: id) != nil,
+      items.allSatisfy({ $0.calendar?.calendarIdentifier == id })
+    else { throw ServerError.internalError("Reminder list changed during read; retry") }
+    guard items.isEmpty else {
+      throw ServerError.listNotEmpty(
+        "pass allowNonEmpty only to intentionally delete the list and its reminders"
+      )
+    }
+  }
+  do { try store.removeCalendar(existing, commit: true) } catch {
+    throw ServerError.writeFailed(
+      "EventKit list deletion failed (code \((error as NSError).code)); refetch before retrying"
+    )
+  }
+  return DeletedReminder(deletedId: id)
 }
 
 @MainActor

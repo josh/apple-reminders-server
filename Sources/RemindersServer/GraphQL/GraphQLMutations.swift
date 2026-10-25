@@ -201,9 +201,8 @@ func makeMutationType(
         ],
         resolve: { _, args, context, _ in
           try await afterWrite(context) {
-            try await writeList(
-              .delete(
-                id: args["id"].stringValue(), allowNonEmpty: args["allowNonEmpty"].boolValue()))
+            try await deleteList(
+              id: args["id"].stringValue(), allowNonEmpty: args["allowNonEmpty"].boolValue())
           }
         }),
       "showReminder": GraphQLField(
@@ -212,7 +211,7 @@ func makeMutationType(
         args: ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
           try await afterWrite(context) {
-            try await showRemindersObject(args["id"].stringValue(), isList: false)
+            try await showReminder(id: args["id"].stringValue())
           }
         }),
       "showList": GraphQLField(
@@ -220,7 +219,7 @@ func makeMutationType(
         args: ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
           try await afterWrite(context) {
-            try await showRemindersObject(args["id"].stringValue(), isList: true)
+            try await showList(id: args["id"].stringValue())
           }
         }),
       "createReminder": GraphQLField(
@@ -269,7 +268,7 @@ func makeMutationType(
         args: ["id": GraphQLArgument(type: GraphQLNonNull(GraphQLID))],
         resolve: { _, args, context, _ in
           try await afterWrite(context) {
-            try await writeReminder(.delete(id: args["id"].stringValue()))
+            try await deleteReminder(id: args["id"].stringValue())
           }
         }),
     ])

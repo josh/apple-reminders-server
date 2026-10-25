@@ -20,23 +20,23 @@ func untilSynchronized<T: Sendable>(_ attempt: @MainActor () throws -> T) async 
   }
 }
 
-func writeReminder(_ request: ReminderWrite) async throws -> WriteResult<ReminderRecord> {
+func writeReminder(_ request: ReminderWrite) async throws -> ReminderRecord {
   switch try await onMainActor({ try executeReminderWrite(request) }) {
-  case .finished(let result): return result
+  case .finished(let record): return record
   case .automation(let pending):
     do {
-      return .saved(try await untilSynchronized { try applyReminderAutomation(pending) })
+      return try await untilSynchronized { try applyReminderAutomation(pending) }
     } catch {
       throw writeApplied(error, saved: "reminder \(pending.reminderID)")
     }
   }
 }
-func writeList(_ request: ListWrite) async throws -> WriteResult<ListRecord> {
+func writeList(_ request: ListWrite) async throws -> ListRecord {
   switch try await executeListWrite(request) {
-  case .finished(let result): return result
+  case .finished(let record): return record
   case .automation(let pending):
     do {
-      return .saved(try await untilSynchronized { try applyListEmblem(pending) })
+      return try await untilSynchronized { try applyListEmblem(pending) }
     } catch {
       throw writeApplied(error, saved: "list \(pending.listID)")
     }
@@ -54,40 +54,17 @@ private func writeApplied(_ error: Error, saved object: String) -> ServerError {
   }
   return .writeApplied("EventKit saved \(object), but \(reason). Refetch this ID before retrying")
 }
-func showRemindersObject(_ id: String, isList: Bool) async throws -> ShownObject {
-  try await onMainActor { try remindersShow(id: id, isList: isList) }
+func deleteReminder(id: String) async throws -> DeletedReminder {
+  try await onMainActor { try executeReminderDelete(id: id) }
+}
+func deleteList(id: String, allowNonEmpty: Bool) async throws -> DeletedReminder {
+  try await executeListDelete(id: id, allowNonEmpty: allowNonEmpty)
+}
+func showReminder(id: String) async throws -> ReminderRecord {
+  try await onMainActor { try showReminderInReminders(id: id) }
+}
+func showList(id: String) async throws -> ListRecord {
+  try await onMainActor { try showListInReminders(id: id) }
 }
 
 struct DeletedReminder: Codable, Sendable { let deletedId: String }
-enum WriteResult<Record: Encodable & Sendable>: Encodable, Sendable {
-  case saved(Record)
-  case deleted(DeletedReminder)
-  func savedRecord() throws -> Record {
-    guard case .saved(let record) = self else {
-      throw ServerError.internalError("Expected a saved record")
-    }
-    return record
-  }
-  func deletion() throws -> DeletedReminder {
-    guard case .deleted(let result) = self else {
-      throw ServerError.internalError("Expected a deletion")
-    }
-    return result
-  }
-  func encode(to encoder: Encoder) throws {
-    switch self {
-    case .saved(let record): try record.encode(to: encoder)
-    case .deleted(let result): try result.encode(to: encoder)
-    }
-  }
-}
-enum ShownObject: Encodable, Sendable {
-  case reminder(ReminderRecord)
-  case list(ListRecord)
-  func encode(to encoder: Encoder) throws {
-    switch self {
-    case .reminder(let record): try record.encode(to: encoder)
-    case .list(let record): try record.encode(to: encoder)
-    }
-  }
-}

@@ -51,7 +51,6 @@ struct ReminderChanges: Equatable, Sendable {
 enum ReminderWrite: Sendable {
   case create(listID: String?, changes: ReminderChanges)
   case update(id: String, changes: ReminderChanges)
-  case delete(id: String)
 }
 
 // Flag and alert changes apply through Reminders automation after the EventKit save.
@@ -62,7 +61,7 @@ struct PendingAutomation: Sendable {
   let remindMeDate: Date?
 }
 enum ReminderWritePhase: Sendable {
-  case finished(WriteResult<ReminderRecord>)
+  case finished(ReminderRecord)
   case automation(PendingAutomation)
 }
 
@@ -72,9 +71,9 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   try requireAccess()
   let store = EKEventStore()
   let item: EKReminder
-  let changes: ReminderChanges?
+  let patch: ReminderChanges
   switch request {
-  case .create(let listID, let patch):
+  case .create(let listID, let changes):
     let list =
       listID.flatMap { reminderList(store, id: $0) }
       ?? (listID == nil ? store.defaultCalendarForNewReminders() : nil)
@@ -82,28 +81,16 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
     guard list.allowsContentModifications else {
       throw ServerError.readOnly("destination list is not editable")
     }
-    guard patch.name != nil else { throw ServerError.invalidArgument("name must not be blank") }
+    guard changes.name != nil else { throw ServerError.invalidArgument("name must not be blank") }
     item = EKReminder(eventStore: store)
     item.calendar = list
-    changes = patch
-  case .update(let id, _), .delete(let id):
-    guard let existing = store.calendarItem(withIdentifier: id) as? EKReminder else {
-      throw ServerError.notFound("reminder is unavailable")
-    }
-    item = existing
-    if case .update(_, let patch) = request { changes = patch } else { changes = nil }
+    patch = changes
+  case .update(let id, let changes):
+    item = try editableReminder(store, id: id)
+    patch = changes
   }
   guard let list = item.calendar, list.allowsContentModifications else {
     throw ServerError.readOnly("reminder list is not editable")
-  }
-  guard let patch = changes else {
-    let id = item.calendarItemIdentifier
-    do { try store.remove(item, commit: true) } catch {
-      throw ServerError.writeFailed(
-        "EventKit delete failed (code \((error as NSError).code)); refetch before retrying"
-      )
-    }
-    return .finished(.deleted(DeletedReminder(deletedId: id)))
   }
   if let name = patch.name {
     guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -190,11 +177,36 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
         reminderID: item.calendarItemIdentifier, listID: list.calendarIdentifier,
         flagged: patch.flagged, remindMeDate: patch.remindMeDate))
   }
-  do { return .finished(.saved(try ReminderRecord(item, now: Date(), flagged: nil))) } catch {
+  do { return .finished(try ReminderRecord(item, now: Date(), flagged: nil)) } catch {
     throw ServerError.writeApplied(
       "EventKit saved reminder \(item.calendarItemIdentifier), but response projection failed: \(error). Refetch this ID before retrying"
     )
   }
+}
+
+@MainActor
+func executeReminderDelete(id: String) throws -> DeletedReminder {
+  try requireAccess()
+  let store = EKEventStore()
+  let item = try editableReminder(store, id: id)
+  let deletedID = item.calendarItemIdentifier
+  do { try store.remove(item, commit: true) } catch {
+    throw ServerError.writeFailed(
+      "EventKit delete failed (code \((error as NSError).code)); refetch before retrying"
+    )
+  }
+  return DeletedReminder(deletedId: deletedID)
+}
+
+@MainActor
+private func editableReminder(_ store: EKEventStore, id: String) throws -> EKReminder {
+  guard let item = store.calendarItem(withIdentifier: id) as? EKReminder else {
+    throw ServerError.notFound("reminder is unavailable")
+  }
+  guard let list = item.calendar, list.allowsContentModifications else {
+    throw ServerError.readOnly("reminder list is not editable")
+  }
+  return item
 }
 
 // One automation attempt on an already-saved reminder. AutomationNotReady means

@@ -2,25 +2,34 @@ import Foundation
 
 /// UI navigation is deliberately separate from data writes: it performs no save.
 @MainActor
-func remindersShow(id: String, isList: Bool) throws -> ShownObject {
+func showReminderInReminders(id: String) throws -> ReminderRecord {
+  let uuid = try showUUID(id)
+  guard let item = try readReminder(id: id) else {
+    throw ServerError.notFound("reminder is unavailable")
+  }
+  try navigate(to: "x-apple-reminder://" + uuid.uuidString, isList: false)
+  return item
+}
+
+@MainActor
+func showListInReminders(id: String) throws -> ListRecord {
+  let uuid = try showUUID(id)
+  guard let list = try readList(id: id) else {
+    throw ServerError.notFound("list is unavailable")
+  }
+  try navigate(to: uuid.uuidString, isList: true)
+  return list
+}
+
+private func showUUID(_ id: String) throws -> UUID {
   guard let uuid = UUID(uuidString: id) else {
     throw ServerError.invalidArgument("show requires a UUID identifier")
   }
-  let record: ShownObject
-  let scriptID: String
-  if isList {
-    guard let list = try readList(id: id) else {
-      throw ServerError.notFound("list is unavailable")
-    }
-    record = .list(list)
-    scriptID = uuid.uuidString
-  } else {
-    guard let item = try readReminder(id: id) else {
-      throw ServerError.notFound("reminder is unavailable")
-    }
-    record = .reminder(item)
-    scriptID = "x-apple-reminder://" + uuid.uuidString
-  }
+  return uuid
+}
+
+@MainActor
+private func navigate(to scriptID: String, isList: Bool) throws {
   let script = try makeShowScript()
   let result: NSAppleEventDescriptor
   do {
@@ -33,7 +42,6 @@ func remindersShow(id: String, isList: Bool) throws -> ShownObject {
     throw ServerError.showFailed(
       "unexpected navigation result; the UI may already have changed")
   }
-  return record
 }
 
 @MainActor

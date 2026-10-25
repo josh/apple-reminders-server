@@ -653,7 +653,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     return direction == "DESC"
   }
   func savedReminder(_ request: ReminderWrite) async throws -> CallTool.Result {
-    let saved = try await writeReminder(request).savedRecord()
+    let saved = try await writeReminder(request)
     do { return try result(GetOutput(reminder: MCPReminder(record: saved))) } catch {
       throw ServerError.writeApplied(
         "reminder \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying."
@@ -661,7 +661,7 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     }
   }
   func savedList(_ request: ListWrite) async throws -> CallTool.Result {
-    let saved = try await writeList(request).savedRecord()
+    let saved = try await writeList(request)
     do { return try result(ListOutput(list: saved)) } catch {
       throw ServerError.writeApplied(
         "list \(saved.id) was saved, but response projection failed: \(error). Refetch before retrying"
@@ -689,30 +689,25 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       .update(id: update.id, changes: listChanges(update.patch, creating: false)))
   case "lists_delete":
     let delete = try arguments(ListDeleteArguments.self)
-    let deleted = try await writeList(
-      .delete(id: delete.id, allowNonEmpty: delete.allowNonEmpty.value ?? false)
-    ).deletion()
+    let deleted = try await deleteList(
+      id: delete.id, allowNonEmpty: delete.allowNonEmpty.value ?? false)
     return try result(deleted)
   case "reminders_show":
     let id = try arguments(IDArguments.self).id
-    guard case .reminder(let shown) = try await showRemindersObject(id, isList: false) else {
-      throw ServerError.internalError("Expected a reminder")
-    }
+    let shown = try await showReminder(id: id)
     do { return try result(GetOutput(reminder: MCPReminder(record: shown))) } catch {
       throw ServerError.showApplied(
         "reminder \(id) was shown, but response projection failed: \(error)")
     }
   case "lists_show":
     let id = try arguments(IDArguments.self).id
-    guard case .list(let shown) = try await showRemindersObject(id, isList: true) else {
-      throw ServerError.internalError("Expected a list")
-    }
+    let shown = try await showList(id: id)
     do { return try result(ListOutput(list: shown)) } catch {
       throw ServerError.showApplied(
         "list \(id) was shown, but response projection failed: \(error)")
     }
   case "reminders_delete":
-    let deleted = try await writeReminder(.delete(id: arguments(IDArguments.self).id)).deletion()
+    let deleted = try await deleteReminder(id: arguments(IDArguments.self).id)
     return try result(deleted)
   case "accounts_get":
     let id = try arguments(IDArguments.self).id
