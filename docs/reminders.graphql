@@ -157,7 +157,7 @@ type ReminderList {
   allowsContentModifications: Boolean
 
   """
-  Whether the list's own properties can be edited and the list deleted.
+  Whether the list's own properties can be edited and the list deleted: it must allow content changes and be neither immutable nor subscribed.
   """
   allowsListModifications: Boolean
 

@@ -15,6 +15,12 @@ extension ComponentDate {
       yearForWeekOfYear: value.yearForWeekOfYear, isLeapMonth: value.isLeapMonth ?? false)
   }
 }
+extension EKCalendar {
+  // The server's rule for updating or deleting a list, also reported to clients.
+  var allowsListModifications: Bool {
+    !isImmutable && allowsContentModifications && !isSubscribed
+  }
+}
 extension ListRecord {
   init(_ list: EKCalendar) throws {
     // EventKit leaves source nil on a list whose account is gone; the IUO would trap.
@@ -35,8 +41,7 @@ extension ListRecord {
       source: SourceRecord(
         id: source.sourceIdentifier, title: source.title, type: source.sourceType.rawValue),
       allowsContentModifications: list.allowsContentModifications,
-      isImmutable: list.isImmutable, isSubscribed: list.isSubscribed,
-      allowsListModifications: !list.isImmutable, subscribed: list.isSubscribed)
+      allowsListModifications: list.allowsListModifications, subscribed: list.isSubscribed)
   }
 }
 extension ReminderRecord {

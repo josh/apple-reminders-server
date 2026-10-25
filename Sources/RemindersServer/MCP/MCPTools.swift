@@ -273,10 +273,10 @@ private func toolsCatalog() -> [Tool] {
         "The account that owns the list."),
       "allowsContentModifications": describe(
         primitive("boolean"), FieldDocs.ReminderList.allowsContentModifications),
-      "isImmutable": primitive("boolean"), "isSubscribed": primitive("boolean"),
     ],
     required: [
-      "id", "name", "source", "allowsContentModifications", "isImmutable", "isSubscribed",
+      "id", "name", "source", "allowsContentModifications", "allowsListModifications",
+      "subscribed",
     ])
   let order = schema(
     [

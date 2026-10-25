@@ -44,7 +44,7 @@
                 "type": "boolean"
               },
               "allowsListModifications": {
-                "description": "Whether the list's own properties can be edited and the list deleted.",
+                "description": "Whether the list's own properties can be edited and the list deleted: it must allow content changes and be neither immutable nor subscribed.",
                 "type": "boolean"
               },
               "color": {
@@ -54,12 +54,6 @@
               "id": {
                 "description": "Unique identifier of the list. Treat this value as opaque.",
                 "type": "string"
-              },
-              "isImmutable": {
-                "type": "boolean"
-              },
-              "isSubscribed": {
-                "type": "boolean"
               },
               "name": {
                 "description": "The name of the list.",
@@ -95,8 +89,8 @@
               "name",
               "source",
               "allowsContentModifications",
-              "isImmutable",
-              "isSubscribed"
+              "allowsListModifications",
+              "subscribed"
             ],
             "type": "object"
           }
@@ -157,7 +151,7 @@
                 "type": "boolean"
               },
               "allowsListModifications": {
-                "description": "Whether the list's own properties can be edited and the list deleted.",
+                "description": "Whether the list's own properties can be edited and the list deleted: it must allow content changes and be neither immutable nor subscribed.",
                 "type": "boolean"
               },
               "color": {
@@ -167,12 +161,6 @@
               "id": {
                 "description": "Unique identifier of the list. Treat this value as opaque.",
                 "type": "string"
-              },
-              "isImmutable": {
-                "type": "boolean"
-              },
-              "isSubscribed": {
-                "type": "boolean"
               },
               "name": {
                 "description": "The name of the list.",
@@ -208,8 +196,8 @@
               "name",
               "source",
               "allowsContentModifications",
-              "isImmutable",
-              "isSubscribed"
+              "allowsListModifications",
+              "subscribed"
             ],
             "type": "object"
           }
@@ -937,7 +925,7 @@
                 "type": "boolean"
               },
               "allowsListModifications": {
-                "description": "Whether the list's own properties can be edited and the list deleted.",
+                "description": "Whether the list's own properties can be edited and the list deleted: it must allow content changes and be neither immutable nor subscribed.",
                 "type": "boolean"
               },
               "color": {
@@ -947,12 +935,6 @@
               "id": {
                 "description": "Unique identifier of the list. Treat this value as opaque.",
                 "type": "string"
-              },
-              "isImmutable": {
-                "type": "boolean"
-              },
-              "isSubscribed": {
-                "type": "boolean"
               },
               "name": {
                 "description": "The name of the list.",
@@ -988,8 +970,8 @@
               "name",
               "source",
               "allowsContentModifications",
-              "isImmutable",
-              "isSubscribed"
+              "allowsListModifications",
+              "subscribed"
             ],
             "type": "object"
           }
@@ -2898,7 +2880,7 @@
                     "type": "boolean"
                   },
                   "allowsListModifications": {
-                    "description": "Whether the list's own properties can be edited and the list deleted.",
+                    "description": "Whether the list's own properties can be edited and the list deleted: it must allow content changes and be neither immutable nor subscribed.",
                     "type": "boolean"
                   },
                   "color": {
@@ -2908,12 +2890,6 @@
                   "id": {
                     "description": "Unique identifier of the list. Treat this value as opaque.",
                     "type": "string"
-                  },
-                  "isImmutable": {
-                    "type": "boolean"
-                  },
-                  "isSubscribed": {
-                    "type": "boolean"
                   },
                   "name": {
                     "description": "The name of the list.",
@@ -2949,8 +2925,8 @@
                   "name",
                   "source",
                   "allowsContentModifications",
-                  "isImmutable",
-                  "isSubscribed"
+                  "allowsListModifications",
+                  "subscribed"
                 ],
                 "type": "object"
               },
@@ -3016,7 +2992,7 @@
                     "type": "boolean"
                   },
                   "allowsListModifications": {
-                    "description": "Whether the list's own properties can be edited and the list deleted.",
+                    "description": "Whether the list's own properties can be edited and the list deleted: it must allow content changes and be neither immutable nor subscribed.",
                     "type": "boolean"
                   },
                   "color": {
@@ -3026,12 +3002,6 @@
                   "id": {
                     "description": "Unique identifier of the list. Treat this value as opaque.",
                     "type": "string"
-                  },
-                  "isImmutable": {
-                    "type": "boolean"
-                  },
-                  "isSubscribed": {
-                    "type": "boolean"
                   },
                   "name": {
                     "description": "The name of the list.",
@@ -3067,8 +3037,8 @@
                   "name",
                   "source",
                   "allowsContentModifications",
-                  "isImmutable",
-                  "isSubscribed"
+                  "allowsListModifications",
+                  "subscribed"
                 ],
                 "type": "object"
               },
@@ -3244,7 +3214,7 @@
                   "type": "boolean"
                 },
                 "allowsListModifications": {
-                  "description": "Whether the list's own properties can be edited and the list deleted.",
+                  "description": "Whether the list's own properties can be edited and the list deleted: it must allow content changes and be neither immutable nor subscribed.",
                   "type": "boolean"
                 },
                 "color": {
@@ -3254,12 +3224,6 @@
                 "id": {
                   "description": "Unique identifier of the list. Treat this value as opaque.",
                   "type": "string"
-                },
-                "isImmutable": {
-                  "type": "boolean"
-                },
-                "isSubscribed": {
-                  "type": "boolean"
                 },
                 "name": {
                   "description": "The name of the list.",
@@ -3295,8 +3259,8 @@
                 "name",
                 "source",
                 "allowsContentModifications",
-                "isImmutable",
-                "isSubscribed"
+                "allowsListModifications",
+                "subscribed"
               ],
               "type": "object"
             },

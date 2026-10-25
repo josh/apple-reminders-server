@@ -72,7 +72,7 @@ struct Search: Sendable {
         && (text == nil || text!.isEmpty || $0.name.lowercased().contains(text!))
         && (allowsContentModifications == nil
           || $0.allowsContentModifications == allowsContentModifications)
-        && (subscribed == nil || $0.isSubscribed == subscribed)
+        && (subscribed == nil || $0.subscribed == subscribed)
     }
     if orderField != nil {
       items.sort {

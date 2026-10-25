@@ -99,7 +99,7 @@ private func editableList(_ store: EKEventStore, id: String) throws -> EKCalenda
   guard let list = reminderList(store, id: id) else {
     throw ServerError.notFound("reminder list is unavailable")
   }
-  guard !list.isImmutable && list.allowsContentModifications && !list.isSubscribed else {
+  guard list.allowsListModifications else {
     throw ServerError.readOnly("list is not editable")
   }
   return list

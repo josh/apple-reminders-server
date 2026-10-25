@@ -25,7 +25,7 @@ enum FieldDocs {
     static let allowsContentModifications =
       "Whether reminders can be added, edited, and deleted in this list."
     static let allowsListModifications =
-      "Whether the list's own properties can be edited and the list deleted."
+      "Whether the list's own properties can be edited and the list deleted: it must allow content changes and be neither immutable nor subscribed."
     static let subscribed = "Whether the list is a subscription."
     static let color = "The color of the list as an sRGB #RRGGBBAA hex string."
   }
