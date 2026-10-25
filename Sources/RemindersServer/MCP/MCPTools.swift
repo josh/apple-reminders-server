@@ -634,7 +634,7 @@ private func result<T: Encodable>(_ value: T) throws -> CallTool.Result {
     structuredContent: try JSONDecoder().decode(Value.self, from: bytes), isError: false)
 }
 // Tool names are the MCP contract; the catalog and dispatch both use these cases.
-enum ToolName: String, CaseIterable {
+enum ToolName: String {
   case listsCreate = "lists_create"
   case listsUpdate = "lists_update"
   case listsDelete = "lists_delete"
