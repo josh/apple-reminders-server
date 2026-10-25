@@ -1,27 +1,15 @@
 # HTTP server
 
-The server runs on macOS 14+ and exposes three endpoints on `127.0.0.1`:
-
-| Endpoint | Purpose | Reference |
-| --- | --- | --- |
-| `POST /graphql` | Queries, mutations, and introspection | [Read API](READ_API.md), [schema](reminders.graphql) |
-| `POST /mcp` | MCP discovery and tool calls | [MCP API](MCP.md), [tool catalog](mcp-tools.json) |
-| `GET /metrics` | Cached Prometheus data metrics | [Metrics](METRICS.md) |
+The server runs on macOS 14+ and exposes `POST /graphql`, `POST /mcp`, and
+`GET /metrics` on `127.0.0.1`.
 
 Reminder and list writes honor EventKit authorization and editability. See
-[WRITES.md](WRITES.md) for supported inputs and failures after a save.
+[GraphQL mutations](GRAPHQL.md#mutations) for supported inputs and failures after a save.
 
-## Build and startup
+## Startup options
 
-Build with Swift 6.4+ and the macOS SDK:
-
-```sh
-swift build -c release
-.build/release/apple-reminders-server --request-access
-```
-
-Omit `--request-access` after permission is granted. Startup options are the only
-configuration interface; environment-variable configuration is not supported.
+Startup options are the only configuration interface;
+environment-variable configuration is not supported.
 
 | Option | Default | Behavior |
 | --- | --- | --- |
@@ -35,23 +23,19 @@ configuration interface; environment-variable configuration is not supported.
 
 ## Permissions and execution
 
-EventKit and AppleScript run inside the server process. EventKit permission is
+Permissions are granted to the server executable. EventKit permission is
 requested only through the explicit startup option, not in response to a read.
 EventKit grants full reminder access rather than a read-only grant. Automation
 permission is separate and may be requested when an operation first sends Apple
-events to Reminders. Startup metrics collection uses EventKit only.
+events to Reminders. Metrics collection never needs Automation permission.
 
 Permission attribution and persistence depend on the executable's signing and
-launch context. The current build embeds usage descriptions but does not produce
-a signed application bundle or install a background service.
+launch context.
 
 ## HTTP behavior
 
-Hummingbird hosts HTTP/1.1, including concurrent requests, keep-alive, chunked
-request decoding, and graceful SIGINT/SIGTERM shutdown. The MCP SDK handles
-stateless protocol adaptation and tool dispatch; Hummingbird owns the listener.
-GraphQLSwift handles parsing, validation, execution, and introspection.
-Dependencies are pinned in `Package.resolved`.
+The server speaks HTTP/1.1 with concurrent requests, keep-alive, and chunked
+request bodies, and shuts down gracefully on SIGINT or SIGTERM.
 
 Host is not validated; run network access through a trusted proxy such as
 Tailscale Serve. Origin, when present, must be `http://localhost:<port>`,
@@ -66,14 +50,11 @@ chunked uploads; excess returns 413.
 
 There is no built-in identity authentication or TLS, so keep the service local
 or put it behind a trusted proxy with its own access controls. GraphQL
-subscriptions and MCP SSE streams are not implemented. MCP protocol details are
-in [MCP.md](MCP.md).
+subscriptions are not implemented.
 
 ## Limits
 
 Accounts are derived from accessible reminder lists. The default account is
 inferred from the default list. Reads are not atomic across the
 Reminders database, and accessible records do not establish complete cloud synchronization.
-Identifiers may change after a full sync. Large Reminders databases are unbounded in
-memory, and GraphQL requests fetch every reminder even when only lists are
-selected; MCP account, list, and default lookups read the lists alone.
+Identifiers may change after a full sync.

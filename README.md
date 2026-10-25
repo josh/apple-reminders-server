@@ -19,10 +19,16 @@ on another origin.
 
 | Endpoint | Documentation |
 | --- | --- |
-| `POST /graphql` | [Reads](docs/READ_API.md), [writes](docs/WRITES.md), [schema](docs/reminders.graphql) |
+| `POST /graphql` | [GraphQL](docs/GRAPHQL.md), [schema](docs/reminders.graphql) |
 | `POST /mcp` | [MCP](docs/MCP.md), [tool catalog](docs/mcp-tools.json) |
 | `GET /metrics` | [Metrics](docs/METRICS.md), [example](docs/metrics.prom) |
 
 Server configuration and permissions are covered in [docs/SERVER.md](docs/SERVER.md),
-and [docs/README.md](docs/README.md) indexes the rest of the documentation. All
-source lives in the single executable target `Sources/RemindersServer/`.
+and [docs/README.md](docs/README.md) indexes the rest of the documentation.
+
+Regenerate the MCP tool catalog after changing a tool:
+
+```sh
+swift run apple-reminders-server --dump-mcp-tools >docs/mcp-tools.json
+prettier --write docs/mcp-tools.json
+```

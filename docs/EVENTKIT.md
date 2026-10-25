@@ -1,9 +1,8 @@
 # EventKit data-access reference
 
 EventKit is Apple's public framework for reading and changing calendars and
-reminders. The server uses it for reads, metrics, and supported writes.
-This reference covers relevant public APIs; [DATA_ACCESS.md](DATA_ACCESS.md)
-describes the implemented call paths. Method names use Swift notation.
+reminders. This reference covers the public APIs relevant to reminders. Method
+names use Swift notation.
 
 Start with Apple's [EventKit overview](https://developer.apple.com/documentation/eventkit),
 [accessing the event store](https://developer.apple.com/documentation/eventkit/accessing-the-event-store),
@@ -11,7 +10,7 @@ and [retrieving events and reminders](https://developer.apple.com/documentation/
 
 ## Objects and terminology
 
-| EventKit type | Meaning for this project | Apple reference |
+| EventKit type | Meaning | Apple reference |
 | --- | --- | --- |
 | `EKEventStore` | Access point for authorization, discovery, queries, and writes. | [Event store](https://developer.apple.com/documentation/eventkit/ekeventstore) |
 | `EKSource` | Source/account that owns calendars. | [Source](https://developer.apple.com/documentation/eventkit/eksource) |
@@ -31,8 +30,7 @@ Apple references: [requesting full reminder access](https://developer.apple.com/
 [authorization status](https://developer.apple.com/documentation/eventkit/ekeventstore/authorizationstatus%28for%3A%29),
 and [usage-description key](https://developer.apple.com/documentation/bundleresources/information-property-list/nsremindersfullaccessusagedescription).
 
-Reminder reads require full-access authorization. Deployment permissions are
-covered in [SERVER.md](SERVER.md#permissions-and-execution).
+Reminder reads require full-access authorization.
 
 ## Discover accounts and lists
 
@@ -47,10 +45,6 @@ covered in [SERVER.md](SERVER.md#permissions-and-execution).
 | `defaultCalendarForNewReminders()` | Obtain the default destination list; may return nil. |
 | `allowsContentModifications` | Check whether reminders in a list can be added, edited, or deleted. |
 | `isImmutable`, `isSubscribed`, `cgColor` | Read list editability, subscription status, and color. |
-
-See [EKEventStore](https://developer.apple.com/documentation/eventkit/ekeventstore),
-[EKCalendar](https://developer.apple.com/documentation/eventkit/ekcalendar), and
-[EKSource](https://developer.apple.com/documentation/eventkit/eksource).
 
 `isImmutable` and `allowsContentModifications` describe different capabilities;
 neither guarantees that a requested operation will succeed.
@@ -74,8 +68,7 @@ explains predicate and identifier-based access. Direct references:
 [fetch](https://developer.apple.com/documentation/eventkit/ekeventstore/fetchreminders%28matching%3Acompletion%3A%29),
 and [cancellation](https://developer.apple.com/documentation/eventkit/ekeventstore/cancelfetchrequest%28_%3A%29).
 
-The server fetches every reminder once and filters/sorts locally. Passing
-nil calendars means all available calendars, not an empty scope. Completed-date
+Passing nil calendars means all available calendars, not an empty scope. Completed-date
 predicates constrain completion dates, not due dates. A nil fetch result is
 indeterminate, unlike an empty array.
 
@@ -94,17 +87,12 @@ indeterminate, unlike an empty array.
 | Alerts | `alarms` | Examine each `EKAlarm`, not just one alert timestamp. |
 | Repeating schedule | `recurrenceRules` | Apple documents support for a single recurrence rule. |
 
-See [EKReminder](https://developer.apple.com/documentation/eventkit/ekreminder),
-[EKCalendarItem](https://developer.apple.com/documentation/eventkit/ekcalendaritem),
-[EKAlarm](https://developer.apple.com/documentation/eventkit/ekalarm),
+See [EKAlarm](https://developer.apple.com/documentation/eventkit/ekalarm),
 [EKStructuredLocation](https://developer.apple.com/documentation/eventkit/ekstructuredlocation),
 [EKRecurrenceRule](https://developer.apple.com/documentation/eventkit/ekrecurrencerule),
 and [recurrence-rule support](https://developer.apple.com/documentation/eventkit/ekcalendaritem/recurrencerules).
 
-Date components distinguish floating zones and all-day dates; the server accepts
-Gregorian components for writes. See [read projections](READ_API.md#dates-and-stored-values),
-[deadline classification](METRICS.md#deadline-classification), and
-[write validation](WRITES.md#supported-inputs).
+Date components distinguish floating zones and all-day dates.
 
 ## Identifiers and refresh
 
@@ -117,19 +105,12 @@ See [local identifier](https://developer.apple.com/documentation/eventkit/ekcale
 and [external identifier](https://developer.apple.com/documentation/eventkit/ekcalendaritem/calendaritemexternalidentifier).
 
 `Notification.Name.EKEventStoreChanged` signals invalidation, not item deltas.
-The server uses a fresh read per request and timed metrics collection rather
-than subscribing. See Apple's [notification guide](https://developer.apple.com/documentation/eventkit/updating-with-notifications).
+See Apple's [notification guide](https://developer.apple.com/documentation/eventkit/updating-with-notifications).
 `refreshSourcesIfNecessary()` does not guarantee completed cloud synchronization.
-
-## Fields requiring automation
-
-Flags, emblems, alert dates, and containers use the separate
-[scripting interface](APPLESCRIPT.md). Tags, sections, attachments, assignments,
-and urgent state are not exposed by the server.
 
 ## Related write calls
 
-These write calls back the documented mutations:
+Reminder and list writes use these calls:
 
 | Call | Purpose |
 | --- | --- |
@@ -139,9 +120,8 @@ These write calls back the documented mutations:
 | `saveCalendar(_:commit:)` / `removeCalendar(_:commit:)` | Persist or delete a list, subject to source capabilities. |
 | `commit()` | Save pending changes when using deferred commits. |
 
-Apple references: [creating events and reminders](https://developer.apple.com/documentation/eventkit/creating-events-and-reminders)
-and [EKEventStore](https://developer.apple.com/documentation/eventkit/ekeventstore).
-Deferred commits should not be advertised as a general transaction/rollback
-guarantee for the multi-operation API. Completing a reminder and setting
-its completion date are coupled operations; test recurrence and completion
-behavior before claiming a faithful round trip.
+See Apple's [creating events and reminders](https://developer.apple.com/documentation/eventkit/creating-events-and-reminders).
+Deferred commits are not a transaction or rollback guarantee across multiple
+operations. Completing a reminder and setting its completion date are coupled
+operations; test recurrence and completion behavior before relying on a faithful
+round trip.
