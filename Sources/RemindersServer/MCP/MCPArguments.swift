@@ -91,7 +91,8 @@ struct ReminderSearchArguments: Decodable {
 
   struct Filter: Decodable, Sendable {
     let accountIds, listIds: InputField<[String]>
-    let query, dueFrom, dueBefore, dueOnOrAfter, dueStatus: InputField<String>
+    let query, dueFrom, dueBefore, dueOnOrAfter: InputField<String>
+    let dueStatus: InputField<DueStatus>
     let completed, hasDueDate: InputField<Bool>
     let priorities: InputField<[Int]>
     enum CodingKeys: String, CodingKey, CaseIterable {
@@ -113,12 +114,12 @@ struct ReminderSearchArguments: Decodable {
     }
   }
   struct Order: Decodable, Sendable {
-    let field: String
+    let field: ReminderSortField
     let direction: InputField<SortDirection>
     enum CodingKeys: String, CodingKey, CaseIterable { case field, direction }
     init(from decoder: Decoder) throws {
       let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
-      field = try c.decode(String.self, forKey: .field)
+      field = try c.decode(ReminderSortField.self, forKey: .field)
       direction = try c.field(.direction)
     }
   }

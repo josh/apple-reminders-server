@@ -791,18 +791,10 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
       criteria.hasDueDate = filter.hasDueDate.value
       criteria.completed = filter.completed.value
       criteria.priorities = filter.priorities.value
-      if let value = filter.dueStatus.value {
-        guard let status = DueStatus(rawValue: value) else {
-          throw ServerError.invalidArgument("invalid dueStatus")
-        }
-        criteria.dueStatus = status
-      }
+      criteria.dueStatus = filter.dueStatus.value
     }
     if let order = search.orderBy.value {
-      guard let field = ReminderSortField(rawValue: order.field) else {
-        throw ServerError.invalidArgument("invalid order field")
-      }
-      criteria.reminderOrder = field
+      criteria.reminderOrder = order.field
       criteria.direction = order.direction.value ?? .ascending
     }
     return try await result(
