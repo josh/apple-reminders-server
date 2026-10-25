@@ -181,24 +181,3 @@ func summarize(_ data: RemindersData, listId: String) -> ListSummary {
     recurring: items.filter { !$0.recurrenceRules.isEmpty }.count,
     withAlarms: items.filter { !$0.alarms.isEmpty }.count)
 }
-func validateDays(_ lower: String?, _ upper: String?) throws {
-  for value in [lower, upper].compactMap({ $0 }) {
-    let parts = value.split(separator: "-").map { Int($0) }
-    guard value.range(of: #"^\d{4}-\d{2}-\d{2}\z"#, options: .regularExpression) != nil,
-      parts.count == 3, let year = parts[0], let month = parts[1], let day = parts[2],
-      (1...9999).contains(year),
-      DateComponents(year: year, month: month, day: day)
-        .isValidDate(in: Calendar(identifier: .gregorian))
-    else {
-      throw ServerError.invalidArgument("date bounds must be valid Gregorian YYYY-MM-DD")
-    }
-  }
-  if let lower, let upper, lower >= upper {
-    throw ServerError.invalidArgument("dueOnOrAfter must precede dueBefore")
-  }
-}
-func matchesDays(_ day: String?, _ lower: String?, _ upper: String?) -> Bool {
-  guard lower != nil || upper != nil else { return true }
-  guard let day else { return false }
-  return (lower == nil || day >= lower!) && (upper == nil || day < upper!)
-}
