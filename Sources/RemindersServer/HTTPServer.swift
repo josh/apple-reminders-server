@@ -113,7 +113,7 @@ func serve(
   defer { collectionTask.cancel() }
   let handlers: [Route: APIHandler] = [
     .graphql: try makeGraphQLHandler(),
-    .mcp: { try await handleMCP(method: $0, headers: $1, body: $2, access: $3) },
+    .mcp: handleMCP,
   ]
   let origins = Set(config.allowedOrigins)
   let responder: Responder = { request in

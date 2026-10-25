@@ -871,7 +871,7 @@ private final class ToolOutcome: @unchecked Sendable {
   var ran = false
   var failed = false
 }
-func handleMCP(
+@Sendable func handleMCP(
   method: HTTPMethod, headers: [String: String], body: Data,
   access: Capabilities.Access
 ) async throws -> ServiceResponse {
