@@ -190,8 +190,10 @@ enum FieldDocs {
       "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm."
     static let url =
       "An associated absolute URL; does not promise a rich-link preview in Reminders."
-    static let dueDate = "A deadline including a time of day."
-    static let allDayDueDate = "A date-only deadline; mutually exclusive with dueDate."
+    static let dueDate =
+      "A deadline including a time of day. Reminders may also set the start date and alert date to it."
+    static let allDayDueDate =
+      "A date-only deadline; mutually exclusive with dueDate. Reminders may also add a start at local midnight."
     static let startDate =
       "The date and time at which work on the reminder starts. It cannot be later than the due date."
     static let allDayStartDate =
@@ -221,8 +223,10 @@ enum FieldDocs {
       "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm."
     static let url =
       "An associated absolute URL; does not promise a rich-link preview in Reminders."
-    static let dueDate = "Set the due date and time. Cannot be combined with allDayDueDate."
-    static let allDayDueDate = "Set a date-only deadline. Cannot be combined with dueDate."
+    static let dueDate =
+      "Set the due date and time. Cannot be combined with allDayDueDate. Reminders may also set the start date and alert date to it."
+    static let allDayDueDate =
+      "Set a date-only deadline. Cannot be combined with dueDate. Reminders may also add a start at local midnight."
     static let startDate =
       "The date and time at which work on the reminder starts. It cannot be later than the due date."
     static let allDayStartDate =

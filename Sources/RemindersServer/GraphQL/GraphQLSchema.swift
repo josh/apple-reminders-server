@@ -493,7 +493,7 @@ func makeSchema() throws -> GraphQLSchema {
       "remindMeDate": GraphQLField(
         type: dateTime,
         description:
-          "The date and time at which to remind the user. \(automationNote)",
+          "The date and time at which to remind the user; Reminders may set it to the due date and time. \(automationNote)",
         resolve: { source, _, context, _ in
           guard let source = source as? Map, let context = context as? GraphQLContext else {
             return nil
@@ -509,7 +509,7 @@ func makeSchema() throws -> GraphQLSchema {
       "startDate": calendarField(
         dateTime, key: "startDateComponents", timed: true,
         description:
-          "The date and time at which work on the reminder starts. Unsupported components produce a field error; startDateComponents holds the stored value."
+          "The date and time at which work on the reminder starts; Reminders may set it when a due date is set. Unsupported components produce a field error; startDateComponents holds the stored value."
       ),
       "allDayDueDate": calendarField(
         localDate, key: "dueDateComponents", timed: false,
@@ -520,7 +520,7 @@ func makeSchema() throws -> GraphQLSchema {
       "timeZone": GraphQLField(
         type: GraphQLString,
         description:
-          "IANA time-zone identifier, or null for floating/local date interpretation. Different start and due zones produce a field error.",
+          "IANA time-zone identifier, or null for floating/local date interpretation. Dates written in UTC report GMT. Different start and due zones produce a field error.",
         resolve: { source, _, _, _ in
           guard let source = source as? Map else { return nil }
           let due = try componentValue(source, key: "dueDateComponents")

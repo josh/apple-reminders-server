@@ -218,8 +218,10 @@ private func toolsCatalog() -> [Tool] {
   // A projection failure fails the whole MCP call, so these fields say so in their own words.
   for (name, text) in [
     "dueDate": "The date and time by which the reminder is due.",
-    "startDate": "The date and time at which work on the reminder starts.",
-    "timeZone": "IANA time-zone identifier, or null for floating/local date interpretation.",
+    "startDate":
+      "The date and time at which work on the reminder starts; Reminders may set it when a due date is set.",
+    "timeZone":
+      "IANA time-zone identifier, or null for floating/local date interpretation. Dates written in UTC report GMT.",
     "alarms":
       "Configured alerts; an empty list means no alerts. rawAlarms holds the stored values.",
     "recurrence":

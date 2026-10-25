@@ -793,7 +793,7 @@
                     "type": "null"
                   }
                 ],
-                "description": "The date and time at which work on the reminder starts."
+                "description": "The date and time at which work on the reminder starts; Reminders may set it when a due date is set."
               },
               "startDateComponents": {
                 "additionalProperties": false,
@@ -863,7 +863,7 @@
                     "type": "null"
                   }
                 ],
-                "description": "IANA time-zone identifier, or null for floating/local date interpretation."
+                "description": "IANA time-zone identifier, or null for floating/local date interpretation. Dates written in UTC report GMT."
               },
               "url": {
                 "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
@@ -1050,7 +1050,7 @@
             "type": "array"
           },
           "allDayDueDate": {
-            "description": "A date-only deadline; mutually exclusive with dueDate.",
+            "description": "A date-only deadline; mutually exclusive with dueDate. Reminders may also add a start at local midnight.",
             "type": "string"
           },
           "allDayStartDate": {
@@ -1062,7 +1062,7 @@
             "type": "string"
           },
           "dueDate": {
-            "description": "A deadline including a time of day.",
+            "description": "A deadline including a time of day. Reminders may also set the start date and alert date to it.",
             "type": "string"
           },
           "flagged": {
@@ -1734,7 +1734,7 @@
                     "type": "null"
                   }
                 ],
-                "description": "The date and time at which work on the reminder starts."
+                "description": "The date and time at which work on the reminder starts; Reminders may set it when a due date is set."
               },
               "startDateComponents": {
                 "additionalProperties": false,
@@ -1804,7 +1804,7 @@
                     "type": "null"
                   }
                 ],
-                "description": "IANA time-zone identifier, or null for floating/local date interpretation."
+                "description": "IANA time-zone identifier, or null for floating/local date interpretation. Dates written in UTC report GMT."
               },
               "url": {
                 "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
@@ -1912,7 +1912,7 @@
                 "type": "array"
               },
               "allDayDueDate": {
-                "description": "Set a date-only deadline. Cannot be combined with dueDate.",
+                "description": "Set a date-only deadline. Cannot be combined with dueDate. Reminders may also add a start at local midnight.",
                 "type": "string"
               },
               "allDayStartDate": {
@@ -1950,7 +1950,7 @@
                 "type": "string"
               },
               "dueDate": {
-                "description": "Set the due date and time. Cannot be combined with allDayDueDate.",
+                "description": "Set the due date and time. Cannot be combined with allDayDueDate. Reminders may also set the start date and alert date to it.",
                 "type": "string"
               },
               "flagged": {
@@ -2622,7 +2622,7 @@
                     "type": "null"
                   }
                 ],
-                "description": "The date and time at which work on the reminder starts."
+                "description": "The date and time at which work on the reminder starts; Reminders may set it when a due date is set."
               },
               "startDateComponents": {
                 "additionalProperties": false,
@@ -2692,7 +2692,7 @@
                     "type": "null"
                   }
                 ],
-                "description": "IANA time-zone identifier, or null for floating/local date interpretation."
+                "description": "IANA time-zone identifier, or null for floating/local date interpretation. Dates written in UTC report GMT."
               },
               "url": {
                 "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
@@ -3929,7 +3929,7 @@
                       "type": "null"
                     }
                   ],
-                  "description": "The date and time at which work on the reminder starts."
+                  "description": "The date and time at which work on the reminder starts; Reminders may set it when a due date is set."
                 },
                 "startDateComponents": {
                   "additionalProperties": false,
@@ -3999,7 +3999,7 @@
                       "type": "null"
                     }
                   ],
-                  "description": "IANA time-zone identifier, or null for floating/local date interpretation."
+                  "description": "IANA time-zone identifier, or null for floating/local date interpretation. Dates written in UTC report GMT."
                 },
                 "url": {
                   "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",
@@ -4590,7 +4590,7 @@
                         "type": "null"
                       }
                     ],
-                    "description": "The date and time at which work on the reminder starts."
+                    "description": "The date and time at which work on the reminder starts; Reminders may set it when a due date is set."
                   },
                   "startDateComponents": {
                     "additionalProperties": false,
@@ -4660,7 +4660,7 @@
                         "type": "null"
                       }
                     ],
-                    "description": "IANA time-zone identifier, or null for floating/local date interpretation."
+                    "description": "IANA time-zone identifier, or null for floating/local date interpretation. Dates written in UTC report GMT."
                   },
                   "url": {
                     "description": "An associated absolute URL; does not promise a rich-link preview in Reminders.",

@@ -461,7 +461,7 @@ type Reminder {
   flagged: Boolean
 
   """
-  The date and time at which to remind the user. Read through Reminders automation, which may need Automation permission.
+  The date and time at which to remind the user; Reminders may set it to the due date and time. Read through Reminders automation, which may need Automation permission.
   """
   remindMeDate: DateTime
 
@@ -471,7 +471,7 @@ type Reminder {
   dueDate: DateTime
 
   """
-  The date and time at which work on the reminder starts. Unsupported components produce a field error; startDateComponents holds the stored value.
+  The date and time at which work on the reminder starts; Reminders may set it when a due date is set. Unsupported components produce a field error; startDateComponents holds the stored value.
   """
   startDate: DateTime
 
@@ -486,7 +486,7 @@ type Reminder {
   allDayStartDate: LocalDate
 
   """
-  IANA time-zone identifier, or null for floating/local date interpretation. Different start and due zones produce a field error.
+  IANA time-zone identifier, or null for floating/local date interpretation. Dates written in UTC report GMT. Different start and due zones produce a field error.
   """
   timeZone: String
 
@@ -1038,12 +1038,12 @@ input CreateReminderInput {
   url: String
 
   """
-  A deadline including a time of day.
+  A deadline including a time of day. Reminders may also set the start date and alert date to it.
   """
   dueDate: DateTime
 
   """
-  A date-only deadline; mutually exclusive with dueDate.
+  A date-only deadline; mutually exclusive with dueDate. Reminders may also add a start at local midnight.
   """
   allDayDueDate: LocalDate
 
@@ -1230,12 +1230,12 @@ input ReminderPatch {
   url: String
 
   """
-  Set the due date and time. Cannot be combined with allDayDueDate.
+  Set the due date and time. Cannot be combined with allDayDueDate. Reminders may also set the start date and alert date to it.
   """
   dueDate: DateTime
 
   """
-  Set a date-only deadline. Cannot be combined with dueDate.
+  Set a date-only deadline. Cannot be combined with dueDate. Reminders may also add a start at local midnight.
   """
   allDayDueDate: LocalDate
 
