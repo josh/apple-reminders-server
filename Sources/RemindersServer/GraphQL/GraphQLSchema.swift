@@ -91,21 +91,38 @@ actor GraphQLContext {
   func invalidate() {
     data = nil
     lookup = nil
-    properties.removeAll()
+    emblems = nil
+    alerts = nil
+    listContainers = nil
+    reminderContainers = nil
   }
-  // Keyed by script expression; each holds a Task<[String: Value], Error> for its property.
-  private var properties: [String: any Sendable] = [:]
-  func property<Value: Sendable>(_ property: ScriptProperty<Value>, id: String) async throws
+  // One automation read per property per request; each maps object UUIDs to values.
+  private var emblems: Task<[String: String?], Error>?
+  private var alerts: Task<[String: String?], Error>?
+  private var listContainers: Task<[String: ContainerReference], Error>?
+  private var reminderContainers: Task<[String: ContainerReference], Error>?
+  func emblem(listID: String) async throws -> String? {
+    if emblems == nil { emblems = Task { try await readProperty(.emblems) } }
+    return try await Self.value(in: emblems!, id: listID)
+  }
+  func remindMeDate(reminderID: String) async throws -> String? {
+    if alerts == nil { alerts = Task { try await readProperty(.alerts) } }
+    return try await Self.value(in: alerts!, id: reminderID)
+  }
+  func container(listID: String) async throws -> ContainerReference {
+    if listContainers == nil { listContainers = Task { try await readProperty(.listContainers) } }
+    return try await Self.value(in: listContainers!, id: listID)
+  }
+  func container(reminderID: String) async throws -> ContainerReference {
+    if reminderContainers == nil {
+      reminderContainers = Task { try await readProperty(.reminderContainers) }
+    }
+    return try await Self.value(in: reminderContainers!, id: reminderID)
+  }
+  private static func value<Value>(in read: Task<[String: Value], Error>, id: String) async throws
     -> Value
   {
-    let task: Task<[String: Value], Error>
-    if let cached = properties[property.expression] as? Task<[String: Value], Error> {
-      task = cached
-    } else {
-      task = Task { try await readProperty(property) }
-      properties[property.expression] = task
-    }
-    let values = try await task.value
+    let values = try await read.value
     guard let key = UUID(uuidString: id)?.uuidString, let value = values[key] else {
       throw ServerError.internalError("No matching automation object; reminders may have changed")
     }
@@ -173,8 +190,7 @@ func makeSchema() throws -> GraphQLSchema {
         description:
           "The emblem icon name displayed beside the list. \(automationNote)",
         resolve: { source, _, context, _ in
-          try await requestContext(context).property(
-            .emblems, id: record(source, as: ListRecord.self).id)
+          try await requestContext(context).emblem(listID: record(source, as: ListRecord.self).id)
         }),
     ])
   let dateTime = try GraphQLScalarType(
@@ -561,8 +577,8 @@ func makeSchema() throws -> GraphQLSchema {
         description:
           "The date and time at which to remind the user; Reminders may set it to the due date and time. \(automationNote)",
         resolve: { source, _, context, _ in
-          try await requestContext(context).property(
-            .alerts, id: record(source, as: ReminderRecord.self).id)
+          try await requestContext(context).remindMeDate(
+            reminderID: record(source, as: ReminderRecord.self).id)
         }),
       "dueDate": calendarField(
         dateTime, \ReminderRecord.dueDateComponents, timed: true,
@@ -679,15 +695,15 @@ func makeSchema() throws -> GraphQLSchema {
   let reminderContainer = try GraphQLUnionType(
     name: "ReminderContainer", resolveType: resolveContainer, types: [list, reminder])
   func containerField<Source>(
-    _ type: GraphQLUnionType, property: ScriptProperty<ContainerReference>,
-    id: KeyPath<Source, String> & Sendable, description: String
+    _ type: GraphQLUnionType,
+    reference: @escaping @Sendable (GraphQLContext, Source) async throws -> ContainerReference,
+    description: String
   ) -> GraphQLField {
     GraphQLField(
       type: type, description: description,
       resolve: { source, _, context, _ in
         let context = try requestContext(context)
-        let reference = try await context.property(
-          property, id: record(source, as: Source.self)[keyPath: id])
+        let reference = try await reference(context, record(source, as: Source.self))
         let data = try await context.remindersData()
         func matches(_ id: String) -> Bool {
           id.caseInsensitiveCompare(reference.id) == .orderedSame
@@ -726,7 +742,10 @@ func makeSchema() throws -> GraphQLSchema {
   account.fields = { accountFields }
   var listFields = try list.fields()
   listFields["container"] = containerField(
-    listContainer, property: .listContainers, id: \ListRecord.id,
+    listContainer,
+    reference: { (context, list: ListRecord) in
+      try await context.container(listID: list.id)
+    },
     description:
       "The account or parent list containing this list. \(automationNote)"
   )
@@ -753,7 +772,10 @@ func makeSchema() throws -> GraphQLSchema {
   list.fields = { listFields }
   var reminderFields = try reminder.fields()
   reminderFields["container"] = containerField(
-    reminderContainer, property: .reminderContainers, id: \ReminderRecord.id,
+    reminderContainer,
+    reference: { (context, item: ReminderRecord) in
+      try await context.container(reminderID: item.id)
+    },
     description:
       "The list or parent reminder containing this reminder. \(automationNote)"
   )
