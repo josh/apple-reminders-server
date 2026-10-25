@@ -49,18 +49,9 @@ func projectDate(_ value: ComponentDate?) throws -> CalendarDateProjection? {
   return CalendarDateProjection(
     instant: instant, day: dayString, timed: timed, timeZone: value.timeZone)
 }
-private let fractionalTimestamps: ISO8601DateFormatter = {
-  let formatter = ISO8601DateFormatter()
-  formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-  return formatter
-}()
-private let wholeSecondTimestamps: ISO8601DateFormatter = {
-  let formatter = ISO8601DateFormatter()
-  formatter.formatOptions = [.withInternetDateTime]
-  return formatter
-}()
+private let timestampStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
 func timestamp(_ date: Date) -> String {
-  fractionalTimestamps.string(from: date)
+  date.formatted(timestampStyle)
 }
 // Timed date components for an instant, on a Gregorian calendar in the zone.
 func gregorianComponents(_ instant: Date, in zone: TimeZone) -> DateComponents {
@@ -80,15 +71,8 @@ func parseTimestamp(_ value: String) throws -> Date {
       "expected RFC 3339 timestamp with an explicit offset")
   }
   try validateDays(String(value.prefix(10)), nil)
-  // ISO8601DateFormatter needs exactly three fraction digits; RFC 3339 allows any number.
-  var value = value
-  if let fraction = value.range(of: #"\.\d+"#, options: .regularExpression) {
-    let digits = String(value[fraction].dropFirst().prefix(3))
-    value.replaceSubrange(
-      fraction, with: "." + digits.padding(toLength: 3, withPad: "0", startingAt: 0))
-  }
-  if let date = fractionalTimestamps.date(from: value) { return date }
-  guard let date = wholeSecondTimestamps.date(from: value) else {
+  // The style accepts any number of fraction digits, or none, as RFC 3339 allows.
+  guard let date = try? timestampStyle.parse(value) else {
     throw ServerError.invalidArgument("invalid timestamp")
   }
   return date
