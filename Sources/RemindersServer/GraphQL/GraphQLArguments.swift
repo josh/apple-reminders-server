@@ -89,3 +89,52 @@ struct GraphQLListSearch: Decodable {
     offset = try c.decode(Int.self, forKey: .offset)
   }
 }
+
+// Mutation arguments.
+
+struct GraphQLIDArguments: Decodable {
+  let id: String
+  enum CodingKeys: String, CodingKey, CaseIterable { case id }
+  init(from decoder: Decoder) throws {
+    id = try decoder.inputContainer(keyedBy: CodingKeys.self).decode(String.self, forKey: .id)
+  }
+}
+
+struct GraphQLCreateArguments<Input: Decodable>: Decodable {
+  let input: Input
+  enum CodingKeys: String, CodingKey, CaseIterable { case input }
+  init(from decoder: Decoder) throws {
+    input = try decoder.inputContainer(keyedBy: CodingKeys.self).decode(Input.self, forKey: .input)
+  }
+}
+
+struct GraphQLPatchArguments<Patch: Decodable>: Decodable {
+  let id: String
+  let patch: Patch
+  enum CodingKeys: String, CodingKey, CaseIterable { case id, patch }
+  init(from decoder: Decoder) throws {
+    let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
+    id = try c.decode(String.self, forKey: .id)
+    patch = try c.decode(Patch.self, forKey: .patch)
+  }
+}
+
+struct GraphQLListDeleteArguments: Decodable {
+  let id: String
+  let allowNonEmpty: Bool
+  enum CodingKeys: String, CodingKey, CaseIterable { case id, allowNonEmpty }
+  init(from decoder: Decoder) throws {
+    let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
+    id = try c.decode(String.self, forKey: .id)
+    allowNonEmpty = try c.decode(Bool.self, forKey: .allowNonEmpty)
+  }
+}
+
+struct GraphQLClearCompletedArguments: Decodable {
+  let listId: String
+  enum CodingKeys: String, CodingKey, CaseIterable { case listId }
+  init(from decoder: Decoder) throws {
+    listId = try decoder.inputContainer(keyedBy: CodingKeys.self).decode(
+      String.self, forKey: .listId)
+  }
+}

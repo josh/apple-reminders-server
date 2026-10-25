@@ -776,7 +776,7 @@ func makeSchema() throws -> GraphQLSchema {
           type: account,
           description: "Find an account by its unique identifier; null when missing.", args: idArg,
           resolve: { _, args, context, _ in
-            let id = try args["id"].stringValue()
+            let id = try decodeInput(GraphQLIDArguments.self, from: args).id
             return try await remindersData(context).accounts.first { $0.id == id }
           }),
         "lists": GraphQLField(
@@ -788,7 +788,7 @@ func makeSchema() throws -> GraphQLSchema {
           type: list, description: "Find a list by its unique identifier; null when missing.",
           args: idArg,
           resolve: { _, args, context, _ in
-            let id = try args["id"].stringValue()
+            let id = try decodeInput(GraphQLIDArguments.self, from: args).id
             return try await remindersData(context).lists.first { $0.id == id }
           }),
         "reminders": GraphQLField(
@@ -802,7 +802,7 @@ func makeSchema() throws -> GraphQLSchema {
           type: reminder,
           description: "Find a reminder by its unique identifier; null when missing.", args: idArg,
           resolve: { _, args, context, _ in
-            let id = try args["id"].stringValue()
+            let id = try decodeInput(GraphQLIDArguments.self, from: args).id
             return try await remindersData(context).reminders.first { $0.id == id }
           }),
         "defaultAccount": GraphQLField(
