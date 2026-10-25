@@ -49,15 +49,30 @@ typealias APIHandler =
   @Sendable (HTTPMethod, [String: String], Data, Capabilities.Access) async throws
   -> ServiceResponse
 
-// Headers the server reads as one value; a repeat is ambiguous. Every other header
-// may repeat per RFC 9110 and is joined with a comma, as proxies expect.
-private let singleValueHeaders: Set<String> = [
-  "origin", "content-type", "tailscale-app-capabilities",
-]
-private let proxyHeaders: Set<String> = [
-  "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto", "forwarded",
-  "tailscale-funnel-request",
-]
+// Request headers the server reads itself, by lowercase name.
+private enum RequestHeader: String {
+  case origin
+  case contentType = "content-type"
+  case appCapabilities = "tailscale-app-capabilities"
+  case userLogin = "tailscale-user-login"
+  case userAgent = "user-agent"
+  case corsRequestHeaders = "access-control-request-headers"
+  case forwardedFor = "x-forwarded-for"
+  case forwardedHost = "x-forwarded-host"
+  case forwardedProto = "x-forwarded-proto"
+  case forwarded
+  case funnelRequest = "tailscale-funnel-request"
+  // Read as one value, so a repeat is ambiguous. Every other header may repeat per
+  // RFC 9110 and is joined with a comma, as proxies expect.
+  var isSingleValue: Bool { [.origin, .contentType, .appCapabilities].contains(self) }
+  // Present only when a proxy forwarded the request.
+  var isProxy: Bool {
+    [.forwardedFor, .forwardedHost, .forwardedProto, .forwarded, .funnelRequest].contains(self)
+  }
+}
+extension [String: String] {
+  fileprivate subscript(header header: RequestHeader) -> String? { self[header.rawValue] }
+}
 
 private let requestDeadline: Duration = .seconds(60)
 private struct RequestTimedOut: Error {}
@@ -117,7 +132,7 @@ func serve(
         headers[key] = value
         continue
       }
-      if singleValueHeaders.contains(key) { repeated = repeated ?? key }
+      if RequestHeader(rawValue: key)?.isSingleValue == true { repeated = repeated ?? key }
       headers[key] = existing + ", " + value
     }
     func respond(_ response: ServiceResponse) -> ServiceResponse {
@@ -136,14 +151,14 @@ func serve(
         "outcome": "\(failure?.rawValue ?? "ok")",
       ]
       // Tailscale serve forwards the peer address and, for user-owned nodes, the login.
-      if let peer = headers["x-forwarded-for"] { metadata["peer"] = "\(peer)" }
-      if let login = headers["tailscale-user-login"] { metadata["tailscale_user"] = "\(login)" }
-      if let agent = headers["user-agent"] { metadata["user_agent"] = "\(agent)" }
+      if let peer = headers[header: .forwardedFor] { metadata["peer"] = "\(peer)" }
+      if let login = headers[header: .userLogin] { metadata["tailscale_user"] = "\(login)" }
+      if let agent = headers[header: .userAgent] { metadata["user_agent"] = "\(agent)" }
       for (key, value) in response.logMetadata { metadata[key] = "\(value)" }
       serverLogger.log(level: level, "HTTP request", metadata: metadata)
       recordRequest(route: routeName, code: code)
       var cors = response
-      if let origin = headers["origin"], origins.contains(origin.lowercased()) {
+      if let origin = headers[header: .origin], origins.contains(origin.lowercased()) {
         cors.headers.replaceOrAdd(name: "Access-Control-Allow-Origin", value: origin)
         cors.headers.replaceOrAdd(name: "Vary", value: "Origin")
       }
@@ -154,22 +169,22 @@ func serve(
       if let key = repeated {
         return respond(.error("Repeated \(key) header", status: .badRequest))
       }
-      if let origin = headers["origin"], !origins.contains(origin.lowercased()) {
+      if let origin = headers[header: .origin], !origins.contains(origin.lowercased()) {
         response = .error("Untrusted origin", status: .forbidden)
       } else if request.head.method == .OPTIONS {
         var preflight = ServiceResponse(status: .noContent, body: Data())
         preflight.headers.add(name: "Allow", value: "GET, POST, OPTIONS")
-        if headers["origin"] != nil {
+        if headers[header: .origin] != nil {
           preflight.headers.add(name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS")
           preflight.headers.add(
             name: "Access-Control-Allow-Headers",
-            value: headers["access-control-request-headers"]
+            value: headers[header: .corsRequestHeaders]
               ?? "Content-Type, Accept, Mcp-Protocol-Version")
           preflight.headers.add(name: "Access-Control-Max-Age", value: "86400")
         }
         response = preflight
       } else if request.head.method == .POST
-        && headers["content-type"]?.split(separator: ";").first?.trimmingCharacters(
+        && headers[header: .contentType]?.split(separator: ";").first?.trimmingCharacters(
           in: .whitespaces
         )
         .lowercased() != "application/json"
@@ -178,8 +193,8 @@ func serve(
       } else {
         guard
           let capabilities = try? Capabilities.parse(
-            header: headers["tailscale-app-capabilities"], capability: tailscaleAppCapability,
-            proxied: headers.keys.contains(where: proxyHeaders.contains)),
+            header: headers[header: .appCapabilities], capability: tailscaleAppCapability,
+            proxied: headers.keys.contains { RequestHeader(rawValue: $0)?.isProxy == true }),
           capabilities.allows(route)
         else { return respond(.error("Forbidden", status: .forbidden)) }
         if route != .metrics && authorizing.withLock({ $0 }) {
