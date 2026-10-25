@@ -22,5 +22,4 @@ never use Reminders automation, so they never need Automation permission.
 
 Successful calls include `structuredContent` and matching JSON text. Tool errors
 set `isError: true` and return `{"error": {"code": "...", "message": "..."}}` as
-text without `structuredContent`, using the GraphQL
-[error codes](GRAPHQL.md#errors-and-partial-saves).
+text without `structuredContent`. [SERVER.md](SERVER.md#errors) lists the codes.

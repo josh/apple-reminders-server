@@ -14,8 +14,8 @@ writes, and a rejected mutation changes nothing.
 
 ## Errors and partial saves
 
-Every error carries a code in `extensions.code`, such as `NOT_FOUND`,
-`INVALID_ARGUMENT`, `READ_ONLY`, `UNSUPPORTED_OPERATION`, or `WRITE_FAILED`.
+Every error carries a code in `extensions.code`; [SERVER.md](SERVER.md#errors)
+lists the codes.
 
 `flagged`, `remindMeDate`, and `emblem` apply through Reminders automation after
 the EventKit save, so a write can partly succeed:

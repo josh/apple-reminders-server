@@ -215,7 +215,7 @@ private func toolsCatalog() -> [Tool] {
         "frequency", "calendarIdentifier", "interval", "firstDayOfTheWeek", "daysOfTheWeek",
         "daysOfTheMonth", "daysOfTheYear", "weeksOfTheYear", "monthsOfTheYear", "setPositions",
       ]))
-  // GraphQL describes projection failures as field errors; in MCP they fail the call.
+  // A projection failure fails the whole MCP call, so these fields say so in their own words.
   for (name, text) in [
     "dueDate": "The date and time by which the reminder is due.",
     "startDate": "The date and time at which work on the reminder starts.",
@@ -531,7 +531,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "lists_get",
       description:
-        "Read a list by ID; absent identifiers return null. Emblems and containers are not included; read them through GraphQL.",
+        "Read a list by ID; absent identifiers return null. Emblems and containers are not included.",
       inputSchema: schema(["id": id("list")], required: ["id"]), annotations: annotations,
       outputSchema: schema(
         ["list": describe(nullable(list), "The list, or null when absent.")], required: ["list"])),
@@ -572,7 +572,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "reminders_search",
       description:
-        "Read reminders filtered by account/list IDs, completion, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is the next page offset; keep criteria and limit unchanged across pages. Optional unavailable values are omitted. Dates retain their stored components; omitted hours mean date-only and omitted zones mean floating. A reminder whose dates, alarms, or recurrence cannot be projected fails the call. Flags, alert dates, containers, and emblems are not included; read them through GraphQL.",
+        "Read reminders filtered by account/list IDs, completion, deadline presence, numeric priorities, due status and case-insensitive name-or-notes substring. Filters intersect; empty ID arrays match nothing. Supply criteria in filter. dueFrom and timestamp dueBefore bound deadline instants (inclusive/exclusive). All-day deadlines use midnight in their source zone. Calendar-day dueOnOrAfter and date-only dueBefore use reporting days; do not mix bound modes. orderBy supports NAME, DUE_DATE, PRIORITY, CREATION_DATE, MODIFICATION_DATE, COMPLETION_DATE with ASC/DESC, nulls last, and ID ascending ties. Omitted orderBy uses identifier order; priorities use numeric order. Cursor is the next page offset; keep criteria and limit unchanged across pages. Optional unavailable values are omitted. Dates retain their stored components; omitted hours mean date-only and omitted zones mean floating. A reminder whose dates, alarms, or recurrence cannot be projected fails the call. Flags, alert dates, containers, and emblems are not included.",
       inputSchema: search, annotations: annotations,
       outputSchema: schema(
         [
@@ -583,7 +583,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: "reminders_get",
       description:
-        "Read one reminder with component and projected dates, alarms and recurrence; returns null when absent. Dates, alarms, or recurrence that cannot be projected fail the call. Flags, alert dates, containers, and emblems are not included; read them through GraphQL.",
+        "Read one reminder with component and projected dates, alarms and recurrence; returns null when absent. Dates, alarms, or recurrence that cannot be projected fail the call. Flags, alert dates, containers, and emblems are not included.",
       inputSchema: schema(["id": id("reminder")], required: ["id"]), annotations: annotations,
       outputSchema: schema(
         ["reminder": describe(nullable(item), "The reminder, or null when absent.")],

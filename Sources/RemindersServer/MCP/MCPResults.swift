@@ -2,7 +2,7 @@ import Foundation
 
 // MCP results use EventKit only; clients cannot deselect fields, so no Reminders
 // automation read can hold up or fail a call. Flags, alert dates, containers, and
-// emblems are available through GraphQL. Date projection failures fail the call.
+// emblems are not included. Date projection failures fail the call.
 struct MCPReminder: Encodable {
   let record: ReminderRecord
   enum CodingKeys: CodingKey {

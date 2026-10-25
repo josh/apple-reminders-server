@@ -52,6 +52,25 @@ There is no built-in identity authentication or TLS, so keep the service local
 or put it behind a trusted proxy with its own access controls. GraphQL
 subscriptions are not implemented.
 
+## Errors
+
+GraphQL and MCP errors carry the same codes. GraphQL reports the code in
+`extensions.code`; MCP reports it in the tool error payload.
+
+| Code | Meaning |
+| --- | --- |
+| `INVALID_ARGUMENT` | Input failed validation; nothing was saved. |
+| `NOT_FOUND` | The object does not exist or is not accessible. |
+| `READ_ONLY` | The list does not allow the change. |
+| `UNSUPPORTED` | A stored value cannot be represented in the response. |
+| `UNSUPPORTED_OPERATION` | Reminders cannot store the requested change. |
+| `LIST_NOT_EMPTY` | The list has reminders; deleting it needs `allowNonEmpty`. |
+| `WRITE_FAILED` | EventKit refused the save; the message includes its code. |
+| `WRITE_APPLIED` | The save succeeded but a later step failed; the message names the saved ID. |
+| `SHOW_APPLIED` | Navigation happened but the response could not be built. |
+| `SHOW_FAILED` | Navigation failed and may still have changed the UI. |
+| `INTERNAL` | An unexpected server error. |
+
 ## Limits
 
 Accounts are derived from accessible reminder lists. The default account is
