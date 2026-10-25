@@ -12,7 +12,7 @@ let package = Package(
     .package(url: "https://github.com/GraphQLSwift/GraphQL.git", exact: "4.3.0"),
     .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.1"),
     .package(url: "https://github.com/apple/swift-nio.git", exact: "2.104.0"),
-    .package(url: "https://github.com/apple/swift-log.git", exact: "1.16.1"),
+    .package(url: "https://github.com/apple/swift-log.git", exact: "1.16.2"),
   ],
   targets: [
     .executableTarget(
