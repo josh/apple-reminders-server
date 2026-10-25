@@ -40,7 +40,8 @@ func runtimeMetrics(eventKitUp: Bool, authorizing: Bool) -> String {
   )
   family(
     "reminders_authorization_pending", "gauge",
-    "1 while the startup Reminders access request has not finished.")
+    "1 while the startup Reminders access request has not finished; /graphql and /mcp answer 503 meanwhile."
+  )
   lines.append("reminders_authorization_pending \(authorizing ? 1 : 0)")
   family(
     "reminders_eventkit_up", "gauge",
@@ -102,12 +103,12 @@ func collectMetrics() async throws -> String {
       "reminders_list_info{account_id=\"\(metricEscape(source.id))\",list_id=\"\(metricEscape(list.id))\",name=\"\(metricEscape(list.name))\"} 1"
     )
   }
-  for (name, key) in [
-    ("reminders_scheduled_items", \ListSummary.scheduled),
-    ("reminders_recurring_items", \ListSummary.recurring),
-    ("reminders_items_with_alarms", \ListSummary.withAlarms),
+  for (name, key, what) in [
+    ("reminders_scheduled_items", \ListSummary.scheduled, "a due date"),
+    ("reminders_recurring_items", \ListSummary.recurring, "stored recurrence rules"),
+    ("reminders_items_with_alarms", \ListSummary.withAlarms, "alarms"),
   ] {
-    family(name, "Number of matching reminders in each list, including completed reminders.")
+    family(name, "Reminders with \(what) in each list, including completed ones.")
     for list in lists {
       let count = summarize(data, listId: list.id)[keyPath: key]
       lines.append(
@@ -116,7 +117,9 @@ func collectMetrics() async throws -> String {
     }
   }
   family(
-    "reminders_items", "Number of reminders by completion status, priority, and deadline status.")
+    "reminders_items",
+    "Number of reminders by completion status, priority (none 0, high 1-4, medium 5, low 6-9), and deadline status."
+  )
   for list in lists {
     var counts: [String: Int] = [:]
     for item in reminders where item.listId == list.id {
