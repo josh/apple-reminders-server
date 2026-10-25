@@ -1,10 +1,8 @@
 import Foundation
 import Logging
 
-var serverLogger = Logger(label: "apple-reminders-server") { label in
-  var handler = StreamLogHandler.standardError(label: label)
-  handler.logLevel = .info
-  return handler
+var serverLogger = Logger(label: "apple-reminders-server") {
+  StreamLogHandler.standardError(label: $0)
 }
 
 func logFailure(_ message: String, error: Error) {
