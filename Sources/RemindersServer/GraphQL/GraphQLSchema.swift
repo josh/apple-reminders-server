@@ -54,7 +54,7 @@ private func searchPage(
   if let flagged = filter?.flagged.value {
     let flags = try await requestContext(context).flags()
     // An unknown flag (not yet exposed by Reminders) matches neither filter value.
-    items = items.filter { flags[$0.id] == flagged }
+    items = items.filter { flags[GraphQLContext.flagKey($0.id)] == flagged }
   }
   return try page(items, limit: arguments.limit, offset: arguments.offset)
 }
@@ -129,30 +129,20 @@ actor GraphQLContext {
     if data == nil { data = Task { try await readRemindersData() } }
     return try await data!.value
   }
+  // Flags keyed by canonical reminder UUID, as automation reports them.
   func flags() async throws -> [String: Bool] {
-    if lookup == nil {
-      lookup = Task {
-        let table = try await readProperty(.flags)
-        var flags: [String: Bool] = [:]
-        for item in try await remindersData().reminders {
-          if let value = UUID(uuidString: item.id).flatMap({ table[$0.uuidString] }) {
-            flags[item.id] = value
-          }
-        }
-        return flags
-      }
-    }
+    if lookup == nil { lookup = Task { try await readProperty(.flags) } }
     return try await lookup!.value
   }
-  func flag(id: String) async throws -> Bool? {
-    let flags = try await flags()
-    guard let value = flags[id] else {
+  func flag(id: String) async throws -> Bool {
+    guard let value = try await flags()[Self.flagKey(id)] else {
       throw ServerError.internalError(
         "Reminders has not yet exposed this reminder to automation; flagged is unknown, retry later"
       )
     }
     return value
   }
+  static func flagKey(_ id: String) -> String { UUID(uuidString: id)?.uuidString ?? id }
 }
 
 private let automationNote =
