@@ -11,15 +11,6 @@ struct ContainerReference: Sendable {
   let id: String
 }
 
-func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async throws -> [String:
-  Value]
-{
-  try await onMainActor {
-    try requireAccess()
-    return try readScriptProperty(property)
-  }
-}
-
 // Fixed read-only sources; request values are never interpolated. AppleScript's
 // timeout applies to each event, not to app launch or the complete operation.
 // Typed descriptors bind each fixed script expression to its result decoder.
@@ -72,48 +63,51 @@ extension ScriptProperty where Value == ContainerReference {
 private func classCode(_ code: String) -> OSType {
   code.utf8.reduce(0) { $0 << 8 | OSType($1) }
 }
-@MainActor
-func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [String: Value] {
-  let entity = property.entity.rawValue
-  let expression = property.expression
-  let source = """
-    with timeout of 10 seconds
-        tell application id "com.apple.reminders"
-            set idsBefore to id of every \(entity)
-            set rows to \(expression)
-            set idsAfter to id of every \(entity)
-            return {idsBefore, rows, idsAfter}
-        end tell
-    end timeout
-    """
-  let script = try compiledScript(source, what: "automation property read")
-  var error: NSDictionary?
-  let result = script.executeAndReturnError(&error)
-  if let error {
-    throw ServerError.internalError(
-      "Reminders automation property read failed (code \(error[NSAppleScript.errorNumber] as? Int ?? 0))"
-    )
-  }
-  guard let before = result.atIndex(1), let rows = result.atIndex(2), let after = result.atIndex(3),
-    result.numberOfItems == 3,
-    [before, rows, after].allSatisfy({ $0.descriptorType == DescType(typeAEList) }),
-    before.numberOfItems == rows.numberOfItems, after.numberOfItems == rows.numberOfItems
-  else { throw ServerError.internalError("Inconsistent automation read") }
-  var output: [String: Value] = [:]
-  for index in 0..<rows.numberOfItems {
-    guard let value = rows.atIndex(index + 1),
-      let id = before.atIndex(index + 1)?.stringValue,
-      id == after.atIndex(index + 1)?.stringValue
-    else { throw ServerError.internalError("Automation objects changed during read; retry") }
-    let key = try scriptIdentifier(id, kind: property.entity)
-    guard output[key] == nil else {
-      throw ServerError.internalError("Duplicate automation identifier")
+func readProperty<Value: Sendable>(_ property: ScriptProperty<Value>) async throws -> [String:
+  Value]
+{
+  try await onMainActor {
+    try requireAccess()
+    let source = """
+      with timeout of 10 seconds
+          tell application id "com.apple.reminders"
+              set idsBefore to id of every \(property.entity.rawValue)
+              set rows to \(property.expression)
+              set idsAfter to id of every \(property.entity.rawValue)
+              return {idsBefore, rows, idsAfter}
+          end tell
+      end timeout
+      """
+    let script = try compiledScript(source, what: "automation property read")
+    var error: NSDictionary?
+    let result = script.executeAndReturnError(&error)
+    if let error {
+      throw ServerError.internalError(
+        "Reminders automation property read failed (code \(error[NSAppleScript.errorNumber] as? Int ?? 0))"
+      )
     }
-    // updateValue preserves an explicit nil payload when Value is Optional.
-    output.updateValue(try property.decode(value), forKey: key)
-  }
+    guard let before = result.atIndex(1), let rows = result.atIndex(2),
+      let after = result.atIndex(3),
+      result.numberOfItems == 3,
+      [before, rows, after].allSatisfy({ $0.descriptorType == DescType(typeAEList) }),
+      before.numberOfItems == rows.numberOfItems, after.numberOfItems == rows.numberOfItems
+    else { throw ServerError.internalError("Inconsistent automation read") }
+    var output: [String: Value] = [:]
+    for index in 0..<rows.numberOfItems {
+      guard let value = rows.atIndex(index + 1),
+        let id = before.atIndex(index + 1)?.stringValue,
+        id == after.atIndex(index + 1)?.stringValue
+      else { throw ServerError.internalError("Automation objects changed during read; retry") }
+      let key = try scriptIdentifier(id, kind: property.entity)
+      guard output[key] == nil else {
+        throw ServerError.internalError("Duplicate automation identifier")
+      }
+      // updateValue preserves an explicit nil payload when Value is Optional.
+      output.updateValue(try property.decode(value), forKey: key)
+    }
 
-  return output
+    return output
+  }
 }
 
 private func scriptIdentifier(_ value: String, kind: ScriptObjectKind) throws -> String {
