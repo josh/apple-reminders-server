@@ -1,4 +1,5 @@
 import Foundation
+import HTTPTypes
 import MCP
 
 private struct PageOutput<Item: Encodable>: Encodable {
@@ -838,10 +839,10 @@ private final class ToolOutcome: @unchecked Sendable {
   var ran = false
   var failed = false
 }
-func handleMCP(method: String, headers: [String: String], body: Data, access: Capabilities.Access)
-  async throws
-  -> ServiceResponse
-{
+func handleMCP(
+  method: HTTPTypes.HTTPRequest.Method, headers: [String: String], body: Data,
+  access: Capabilities.Access
+) async throws -> ServiceResponse {
   let outcome = ToolOutcome()
   // Each HTTP request has isolated SDK protocol state, permitting independent clients.
   // The HTTP listener enforces Origin policy for all endpoints.
@@ -880,7 +881,7 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
     }
     try await server.start(transport: transport)
     let response = await transport.handleRequest(
-      .init(method: method, headers: headers, body: body, path: Route.mcp.rawValue))
+      .init(method: method.rawValue, headers: headers, body: body, path: Route.mcp.rawValue))
     await server.stop()
     let responseBody = response.bodyData ?? Data()
     var failure: String? = outcome.failed ? "mcp_tool" : nil
@@ -893,7 +894,7 @@ func handleMCP(method: String, headers: [String: String], body: Data, access: Ca
     return ServiceResponse(
       status: response.statusCode, type: response.headers["Content-Type"] ?? "application/json",
       body: responseBody, headers: response.headers, failure: failure,
-      logMetadata: method == "POST" ? ["rpc": jsonRPCMethod(body)] : [:])
+      logMetadata: method == .post ? ["rpc": jsonRPCMethod(body)] : [:])
   } catch {
     await server.stop()
     throw error

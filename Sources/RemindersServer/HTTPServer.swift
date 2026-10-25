@@ -32,7 +32,8 @@ enum Route: String {
 
 // One API endpoint: method, merged lowercase headers, body, and the caller's access.
 typealias APIHandler =
-  @Sendable (String, [String: String], Data, Capabilities.Access) async throws -> ServiceResponse
+  @Sendable (HTTPRequest.Method, [String: String], Data, Capabilities.Access) async throws
+  -> ServiceResponse
 
 // Headers the server reads as one value; a repeat is ambiguous. Every other header
 // may repeat per RFC 9110 and is joined with a comma, as proxies expect.
@@ -186,7 +187,7 @@ func serve(
             type: "text/plain; version=0.0.4; charset=utf-8",
             body: Data((runtime + (eventKit ?? "")).utf8))
         } else if let route, let handler = handlers[route] {
-          let method = request.method.rawValue
+          let method = request.method
           let requestHeaders = headers
           let access = capabilities.access(route)
           response = try await withRequestDeadline {
