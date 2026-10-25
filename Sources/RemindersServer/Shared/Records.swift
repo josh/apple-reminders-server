@@ -44,7 +44,7 @@ struct ServerError: Error, CustomStringConvertible, Sendable {
   }
 }
 
-struct ComponentDate: Codable, Sendable {
+struct ComponentDate: Encodable, Sendable {
   let calendar: String?, timeZone: String?
   let era: Int?, year: Int?, month: Int?, day: Int?, hour: Int?, minute: Int?, second: Int?,
     nanosecond: Int?
@@ -60,13 +60,13 @@ extension Calendar.Identifier {
   // How ComponentDate.calendar records the identifier, e.g. "gregorian".
   var storedName: String { String(describing: self) }
 }
-struct SourceRecord: Codable, Sendable {
+struct SourceRecord: Encodable, Sendable {
   let id: String
   let title: String
   let type: Int
   enum CodingKeys: String, CodingKey { case id, title, type }
 }
-struct ListRecord: Codable, Sendable {
+struct ListRecord: Encodable, Sendable {
   let id: String, name: String
   let color: String?
   let source: SourceRecord
@@ -121,18 +121,18 @@ enum ReminderSortField: String, CaseIterable, Sendable {
   case modificationDate = "MODIFICATION_DATE"
   case completionDate = "COMPLETION_DATE"
 }
-struct StructuredLocation: Codable, Sendable {
+struct StructuredLocation: Encodable, Sendable {
   let title: String?
   let latitude: Double?
   let longitude: Double?
   let radius: Double
   enum CodingKeys: String, CodingKey { case title, latitude, longitude, radius }
 }
-enum AlarmProximity: String, CaseIterable, Codable, Sendable { case none, enter, leave, unknown }
-enum RecurrenceFrequency: String, CaseIterable, Codable, Sendable {
+enum AlarmProximity: String, CaseIterable, Encodable, Sendable { case none, enter, leave, unknown }
+enum RecurrenceFrequency: String, CaseIterable, Encodable, Sendable {
   case daily, weekly, monthly, yearly, unknown
 }
-struct AlarmRecord: Codable, Sendable {
+struct AlarmRecord: Encodable, Sendable {
   let absoluteDate: String?
   let relativeOffset: Double
   let proximity: AlarmProximity
@@ -141,17 +141,17 @@ struct AlarmRecord: Codable, Sendable {
     case absoluteDate, relativeOffset, proximity, structuredLocation
   }
 }
-struct RecurrenceDay: Codable, Sendable {
+struct RecurrenceDay: Encodable, Sendable {
   let dayOfTheWeek: Int
   let weekNumber: Int
   enum CodingKeys: String, CodingKey { case dayOfTheWeek, weekNumber }
 }
-struct RecurrenceEnd: Codable, Sendable {
+struct RecurrenceEnd: Encodable, Sendable {
   let endDate: String?
   let occurrenceCount: Int
   enum CodingKeys: String, CodingKey { case endDate, occurrenceCount }
 }
-struct RecurrenceRecord: Codable, Sendable {
+struct RecurrenceRecord: Encodable, Sendable {
   let frequency: RecurrenceFrequency
   let calendarIdentifier: String
   let interval: Int
@@ -168,7 +168,7 @@ struct RecurrenceRecord: Codable, Sendable {
     case daysOfTheYear, weeksOfTheYear, monthsOfTheYear, setPositions, end
   }
 }
-struct ReminderRecord: Codable, Sendable {
+struct ReminderRecord: Encodable, Sendable {
   let id: String, externalId: String?, listId: String?, name: String?, body: String?
   var flagged: Bool? = nil
   let completed: Bool, priority: Int
@@ -181,7 +181,7 @@ struct ReminderRecord: Codable, Sendable {
   let recurrenceRules: [RecurrenceRecord]
 }
 
-struct RemindersData: Codable, Sendable {
+struct RemindersData: Sendable {
   let lists: [ListRecord]
   let reminders: [ReminderRecord]
   let defaultListId: String?
@@ -195,12 +195,12 @@ struct RemindersData: Codable, Sendable {
   var defaultList: ListRecord? { lists.first { $0.id == defaultListId } }
   var defaultAccount: AccountRecord? { accounts.first { $0.id == defaultList?.source.id } }
 }
-struct AccountRecord: Codable, Sendable {
+struct AccountRecord: Encodable, Sendable {
   let id: String
   let name: String
   enum CodingKeys: String, CodingKey { case id, name }
 }
-struct ListSummary: Codable, Sendable {
+struct ListSummary: Encodable, Sendable {
   let listId: String
   let total: Int, completed: Int, incomplete: Int, overdue: Int, scheduled: Int, recurring: Int,
     withAlarms: Int

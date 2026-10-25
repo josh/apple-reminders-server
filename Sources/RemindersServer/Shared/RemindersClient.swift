@@ -64,7 +64,7 @@ func showList(id: String) async throws -> ListRecord {
   try await onMainActor { try showListInReminders(id: id) }
 }
 
-struct DeletedReminder: Codable, Sendable {
+struct DeletedReminder: Encodable, Sendable {
   let deletedId: String
   enum CodingKeys: String, CodingKey { case deletedId }
 }
