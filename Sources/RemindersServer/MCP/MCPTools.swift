@@ -552,6 +552,32 @@ private func toolsCatalog() -> [Tool] {
       outputSchema: schema(["reminder": nullable(item)], required: ["reminder"])),
   ]
 }
+// MCP inputs omit optional values; an explicit null anywhere is invalid.
+private func rejectNulls(_ value: Value) throws {
+  switch value {
+  case .null: throw ServerError.invalidArgument("Omit optional MCP inputs instead of sending null")
+  case .object(let object): for value in object.values { try rejectNulls(value) }
+  case .array(let array): for value in array { try rejectNulls(value) }
+  default: break
+  }
+}
+private struct ListOrderInput: Decodable {
+  let direction: InputField<String>
+  enum CodingKeys: String, CodingKey, CaseIterable { case direction }
+  init(from decoder: Decoder) throws {
+    direction = try decoder.inputContainer(keyedBy: CodingKeys.self).field(.direction)
+  }
+}
+private struct ReminderOrderInput: Decodable {
+  let field: String
+  let direction: InputField<String>
+  enum CodingKeys: String, CodingKey, CaseIterable { case field, direction }
+  init(from decoder: Decoder) throws {
+    let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
+    field = try c.decode(String.self, forKey: .field)
+    direction = try c.field(.direction)
+  }
+}
 private func result<T: Encodable>(_ value: T) throws -> CallTool.Result {
   let bytes = try JSONEncoder().encode(value)
   return try .init(
@@ -623,8 +649,8 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
       items: Array(items[start..<end]), totalCount: items.count,
       nextCursor: end < items.count ? String(end) : nil)
   }
-  func descending(_ order: JSONInput) throws -> Bool {
-    let direction = try order["direction"].isSet ? order["direction"].stringValue() : "ASC"
+  func descending(_ direction: InputField<String>) throws -> Bool {
+    let direction = direction.value ?? "ASC"
     guard ["ASC", "DESC"].contains(direction) else {
       throw ServerError.invalidArgument("invalid order direction")
     }
@@ -632,21 +658,21 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   }
   switch params.name {
   case "reminders_create", "reminders_update":
-    let input: JSONInput
     let request: ReminderWrite
     if params.name == "reminders_create" {
-      input = try jsonInput(args)
-      try input.rejectNulls()
-      let changes = try reminderChanges(input, creating: true)
-      request = .create(listID: try string("listId"), changes: changes)
+      try rejectNulls(.object(args))
+      let input = try decodeInput(ReminderInput.self, from: args)
+      request = .create(
+        listID: input.listId.value, changes: try reminderChanges(input, creating: true))
     } else {
       try keys(["id", "patch"])
       guard let id = try string("id"), !id.isEmpty, let patch = args["patch"] else {
         throw ServerError.invalidArgument("id and patch required")
       }
-      input = try jsonInput(patch)
-      try input.rejectNulls()
-      request = .update(id: id, changes: try reminderChanges(input, creating: false))
+      try rejectNulls(patch)
+      request = .update(
+        id: id,
+        changes: try reminderChanges(decodeInput(ReminderInput.self, from: patch), creating: false))
     }
     let saved = try await writeReminder(request).savedRecord()
     do { return try result(GetOutput(reminder: MCPReminder(record: saved))) } catch {
@@ -657,19 +683,19 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
   case "lists_create", "lists_update":
     let request: ListWrite
     if params.name == "lists_create" {
-      let input = try jsonInput(Value.object(args))
-      try input.rejectNulls()
+      try rejectNulls(.object(args))
+      let input = try decodeInput(ListInput.self, from: args)
       request = .create(
-        accountID: try input["accountId"].stringValue(),
+        accountID: try input.accountId.required("accountId"),
         changes: try listChanges(input, creating: true))
     } else {
       try keys(["id", "patch"])
       guard let id = try string("id"), !id.isEmpty, let value = args["patch"] else {
         throw ServerError.invalidArgument("id and patch required")
       }
-      let input = try jsonInput(value)
-      try input.rejectNulls()
-      request = .update(id: id, changes: try listChanges(input, creating: false))
+      try rejectNulls(value)
+      request = .update(
+        id: id, changes: try listChanges(decodeInput(ListInput.self, from: value), creating: false))
     }
     let saved = try await writeList(request).savedRecord()
     do { return try result(ListOutput(list: saved)) } catch {
@@ -732,11 +758,10 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     search.allowsContentModifications = try bool("allowsContentModifications", from: filter)
     search.subscribed = try bool("subscribed", from: filter)
     if let rawOrder = args["orderBy"] {
-      let order = try jsonInput(rawOrder)
-      try order.rejectNulls()
-      try order.checkKeys(["direction"])
+      try rejectNulls(rawOrder)
+      let order = try decodeInput(ListOrderInput.self, from: rawOrder)
       search.orderField = "NAME"
-      search.descending = try descending(order)
+      search.descending = try descending(order.direction)
     }
     return try await result(page(search.lists(readLists())))
   case "accounts_list":
@@ -783,15 +808,13 @@ private func callTool(_ params: CallTool.Parameters) async throws -> CallTool.Re
     search.hasDueDate = try bool("hasDueDate", from: filter)
     search.dueFrom = try string("dueFrom", from: filter)
     if let value = args["orderBy"] {
-      let order = try jsonInput(value)
-      try order.rejectNulls()
-      try order.checkKeys(["field", "direction"])
-      let field = try order["field"].stringValue()
-      guard reminderSortFields.contains(field) else {
+      try rejectNulls(value)
+      let order = try decodeInput(ReminderOrderInput.self, from: value)
+      guard reminderSortFields.contains(order.field) else {
         throw ServerError.invalidArgument("invalid order field")
       }
-      search.orderField = field
-      search.descending = try descending(order)
+      search.orderField = order.field
+      search.descending = try descending(order.direction)
     }
     search.completed = try bool("completed", from: filter)
     if let value = filter["priorities"] {

@@ -172,10 +172,10 @@ func makeMutationType(
           "Create a list. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails.",
         args: ["input": GraphQLArgument(type: GraphQLNonNull(createList))],
         resolve: { _, args, context, _ in
-          let input = try jsonInput(args["input"])
+          let input = try decodeInput(ListInput.self, from: args["input"])
           return try await runList(
             .create(
-              accountID: input["accountId"].stringValue(),
+              accountID: input.accountId.required("accountId"),
               changes: listChanges(input, creating: true)), context: context)
         }),
       "updateList": GraphQLField(
@@ -190,7 +190,8 @@ func makeMutationType(
           try await runList(
             .update(
               id: args["id"].stringValue(),
-              changes: listChanges(jsonInput(args["patch"]), creating: false)),
+              changes: listChanges(
+                decodeInput(ListInput.self, from: args["patch"]), creating: false)),
             context: context
           )
         }),
@@ -234,11 +235,10 @@ func makeMutationType(
           "Create an incomplete reminder in an editable list. Omitted listId uses the application default. If a step after the save fails, the error has code WRITE_APPLIED and names the saved ID; do not retry creation blindly. Select id to retain it if response metadata fails.",
         args: ["input": GraphQLArgument(type: GraphQLNonNull(create))],
         resolve: { _, args, context, _ in
-          let input = args["input"]
+          let input = try decodeInput(ReminderInput.self, from: args["input"])
           return try await run(
-            .create(
-              listID: try? input["listId"].stringValue(),
-              changes: reminderChanges(jsonInput(input), creating: true)), context: context)
+            .create(listID: input.listId.value, changes: reminderChanges(input, creating: true)),
+            context: context)
         }),
       "updateReminder": GraphQLField(
         type: reminder,
@@ -252,7 +252,8 @@ func makeMutationType(
           try await run(
             .update(
               id: args["id"].stringValue(),
-              changes: reminderChanges(jsonInput(args["patch"]), creating: false)),
+              changes: reminderChanges(
+                decodeInput(ReminderInput.self, from: args["patch"]), creating: false)),
             context: context)
         }),
       "clearCompletedReminders": GraphQLField(
