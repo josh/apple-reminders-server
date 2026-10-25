@@ -2,7 +2,7 @@ import Foundation
 
 // Codes are the client contract. GraphQL reports them in extensions.code and
 // MCP in the error payload; the message is a sentence for people.
-enum ErrorCode: String, Sendable {
+enum ErrorCode: String, Encodable, Sendable {
   case invalidArgument = "INVALID_ARGUMENT"
   case notFound = "NOT_FOUND"
   case forbidden = "FORBIDDEN"

@@ -837,13 +837,19 @@ func mcpToolsJSON() throws -> String {
 }
 
 // Tool errors are JSON like successful results, with the code clients act on.
+private struct ToolError: Encodable {
+  struct Body: Encodable {
+    let code: ErrorCode
+    let message: String
+  }
+  let error: Body
+}
 private func errorText(_ error: Error) -> String {
   let server = error as? ServerError
-  let payload: [String: String] = [
-    "code": server?.code.rawValue ?? ErrorCode.internalError.rawValue,
-    "message": server?.message ?? String(describing: error),
-  ]
-  let data = try? JSONEncoder().encode(["error": payload])
+  let payload = ToolError(
+    error: .init(
+      code: server?.code ?? .internalError, message: server?.message ?? String(describing: error)))
+  let data = try? JSONEncoder().encode(payload)
   return data.flatMap { String(data: $0, encoding: .utf8) } ?? String(describing: error)
 }
 
