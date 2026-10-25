@@ -28,7 +28,7 @@ func listSearchPage(_ data: RemindersData, args: Map, accountID: String? = nil) 
   }
   if let order = arguments.orderBy.value {
     search.sortListsByName = true
-    search.descending = order.direction.value == "DESC"
+    search.direction = order.direction.value ?? .ascending
   }
   return try page(
     search.lists(data, accountID: accountID), limit: arguments.limit, offset: arguments.offset)

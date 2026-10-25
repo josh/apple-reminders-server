@@ -52,7 +52,7 @@ private func searchPage(
   }
   if let order = arguments.orderBy.value {
     search.reminderOrder = ReminderSortField(rawValue: order.field)
-    search.descending = order.direction.value == "DESC"
+    search.direction = order.direction.value ?? .ascending
   }
   var items = try search.reminders(data, scope: scope)
   // Flags come from Reminders automation, so the flag filter applies only here.
@@ -244,7 +244,7 @@ func makeSchema() throws -> GraphQLSchema {
       "UNKNOWN": "The due date cannot be classified.",
     ])
   let direction = try enumeration(
-    "SortDirection", ["ASC", "DESC"],
+    "SortDirection", SortDirection.allCases.map(\.rawValue),
     descriptions: ["ASC": "Smallest or earliest first.", "DESC": "Largest or latest first."])
   let orderField = try enumeration(
     "ReminderSortField", ReminderSortField.allCases.map(\.rawValue),

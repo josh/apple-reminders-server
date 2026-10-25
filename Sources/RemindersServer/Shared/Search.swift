@@ -1,11 +1,15 @@
 import Foundation
 
 // One filter for GraphQL and MCP searches.
+enum SortDirection: String, CaseIterable, Decodable, Sendable {
+  case ascending = "ASC"
+  case descending = "DESC"
+}
 struct Search: Sendable {
   // Reminders sort by this field when set; lists sort by name when sortListsByName is set.
   var reminderOrder: ReminderSortField?
   var sortListsByName = false
-  var descending = false
+  var direction = SortDirection.ascending
   var query: String?
   var accountIds: [String]?
   // Reminder criteria.
@@ -61,7 +65,7 @@ struct Search: Sendable {
         && (name == nil || name!.isEmpty || itemName.contains(name!))
         && matchesDays(item.dueDay, dueOnOrAfter, dayUpper)
     }
-    return try reminderOrder.map { try orderReminders(items, by: $0, descending: descending) }
+    return try reminderOrder.map { try orderReminders(items, by: $0, direction: direction) }
       ?? items
   }
 
@@ -80,7 +84,7 @@ struct Search: Sendable {
       items.sort {
         let a = $0.name.lowercased()
         let b = $1.name.lowercased()
-        return a == b ? $0.id < $1.id : descending ? a > b : a < b
+        return a == b ? $0.id < $1.id : direction == .descending ? a > b : a < b
       }
     }
     return items

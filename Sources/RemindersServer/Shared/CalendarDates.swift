@@ -84,7 +84,9 @@ func parseTimestamp(_ value: String) throws -> Date {
   return date
 }
 
-func orderReminders(_ items: [ReminderRecord], by field: ReminderSortField, descending: Bool) throws
+func orderReminders(
+  _ items: [ReminderRecord], by field: ReminderSortField, direction: SortDirection
+) throws
   -> [ReminderRecord]
 {
   // Resolve fallible dates before sorting; never hide a failed projection in a comparator.
@@ -106,7 +108,7 @@ func orderReminders(_ items: [ReminderRecord], by field: ReminderSortField, desc
     if a == b { return nil }
     guard let a else { return false }
     guard let b else { return true }
-    return descending ? a > b : a < b
+    return direction == .descending ? a > b : a < b
   }
   return items.sorted { a, b in
     let result: Bool?

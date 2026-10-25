@@ -284,7 +284,8 @@ private func toolsCatalog() -> [Tool] {
     [
       "field": describe(
         enumeration(ReminderSortField.allCases.map(\.rawValue)), FieldDocs.ReminderOrder.field),
-      "direction": describe(enumeration(["ASC", "DESC"]), FieldDocs.ReminderOrder.direction),
+      "direction": describe(
+        enumeration(SortDirection.allCases.map(\.rawValue)), FieldDocs.ReminderOrder.direction),
     ], required: ["field"])
   let pagination: [String: Value] = [
     "limit": .object([
@@ -333,7 +334,8 @@ private func toolsCatalog() -> [Tool] {
           ]), filterNote),
       "orderBy": describe(
         schema([
-          "direction": describe(enumeration(["ASC", "DESC"]), FieldDocs.ListOrder.direction)
+          "direction": describe(
+            enumeration(SortDirection.allCases.map(\.rawValue)), FieldDocs.ListOrder.direction)
         ]), orderNote),
     ]) { _, new in new })
   let account = schema(
@@ -667,13 +669,6 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
       items: Array(items[start..<end]), totalCount: items.count,
       nextCursor: end < items.count ? String(end) : nil)
   }
-  func descending(_ direction: InputField<String>) throws -> Bool {
-    let direction = direction.value ?? "ASC"
-    guard ["ASC", "DESC"].contains(direction) else {
-      throw ServerError.invalidArgument("invalid order direction")
-    }
-    return direction == "DESC"
-  }
   func savedReminder(_ request: ReminderWrite) async throws -> CallTool.Result {
     let saved = try await writeReminder(request)
     do { return try result(GetOutput(reminder: try MCPReminder(record: saved))) } catch {
@@ -745,7 +740,7 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
     }
     if let order = search.orderBy.value {
       criteria.sortListsByName = true
-      criteria.descending = try descending(order.direction)
+      criteria.direction = order.direction.value ?? .ascending
     }
     return try await result(
       page(criteria.lists(readLists()), limit: search.limit, cursor: search.cursor))
@@ -800,7 +795,7 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
         throw ServerError.invalidArgument("invalid order field")
       }
       criteria.reminderOrder = field
-      criteria.descending = try descending(order.direction)
+      criteria.direction = order.direction.value ?? .ascending
     }
     return try await result(
       page(

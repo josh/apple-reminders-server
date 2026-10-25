@@ -67,7 +67,7 @@ struct ListSearchArguments: Decodable {
     }
   }
   struct Order: Decodable, Sendable {
-    let direction: InputField<String>
+    let direction: InputField<SortDirection>
     enum CodingKeys: String, CodingKey, CaseIterable { case direction }
     init(from decoder: Decoder) throws {
       direction = try decoder.inputContainer(keyedBy: CodingKeys.self).field(.direction)
@@ -114,7 +114,7 @@ struct ReminderSearchArguments: Decodable {
   }
   struct Order: Decodable, Sendable {
     let field: String
-    let direction: InputField<String>
+    let direction: InputField<SortDirection>
     enum CodingKeys: String, CodingKey, CaseIterable { case field, direction }
     init(from decoder: Decoder) throws {
       let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
