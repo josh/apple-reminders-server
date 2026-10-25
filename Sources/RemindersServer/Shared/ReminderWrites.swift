@@ -78,9 +78,6 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
       listID.flatMap { reminderList(store, id: $0) }
       ?? (listID == nil ? store.defaultCalendarForNewReminders() : nil)
     guard let list else { throw ServerError.notFound("reminder list is unavailable") }
-    guard list.allowsContentModifications else {
-      throw ServerError.readOnly("destination list is not editable")
-    }
     guard changes.name != nil else { throw ServerError.invalidArgument("name must not be blank") }
     item = EKReminder(eventStore: store)
     item.calendar = list
