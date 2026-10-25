@@ -31,31 +31,35 @@ private func remindersData(_ context: (any Sendable)?) async throws -> Reminders
 private func searchPage(
   _ data: RemindersData, args: Map, context: (any Sendable)?, scope: Set<String>? = nil
 ) async throws -> Map {
-  let criteria = args["filter"]
+  let arguments = try decodeInput(GraphQLReminderSearch.self, from: args)
+  let filter = arguments.filter.value
   var search = Search()
-  search.query = try? criteria["query"].stringValue()
-  search.nameContains = try? criteria["nameContains"].stringValue()
-  search.accountIds = try? criteria["accountIds"].arrayValue().map { try $0.stringValue() }
-  search.listIds = try? criteria["listIds"].arrayValue().map { try $0.stringValue() }
-  search.hasDueDate = try? criteria["hasDueDate"].boolValue()
-  search.completed = try? criteria["completed"].boolValue()
-  search.priorities = try? criteria["priorities"].arrayValue().map { try $0.intValue() }
-  guard search.priorities?.allSatisfy({ (0...9).contains($0) }) ?? true else {
-    throw ServerError.invalidArgument("priorities must be 0...9")
+  if let filter {
+    search.query = filter.query.value
+    search.nameContains = filter.nameContains.value
+    search.accountIds = filter.accountIds.value
+    search.listIds = filter.listIds.value
+    search.hasDueDate = filter.hasDueDate.value
+    search.completed = filter.completed.value
+    if let priorities = filter.priorities.value {
+      guard priorities.allSatisfy((0...9).contains) else {
+        throw ServerError.invalidArgument("priorities must be 0...9")
+      }
+      search.priorities = priorities
+    }
+    // Enum values are the uppercase names; records store lowercase statuses.
+    search.dueStatus = filter.dueStatus.value.flatMap { DueStatus(rawValue: $0.lowercased()) }
+    search.dueOnOrAfter = filter.dueOnOrAfter.value
+    search.dueBefore = filter.dueBefore.value
+    search.dueFrom = filter.dueFrom.value
   }
-  search.dueStatus = (try? criteria["dueStatus"].stringValue()).flatMap {
-    DueStatus(rawValue: $0.lowercased())
-  }
-  search.dueOnOrAfter = try? criteria["dueOnOrAfter"].stringValue()
-  search.dueBefore = try? criteria["dueBefore"].stringValue()
-  search.dueFrom = try? criteria["dueFrom"].stringValue()
-  if args["orderBy"] != .null && args["orderBy"] != .undefined {
-    search.reminderOrder = ReminderSortField(rawValue: try args["orderBy"]["field"].stringValue())
-    search.descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
+  if let order = arguments.orderBy.value {
+    search.reminderOrder = ReminderSortField(rawValue: order.field)
+    search.descending = order.direction.value == "DESC"
   }
   var items = try search.reminders(data, scope: scope)
   // Flags come from Reminders automation, so the flag filter applies only here.
-  if let flagged = try? criteria["flagged"].boolValue() {
+  if let flagged = filter?.flagged.value {
     guard let context = context as? GraphQLContext else {
       throw ServerError.internalError("Missing flag context")
     }
@@ -63,11 +67,9 @@ private func searchPage(
     // An unknown flag (not yet exposed by Reminders) matches neither filter value.
     items = items.filter { flags[$0.id] == flagged }
   }
-  return try page(items, args: args)
+  return try page(items, limit: arguments.limit, offset: arguments.offset)
 }
-func page<T: Encodable>(_ values: [T], args: Map) throws -> Map {
-  let limit = try args["limit"].intValue()
-  let offset = try args["offset"].intValue()
+func page<T: Encodable>(_ values: [T], limit: Int, offset: Int) throws -> Map {
   guard (1...100).contains(limit), offset >= 0 else {
     throw ServerError.invalidArgument("limit must be 1...100 and offset must be nonnegative")
   }

@@ -19,17 +19,20 @@ func calendarField(_ type: GraphQLOutputType, key: String, timed: Bool, descript
 }
 
 func listSearchPage(_ data: RemindersData, args: Map, accountID: String? = nil) throws -> Map {
-  let filter = args["filter"]
+  let arguments = try decodeInput(GraphQLListSearch.self, from: args)
   var search = Search()
-  search.query = try? filter["query"].stringValue()
-  search.accountIds = try? filter["accountIds"].arrayValue().map { try $0.stringValue() }
-  search.allowsContentModifications = try? filter["allowsContentModifications"].boolValue()
-  search.subscribed = try? filter["subscribed"].boolValue()
-  if args["orderBy"] != .null && args["orderBy"] != .undefined {
-    search.sortListsByName = true
-    search.descending = (try? args["orderBy"]["direction"].stringValue()) == "DESC"
+  if let filter = arguments.filter.value {
+    search.query = filter.query.value
+    search.accountIds = filter.accountIds.value
+    search.allowsContentModifications = filter.allowsContentModifications.value
+    search.subscribed = filter.subscribed.value
   }
-  return try page(search.lists(data, accountID: accountID), args: args)
+  if let order = arguments.orderBy.value {
+    search.sortListsByName = true
+    search.descending = order.direction.value == "DESC"
+  }
+  return try page(
+    search.lists(data, accountID: accountID), limit: arguments.limit, offset: arguments.offset)
 }
 
 func recurrenceProjection(_ source: Map) throws -> Map? {
