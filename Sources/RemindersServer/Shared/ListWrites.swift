@@ -57,7 +57,7 @@ func executeListWrite(_ request: ListWrite) async throws -> ListWritePhase {
     list.cgColor = calendarColor
   }
   // Compile before committing: syntax failures must not leave an avoidable partial write.
-  if patch.emblem != nil { _ = try makeListEmblemScript() }
+  if patch.emblem != nil { _ = try compile(.setEmblem) }
   do { try store.saveCalendar(list, commit: true) } catch {
     throw ServerError.writeFailed(
       "EventKit list save failed (code \((error as NSError).code)); refetch before retrying"
@@ -117,7 +117,7 @@ func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
   guard store.calendar(withIdentifier: pending.listID) != nil else {
     throw ServerError.internalError("list was removed before its emblem could apply")
   }
-  try writeListEmblem(try makeListEmblemScript(), id: pending.listID, emblem: pending.emblem)
+  try writeListEmblem(id: pending.listID, emblem: pending.emblem)
   store.reset()
   guard let refreshed = store.calendar(withIdentifier: pending.listID) else {
     throw ServerError.internalError("saved list is not available for refetch")
@@ -127,28 +127,25 @@ func applyListEmblem(_ pending: PendingEmblem) throws -> ListRecord {
 
 // One attempt per call: untilSynchronized retries between awaits. The short event
 // timeout bounds how long one attempt holds the main actor.
-@MainActor
-private func makeListEmblemScript() throws -> NSAppleScript {
-  let source = """
-    on setemblem(listID, iconName)
-        with timeout of 3 seconds
-            tell application id "com.apple.reminders"
-                set targetList to list id listID
-                set emblem of targetList to iconName
-                return {id of targetList, emblem of targetList}
-            end tell
-        end timeout
-    end setemblem
-    """
-  return try compiledScript(source, what: "list emblem writer")
+extension AutomationHandler {
+  static let setEmblem = AutomationHandler(
+    name: "setemblem", label: "list emblem writer", parameters: ["listID", "iconName"],
+    body: """
+          with timeout of 3 seconds
+              tell application id "com.apple.reminders"
+                  set targetList to list id listID
+                  set emblem of targetList to iconName
+                  return {id of targetList, emblem of targetList}
+              end tell
+          end timeout
+      """)
 }
 @MainActor
-private func writeListEmblem(_ script: NSAppleScript, id: String, emblem: String) throws {
+private func writeListEmblem(id: String, emblem: String) throws {
   guard let uuid = UUID(uuidString: id) else {
     throw ServerError.internalError("Unsupported list identifier for automation")
   }
-  let result = try callHandler(
-    script, "setemblem", [.init(string: uuid.uuidString), .init(string: emblem)])
+  let result = try call(.setEmblem, [.init(string: uuid.uuidString), .init(string: emblem)])
   guard result.numberOfItems == 2, result.atIndex(1)?.stringValue == uuid.uuidString,
     result.atIndex(2)?.stringValue == emblem
   else { throw ServerError.internalError("Reminders did not retain the requested emblem") }

@@ -30,10 +30,11 @@ private func showUUID(_ id: String) throws -> UUID {
 
 @MainActor
 private func navigate(to scriptID: String, isList: Bool) throws {
-  let script = try makeShowScript()
+  // A compile failure happens before navigation, so it is not reported as a UI change.
+  _ = try compile(.showItem)
   let result: NSAppleEventDescriptor
   do {
-    result = try callHandler(script, "showitem", [.init(string: scriptID), .init(boolean: isList)])
+    result = try call(.showItem, [.init(string: scriptID), .init(boolean: isList)])
   } catch {
     throw ServerError.showFailed(
       "Reminders navigation failed (\(error)); the UI may already have changed")
@@ -44,22 +45,20 @@ private func navigate(to scriptID: String, isList: Bool) throws {
   }
 }
 
-@MainActor
-private func makeShowScript() throws -> NSAppleScript {
-  let source = """
-    on showitem(objectID, isList)
-        with timeout of 10 seconds
-            tell application id "com.apple.reminders"
-                if isList then
-                    set targetObject to list id objectID
-                else
-                    set targetObject to reminder id objectID
-                end if
-                show targetObject
-                return id of targetObject
-            end tell
-        end timeout
-    end showitem
-    """
-  return try compiledScript(source, what: "navigation script")
+extension AutomationHandler {
+  static let showItem = AutomationHandler(
+    name: "showitem", label: "navigation script", parameters: ["objectID", "isList"],
+    body: """
+          with timeout of 10 seconds
+              tell application id "com.apple.reminders"
+                  if isList then
+                      set targetObject to list id objectID
+                  else
+                      set targetObject to reminder id objectID
+                  end if
+                  show targetObject
+                  return id of targetObject
+              end tell
+          end timeout
+      """)
 }

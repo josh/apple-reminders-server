@@ -165,7 +165,7 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   }
   let automation = patch.flagged != nil || patch.remindMeDate != nil
   // Compile before committing: syntax failures must not leave an avoidable partial write.
-  if automation { _ = try makeReminderWriteScript() }
+  if automation { _ = try compile(.applyChanges) }
   do { try store.save(item, commit: true) } catch {
     throw ServerError.writeFailed(
       "EventKit save failed (code \((error as NSError).code)); refetch before retrying"
@@ -218,9 +218,8 @@ func applyReminderAutomation(_ pending: PendingAutomation) throws -> ReminderRec
   guard store.calendarItem(withIdentifier: pending.reminderID) is EKReminder else {
     throw ServerError.internalError("reminder was removed before automation could apply")
   }
-  let script = try makeReminderWriteScript()
   try writeReminderAutomation(
-    script, id: pending.reminderID, listID: pending.listID, flagged: pending.flagged,
+    id: pending.reminderID, listID: pending.listID, flagged: pending.flagged,
     alert: pending.remindMeDate)
   store.reset()
   guard let refreshed = store.calendarItem(withIdentifier: pending.reminderID) as? EKReminder

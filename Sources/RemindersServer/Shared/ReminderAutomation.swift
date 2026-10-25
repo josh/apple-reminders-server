@@ -28,12 +28,35 @@ func compiledScript(_ source: String, what: String) throws -> NSAppleScript {
   compiledScripts[source] = script
   return script
 }
-// Calls a handler with typed Apple-event arguments. Not-ready codes surface as
-// AutomationNotReady so callers can retry the automation step.
+// A fixed AppleScript handler, written once: its name is both the `on` line of its
+// source and the subroutine the server calls.
+struct AutomationHandler: Sendable {
+  let name: String
+  // Names the handler in errors.
+  let label: String
+  let parameters: [String]
+  let body: String
+  var source: String {
+    "on \(name)(\(parameters.joined(separator: ", ")))\n\(body)\nend \(name)\n"
+  }
+}
+// Compiles a handler; done before an EventKit save so syntax errors cannot leave a
+// partial write.
 @MainActor
-func callHandler(
-  _ script: NSAppleScript, _ name: String, _ arguments: [NSAppleEventDescriptor]
-) throws -> NSAppleEventDescriptor {
+func compile(_ handler: AutomationHandler) throws -> NSAppleScript {
+  try compiledScript(handler.source, what: handler.label)
+}
+// Calls a handler with typed Apple-event arguments, one per parameter. Not-ready codes
+// surface as AutomationNotReady so callers can retry the automation step.
+@MainActor
+func call(_ handler: AutomationHandler, _ arguments: [NSAppleEventDescriptor]) throws
+  -> NSAppleEventDescriptor
+{
+  guard arguments.count == handler.parameters.count else {
+    throw ServerError.internalError("Wrong argument count for \(handler.label)")
+  }
+  let script = try compile(handler)
+  let name = handler.name
   let list = NSAppleEventDescriptor.list()
   for (index, value) in arguments.enumerated() { list.insert(value, at: index + 1) }
   let event = NSAppleEventDescriptor(
@@ -66,38 +89,35 @@ func callHandler(
 // Match both reminder and containing list IDs before sending any set event.
 // One attempt per call: untilSynchronized retries between awaits. The short event
 // timeout bounds how long one attempt holds the main actor.
-@MainActor
-func makeReminderWriteScript() throws -> NSAppleScript {
-  let source = """
-    on applychanges(reminderID, listID, changeFlag, flagValue, changeAlert, alertValue)
-        with timeout of 3 seconds
-            tell application id "com.apple.reminders"
-                set targetList to list id listID
-                set matches to every reminder of targetList whose id is reminderID
-                if (count of matches) > 1 then error "Reminder identity is ambiguous"
-                if (count of matches) is 0 then error "Reminder is not yet visible to automation" number -1728
-                set targetReminder to item 1 of matches
-                if changeFlag then set flagged of targetReminder to flagValue
-                if changeAlert then set remind me date of targetReminder to alertValue
-                return {id of targetReminder, flagged of targetReminder, remind me date of targetReminder}
-            end tell
-        end timeout
-    end applychanges
-    """
-  return try compiledScript(source, what: "reminder automation writer")
+extension AutomationHandler {
+  static let applyChanges = AutomationHandler(
+    name: "applychanges", label: "reminder automation writer",
+    parameters: ["reminderID", "listID", "changeFlag", "flagValue", "changeAlert", "alertValue"],
+    body: """
+          with timeout of 3 seconds
+              tell application id "com.apple.reminders"
+                  set targetList to list id listID
+                  set matches to every reminder of targetList whose id is reminderID
+                  if (count of matches) > 1 then error "Reminder identity is ambiguous"
+                  if (count of matches) is 0 then error "Reminder is not yet visible to automation" number -1728
+                  set targetReminder to item 1 of matches
+                  if changeFlag then set flagged of targetReminder to flagValue
+                  if changeAlert then set remind me date of targetReminder to alertValue
+                  return {id of targetReminder, flagged of targetReminder, remind me date of targetReminder}
+              end tell
+          end timeout
+      """)
 }
 
 @MainActor
-func writeReminderAutomation(
-  _ script: NSAppleScript, id: String, listID: String, flagged: Bool?, alert: Date?
-) throws {
+func writeReminderAutomation(id: String, listID: String, flagged: Bool?, alert: Date?) throws {
   guard let reminderUUID = UUID(uuidString: id), let listUUID = UUID(uuidString: listID) else {
     throw ServerError.unsupportedOperation(
       "automation requires UUID reminder and list identifiers")
   }
   let reminderID = "x-apple-reminder://" + reminderUUID.uuidString
-  let result = try callHandler(
-    script, "applychanges",
+  let result = try call(
+    .applyChanges,
     [
       .init(string: reminderID), .init(string: listUUID.uuidString),
       .init(boolean: flagged != nil), .init(boolean: flagged ?? false),
