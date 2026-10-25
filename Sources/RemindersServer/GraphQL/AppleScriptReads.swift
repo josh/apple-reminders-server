@@ -1,3 +1,4 @@
+import Carbon
 import Foundation
 
 // GraphQL reads flags, emblems, alert dates, and containers through Reminders automation.
@@ -29,7 +30,7 @@ extension ScriptProperty where Value == Bool {
 }
 extension ScriptProperty where Value == String? {
   static let emblems = Self(entity: "list", expression: "emblem of every list") { value in
-    if value.typeCodeValue == 0x6d73_6e67 { return nil }
+    if value.typeCodeValue == OSType(cMissingValue) { return nil }
     guard let text = value.stringValue else {
       throw ServerError.internalError("Unsupported list emblem value")
     }
@@ -37,7 +38,7 @@ extension ScriptProperty where Value == String? {
   }
   static let alerts = Self(entity: "reminder", expression: "remind me date of every reminder") {
     value in
-    if value.typeCodeValue == 0x6d73_6e67 { return nil }
+    if value.typeCodeValue == OSType(cMissingValue) { return nil }
     guard let date = value.dateValue else {
       throw ServerError.internalError("Unsupported reminder alert date")
     }
@@ -49,20 +50,25 @@ extension ScriptProperty where Value == ContainerReference {
   static let reminderContainers = containers(entity: "reminder")
   private static func containers(entity: String) -> Self {
     Self(entity: entity, expression: "container of every \(entity)") { value in
-      guard value.descriptorType == 0x6f62_6a20,
-        value.forKeyword(0x666f_726d)?.enumCodeValue == 0x4944_2020,
-        let parentID = value.forKeyword(0x7365_6c64)?.stringValue
+      guard value.descriptorType == DescType(typeObjectSpecifier),
+        value.forKeyword(AEKeyword(keyAEKeyForm))?.enumCodeValue == OSType(formUniqueID),
+        let parentID = value.forKeyword(AEKeyword(keyAEKeyData))?.stringValue
       else { throw ServerError.internalError("Unsupported container reference") }
-      let kinds: [UInt32: String] = [
-        0x6163_6374: "Account", 0x6c69_7374: "ReminderList", 0x7265_6d69: "Reminder",
+      let kinds: [OSType: String] = [
+        classCode("acct"): "Account", classCode("list"): "ReminderList",
+        classCode("remi"): "Reminder",
       ]
-      guard let kind = kinds[value.forKeyword(0x7761_6e74)?.typeCodeValue ?? 0],
+      guard let kind = kinds[value.forKeyword(AEKeyword(keyAEDesiredClass))?.typeCodeValue ?? 0],
         (entity == "list" ? ["Account", "ReminderList"] : ["ReminderList", "Reminder"]).contains(
           kind)
       else { throw ServerError.internalError("Unsupported container class") }
       return ContainerReference(kind: kind, id: try scriptIdentifier(parentID, kind: kind))
     }
   }
+}
+// A four-character code from Reminders' scripting dictionary, which has no Apple constant.
+private func classCode(_ code: String) -> OSType {
+  code.utf8.reduce(0) { $0 << 8 | OSType($1) }
 }
 @MainActor
 func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [String: Value] {
@@ -88,7 +94,7 @@ func readScriptProperty<Value>(_ property: ScriptProperty<Value>) throws -> [Str
   }
   guard let before = result.atIndex(1), let rows = result.atIndex(2), let after = result.atIndex(3),
     result.numberOfItems == 3,
-    [before, rows, after].allSatisfy({ $0.descriptorType == 0x6c69_7374 }),
+    [before, rows, after].allSatisfy({ $0.descriptorType == DescType(typeAEList) }),
     before.numberOfItems == rows.numberOfItems, after.numberOfItems == rows.numberOfItems
   else { throw ServerError.internalError("Inconsistent automation read") }
   var output: [String: Value] = [:]

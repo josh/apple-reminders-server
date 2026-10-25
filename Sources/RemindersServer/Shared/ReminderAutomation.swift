@@ -1,3 +1,4 @@
+import Carbon
 import Foundation
 
 // Reminders has not exposed the saved object to scripting yet, refused the set
@@ -36,10 +37,10 @@ func callHandler(
   let list = NSAppleEventDescriptor.list()
   for (index, value) in arguments.enumerated() { list.insert(value, at: index + 1) }
   let event = NSAppleEventDescriptor(
-    eventClass: 0x6173_6372, eventID: 0x7073_6272, targetDescriptor: nil, returnID: -1,
-    transactionID: 0)
-  event.setParam(.init(string: name), forKeyword: 0x736e_616d)
-  event.setParam(list, forKeyword: 0x2d2d_2d2d)
+    eventClass: AEEventClass(kASAppleScriptSuite), eventID: AEEventID(kASSubroutineEvent),
+    targetDescriptor: nil, returnID: -1, transactionID: 0)
+  event.setParam(.init(string: name), forKeyword: AEKeyword(keyASSubroutineName))
+  event.setParam(list, forKeyword: AEKeyword(keyDirectObject))
   var error: NSDictionary?
   let result = script.executeAppleEvent(event, error: &error)
   if let error {
@@ -55,8 +56,8 @@ func callHandler(
 
 // Decodes a reminder's flag from an automation result.
 @Sendable func automationFlag(_ value: NSAppleEventDescriptor) throws -> Bool {
-  // typeBoolean, typeTrue, typeFalse
-  guard [0x626f_6f6c, 0x7472_7565, 0x6661_6c73].contains(value.descriptorType) else {
+  let booleans = [DescType(typeBoolean), DescType(typeTrue), DescType(typeFalse)]
+  guard booleans.contains(value.descriptorType) else {
     throw ServerError.internalError("Unsupported reminder flag value")
   }
   return value.booleanValue
