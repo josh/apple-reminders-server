@@ -23,7 +23,7 @@ enum ListWritePhase: Sendable {
 }
 
 @MainActor
-func executeListWrite(_ request: ListWrite) async throws -> ListWritePhase {
+func executeListWrite(_ request: ListWrite) throws -> ListWritePhase {
   try requireAccess()
   let store = EKEventStore()
   let list: EKCalendar

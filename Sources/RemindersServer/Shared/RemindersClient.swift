@@ -32,7 +32,7 @@ func writeReminder(_ request: ReminderWrite) async throws -> ReminderRecord {
   }
 }
 func writeList(_ request: ListWrite) async throws -> ListRecord {
-  switch try await executeListWrite(request) {
+  switch try await onMainActor({ try executeListWrite(request) }) {
   case .finished(let record): return record
   case .automation(let pending):
     do {
