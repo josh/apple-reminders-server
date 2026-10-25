@@ -73,7 +73,7 @@ func executeListWrite(_ request: ListWrite) async throws -> ListWritePhase {
 }
 
 @MainActor
-func executeListDelete(id: String, allowNonEmpty: Bool) async throws -> DeletedReminder {
+func deleteList(id: String, allowNonEmpty: Bool) async throws -> DeletedReminder {
   try requireAccess()
   let store = EKEventStore()
   let existing = try editableList(store, id: id)

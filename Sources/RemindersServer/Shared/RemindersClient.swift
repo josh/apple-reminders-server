@@ -57,9 +57,6 @@ private func writeApplied(_ error: Error, saved object: String) -> ServerError {
 func deleteReminder(id: String) async throws -> DeletedReminder {
   try await onMainActor { try executeReminderDelete(id: id) }
 }
-func deleteList(id: String, allowNonEmpty: Bool) async throws -> DeletedReminder {
-  try await executeListDelete(id: id, allowNonEmpty: allowNonEmpty)
-}
 func showReminder(id: String) async throws -> ReminderRecord {
   try await onMainActor { try showReminderInReminders(id: id) }
 }
