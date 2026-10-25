@@ -130,11 +130,6 @@ enum FieldDocs {
     static let occurrenceCount = "Number of occurrences; zero when unset."
   }
   enum Schedule {
-    // The integer selector fields, in schema order, with their descriptions.
-    static let selectors = [
-      ("daysOfMonth", daysOfMonth), ("monthsOfYear", monthsOfYear), ("weeksOfYear", weeksOfYear),
-      ("daysOfYear", daysOfYear), ("setPositions", setPositions),
-    ]
     static let frequency = "The unit of repetition."
     static let interval = "Positive number of frequency units between occurrences."
     static let daysOfWeek =

@@ -15,6 +15,13 @@ private func afterWrite<T: Sendable>(
   return value
 }
 
+// An input object's fields, named by the coding keys its decoder reads, in schema order.
+private func inputFields<Key: CodingKey>(
+  _: Key.Type, _ fields: KeyValuePairs<Key, InputObjectField>
+) -> InputObjectFieldMap {
+  InputObjectFieldMap(uniqueKeysWithValues: fields.map { ($0.key.stringValue, $0.value) })
+}
+
 func makeMutationType(
   reminder: GraphQLObjectType, list: GraphQLObjectType, dateTime: GraphQLScalarType,
   localDate: GraphQLScalarType, proximity: GraphQLEnumType, frequency: GraphQLEnumType,
@@ -22,105 +29,129 @@ func makeMutationType(
 ) throws -> GraphQLObjectType {
   let geofence = try GraphQLInputObjectType(
     name: "GeofenceInput",
-    fields: [
-      "title": InputObjectField(type: GraphQLString, description: FieldDocs.Geofence.title),
-      "latitude": InputObjectField(
-        type: GraphQLNonNull(GraphQLFloat), description: FieldDocs.Geofence.latitude),
-      "longitude": InputObjectField(
-        type: GraphQLNonNull(GraphQLFloat), description: FieldDocs.Geofence.longitude),
-      "radiusMeters": InputObjectField(
-        type: GraphQLNonNull(GraphQLFloat), description: FieldDocs.Geofence.radiusMeters),
-      "proximity": InputObjectField(
-        type: GraphQLNonNull(proximity), description: FieldDocs.Geofence.proximity),
-    ])
+    fields: inputFields(
+      GeofenceInput.CodingKeys.self,
+      [
+        .title: InputObjectField(type: GraphQLString, description: FieldDocs.Geofence.title),
+        .latitude: InputObjectField(
+          type: GraphQLNonNull(GraphQLFloat), description: FieldDocs.Geofence.latitude),
+        .longitude: InputObjectField(
+          type: GraphQLNonNull(GraphQLFloat), description: FieldDocs.Geofence.longitude),
+        .radiusMeters: InputObjectField(
+          type: GraphQLNonNull(GraphQLFloat), description: FieldDocs.Geofence.radiusMeters),
+        .proximity: InputObjectField(
+          type: GraphQLNonNull(proximity), description: FieldDocs.Geofence.proximity),
+      ]))
   let alarm = try GraphQLInputObjectType(
     name: "ReminderAlarmInput",
-    fields: [
-      "absoluteDate": InputObjectField(
-        type: dateTime, description: FieldDocs.ReminderAlarmInput.absoluteDate),
-      "relativeOffsetSeconds": InputObjectField(
-        type: GraphQLFloat, description: FieldDocs.ReminderAlarmInput.relativeOffsetSeconds),
-      "geofence": InputObjectField(
-        type: geofence, description: FieldDocs.ReminderAlarmInput.geofence),
-    ])
+    fields: inputFields(
+      AlarmInput.CodingKeys.self,
+      [
+        .absoluteDate: InputObjectField(
+          type: dateTime, description: FieldDocs.ReminderAlarmInput.absoluteDate),
+        .relativeOffsetSeconds: InputObjectField(
+          type: GraphQLFloat, description: FieldDocs.ReminderAlarmInput.relativeOffsetSeconds),
+        .geofence: InputObjectField(
+          type: geofence, description: FieldDocs.ReminderAlarmInput.geofence),
+      ]))
   let recurrenceDay = try GraphQLInputObjectType(
     name: "RecurrenceDayInput",
-    fields: [
-      "day": InputObjectField(
-        type: GraphQLNonNull(weekday), description: FieldDocs.ScheduleDay.day),
-      "ordinal": InputObjectField(type: GraphQLInt, description: FieldDocs.ScheduleDay.ordinal),
-    ])
+    fields: inputFields(
+      RecurrenceInput.Day.CodingKeys.self,
+      [
+        .day: InputObjectField(
+          type: GraphQLNonNull(weekday), description: FieldDocs.ScheduleDay.day),
+        .ordinal: InputObjectField(type: GraphQLInt, description: FieldDocs.ScheduleDay.ordinal),
+      ]))
   let recurrenceEnd = try GraphQLInputObjectType(
     name: "RecurrenceEndInput",
-    fields: [
-      "until": InputObjectField(type: dateTime, description: FieldDocs.ScheduleEnd.until),
-      "count": InputObjectField(type: GraphQLInt, description: FieldDocs.ScheduleEnd.count),
-    ])
-  var recurrenceFields: InputObjectFieldMap = [
-    "frequency": InputObjectField(
-      type: GraphQLNonNull(frequency), description: FieldDocs.Schedule.frequency),
-    "interval": InputObjectField(
-      type: GraphQLNonNull(GraphQLInt), description: FieldDocs.Schedule.interval),
-    "daysOfWeek": InputObjectField(
-      type: GraphQLList(GraphQLNonNull(recurrenceDay)), description: FieldDocs.Schedule.daysOfWeek),
-    "end": InputObjectField(type: recurrenceEnd, description: FieldDocs.Schedule.end),
-  ]
-  for (key, description) in FieldDocs.Schedule.selectors {
-    recurrenceFields[key] = InputObjectField(
-      type: GraphQLList(GraphQLNonNull(GraphQLInt)), description: description)
-  }
+    fields: inputFields(
+      RecurrenceInput.End.CodingKeys.self,
+      [
+        .until: InputObjectField(type: dateTime, description: FieldDocs.ScheduleEnd.until),
+        .count: InputObjectField(type: GraphQLInt, description: FieldDocs.ScheduleEnd.count),
+      ]))
+  let selectors = GraphQLList(GraphQLNonNull(GraphQLInt))
   let recurrence = try GraphQLInputObjectType(
-    name: "RecurrenceRuleInput", fields: recurrenceFields)
+    name: "RecurrenceRuleInput",
+    fields: inputFields(
+      RecurrenceInput.CodingKeys.self,
+      [
+        .frequency: InputObjectField(
+          type: GraphQLNonNull(frequency), description: FieldDocs.Schedule.frequency),
+        .interval: InputObjectField(
+          type: GraphQLNonNull(GraphQLInt), description: FieldDocs.Schedule.interval),
+        .daysOfWeek: InputObjectField(
+          type: GraphQLList(GraphQLNonNull(recurrenceDay)),
+          description: FieldDocs.Schedule.daysOfWeek),
+        .end: InputObjectField(type: recurrenceEnd, description: FieldDocs.Schedule.end),
+        .daysOfMonth: InputObjectField(
+          type: selectors, description: FieldDocs.Schedule.daysOfMonth),
+        .monthsOfYear: InputObjectField(
+          type: selectors, description: FieldDocs.Schedule.monthsOfYear),
+        .weeksOfYear: InputObjectField(
+          type: selectors, description: FieldDocs.Schedule.weeksOfYear),
+        .daysOfYear: InputObjectField(type: selectors, description: FieldDocs.Schedule.daysOfYear),
+        .setPositions: InputObjectField(
+          type: selectors, description: FieldDocs.Schedule.setPositions),
+      ]))
   let clear = try GraphQLEnumType(
     name: "ReminderClearField",
     values: GraphQLEnumValueMap(
       uniqueKeysWithValues: ReminderClearValue.allCases.map {
         ($0.rawValue, GraphQLEnumValue(value: Map($0.rawValue), description: $0.description))
       }))
-  // Create and patch inputs share field types but describe them separately.
+  let alarms = GraphQLList(GraphQLNonNull(alarm))
   typealias Create = FieldDocs.CreateReminderInput
-  typealias Patch = FieldDocs.ReminderPatch
-  let reminderTypes: [(String, GraphQLInputType, create: String, patch: String)] = [
-    ("name", GraphQLString, Create.name, Patch.name),
-    ("body", GraphQLString, Create.body, Patch.body),
-    ("priority", GraphQLInt, Create.priority, Patch.priority),
-    ("location", GraphQLString, Create.location, Patch.location),
-    ("url", GraphQLString, Create.url, Patch.url),
-    ("dueDate", dateTime, Create.dueDate, Patch.dueDate),
-    ("allDayDueDate", localDate, Create.allDayDueDate, Patch.allDayDueDate),
-    ("startDate", dateTime, Create.startDate, Patch.startDate),
-    ("allDayStartDate", localDate, Create.allDayStartDate, Patch.allDayStartDate),
-    ("timeZone", GraphQLString, Create.timeZone, Patch.timeZone),
-    ("flagged", GraphQLBoolean, Create.flagged, Patch.flagged),
-    ("remindMeDate", dateTime, Create.remindMeDate, Patch.remindMeDate),
-    ("alarms", GraphQLList(GraphQLNonNull(alarm)), Create.alarms, Patch.alarms),
-    ("recurrence", recurrence, Create.recurrence, Patch.recurrence),
-  ]
-  var createFields = InputObjectFieldMap(
-    uniqueKeysWithValues: reminderTypes.map {
-      ($0.0, InputObjectField(type: $0.1, description: $0.create))
-    })
-  createFields["name"] = InputObjectField(
-    type: GraphQLNonNull(GraphQLString), description: FieldDocs.CreateReminderInput.name)
-  createFields["listId"] = InputObjectField(
-    type: GraphQLID, description: FieldDocs.CreateReminderInput.listId)
   let create = try GraphQLInputObjectType(
-    name: "CreateReminderInput", fields: createFields)
-  var fields = InputObjectFieldMap(
-    uniqueKeysWithValues: reminderTypes.map {
-      ($0.0, InputObjectField(type: $0.1, description: $0.patch))
-    })
-  fields["completionDate"] = InputObjectField(
-    type: dateTime, description: FieldDocs.ReminderPatch.completionDate)
-  fields["completed"] = InputObjectField(
-    type: GraphQLBoolean, description: FieldDocs.ReminderPatch.completed)
-  // Nullable because GraphQLSwift rejects omitted non-null defaults in variables;
-  // input validation still rejects explicit null.
-  fields["clearFields"] = InputObjectField(
-    type: GraphQLList(GraphQLNonNull(clear)), defaultValue: [],
-    description: FieldDocs.ReminderPatch.clearFields)
+    name: "CreateReminderInput",
+    fields: inputFields(
+      ReminderInput.CodingKeys.self,
+      [
+        .name: InputObjectField(type: GraphQLNonNull(GraphQLString), description: Create.name),
+        .body: InputObjectField(type: GraphQLString, description: Create.body),
+        .priority: InputObjectField(type: GraphQLInt, description: Create.priority),
+        .location: InputObjectField(type: GraphQLString, description: Create.location),
+        .url: InputObjectField(type: GraphQLString, description: Create.url),
+        .dueDate: InputObjectField(type: dateTime, description: Create.dueDate),
+        .allDayDueDate: InputObjectField(type: localDate, description: Create.allDayDueDate),
+        .startDate: InputObjectField(type: dateTime, description: Create.startDate),
+        .allDayStartDate: InputObjectField(type: localDate, description: Create.allDayStartDate),
+        .timeZone: InputObjectField(type: GraphQLString, description: Create.timeZone),
+        .flagged: InputObjectField(type: GraphQLBoolean, description: Create.flagged),
+        .remindMeDate: InputObjectField(type: dateTime, description: Create.remindMeDate),
+        .alarms: InputObjectField(type: alarms, description: Create.alarms),
+        .recurrence: InputObjectField(type: recurrence, description: Create.recurrence),
+        .listId: InputObjectField(type: GraphQLID, description: Create.listId),
+      ]))
+  typealias Patch = FieldDocs.ReminderPatch
   let patch = try GraphQLInputObjectType(
-    name: "ReminderPatch", fields: fields)
+    name: "ReminderPatch",
+    fields: inputFields(
+      ReminderInput.CodingKeys.self,
+      [
+        .name: InputObjectField(type: GraphQLString, description: Patch.name),
+        .body: InputObjectField(type: GraphQLString, description: Patch.body),
+        .priority: InputObjectField(type: GraphQLInt, description: Patch.priority),
+        .location: InputObjectField(type: GraphQLString, description: Patch.location),
+        .url: InputObjectField(type: GraphQLString, description: Patch.url),
+        .dueDate: InputObjectField(type: dateTime, description: Patch.dueDate),
+        .allDayDueDate: InputObjectField(type: localDate, description: Patch.allDayDueDate),
+        .startDate: InputObjectField(type: dateTime, description: Patch.startDate),
+        .allDayStartDate: InputObjectField(type: localDate, description: Patch.allDayStartDate),
+        .timeZone: InputObjectField(type: GraphQLString, description: Patch.timeZone),
+        .flagged: InputObjectField(type: GraphQLBoolean, description: Patch.flagged),
+        .remindMeDate: InputObjectField(type: dateTime, description: Patch.remindMeDate),
+        .alarms: InputObjectField(type: alarms, description: Patch.alarms),
+        .recurrence: InputObjectField(type: recurrence, description: Patch.recurrence),
+        .completionDate: InputObjectField(type: dateTime, description: Patch.completionDate),
+        .completed: InputObjectField(type: GraphQLBoolean, description: Patch.completed),
+        // Nullable because GraphQLSwift rejects omitted non-null defaults in variables;
+        // input validation still rejects explicit null.
+        .clearFields: InputObjectField(
+          type: GraphQLList(GraphQLNonNull(clear)), defaultValue: [],
+          description: Patch.clearFields),
+      ]))
   let deleted = try GraphQLObjectType(
     name: "DeleteResult",
     fields: [
@@ -140,25 +171,27 @@ func makeMutationType(
     ])
   let listPatch = try GraphQLInputObjectType(
     name: "ListPatch",
-    fields: [
-      "name": InputObjectField(type: GraphQLString, description: FieldDocs.ListPatch.name),
-      "color": InputObjectField(
-        type: GraphQLString, description: FieldDocs.ListPatch.color),
-      "emblem": InputObjectField(
-        type: GraphQLString, description: FieldDocs.ListPatch.emblem),
-    ])
+    fields: inputFields(
+      ListInput.CodingKeys.self,
+      [
+        .name: InputObjectField(type: GraphQLString, description: FieldDocs.ListPatch.name),
+        .color: InputObjectField(type: GraphQLString, description: FieldDocs.ListPatch.color),
+        .emblem: InputObjectField(type: GraphQLString, description: FieldDocs.ListPatch.emblem),
+      ]))
   let createList = try GraphQLInputObjectType(
     name: "CreateListInput",
-    fields: [
-      "name": InputObjectField(
-        type: GraphQLNonNull(GraphQLString), description: FieldDocs.CreateListInput.name),
-      "color": InputObjectField(
-        type: GraphQLString, description: FieldDocs.CreateListInput.color),
-      "emblem": InputObjectField(
-        type: GraphQLString, description: FieldDocs.CreateListInput.emblem),
-      "accountId": InputObjectField(
-        type: GraphQLNonNull(GraphQLID), description: FieldDocs.CreateListInput.accountId),
-    ])
+    fields: inputFields(
+      ListInput.CodingKeys.self,
+      [
+        .name: InputObjectField(
+          type: GraphQLNonNull(GraphQLString), description: FieldDocs.CreateListInput.name),
+        .color: InputObjectField(
+          type: GraphQLString, description: FieldDocs.CreateListInput.color),
+        .emblem: InputObjectField(
+          type: GraphQLString, description: FieldDocs.CreateListInput.emblem),
+        .accountId: InputObjectField(
+          type: GraphQLNonNull(GraphQLID), description: FieldDocs.CreateListInput.accountId),
+      ]))
   return try GraphQLObjectType(
     name: "Mutation",
     fields: [
