@@ -183,8 +183,7 @@ enum FieldDocs {
     static let priority = "Priority from 0 through 9."
     static let location =
       "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm."
-    static let url =
-      "An associated absolute URL; does not promise a rich-link preview in Reminders."
+    static let url = Reminder.url
     static let dueDate =
       "A deadline including a time of day. Reminders may also set the start date and alert date to it."
     static let allDayDueDate =
@@ -214,18 +213,14 @@ enum FieldDocs {
     static let name = "The new name of the reminder."
     static let body = "The new notes attached to the reminder. An empty string removes the notes."
     static let priority = "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low."
-    static let location =
-      "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm."
-    static let url =
-      "An associated absolute URL; does not promise a rich-link preview in Reminders."
+    static let location = CreateReminderInput.location
+    static let url = Reminder.url
     static let dueDate =
       "Set the due date and time. Cannot be combined with allDayDueDate. Reminders may also set the start date and alert date to it."
     static let allDayDueDate =
       "Set a date-only deadline. Cannot be combined with dueDate. Reminders may also add a start at local midnight."
-    static let startDate =
-      "The date and time at which work on the reminder starts. It cannot be later than the due date."
-    static let allDayStartDate =
-      "Unsupported: date-only start writes are rejected because storage does not preserve them. Use startDate."
+    static let startDate = CreateReminderInput.startDate
+    static let allDayStartDate = CreateReminderInput.allDayStartDate
     static let timeZone =
       "Set an IANA time-zone identifier; requires a resulting start or due date. Use clearFields for floating/local interpretation."
     static let flagged = "Set whether the reminder is flagged, independently of priority."
