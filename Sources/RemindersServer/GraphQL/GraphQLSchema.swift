@@ -312,7 +312,7 @@ func makeSchema() throws -> GraphQLSchema {
         description: FieldDocs.RawAlarm.structuredLocation),
     ])
   let proximity = try enumeration(
-    "GeofenceProximity", ["ARRIVE", "DEPART"],
+    "GeofenceProximity", GeofenceProximity.allCases.map(\.rawValue),
     descriptions: [
       "ARRIVE": "Trigger when entering the region.", "DEPART": "Trigger when leaving the region.",
     ])
@@ -331,23 +331,24 @@ func makeSchema() throws -> GraphQLSchema {
         GraphQLNonNull(GraphQLFloat), \AlarmView.Geofence.radiusMeters,
         description: FieldDocs.Geofence.radiusMeters),
       "proximity": field(
-        GraphQLNonNull(proximity), \AlarmView.Geofence.proximity,
+        GraphQLNonNull(proximity),
+        { (geofence: AlarmView.Geofence) in geofence.proximity.rawValue },
         description: FieldDocs.Geofence.proximity),
     ])
   let absoluteAlarm = try GraphQLObjectType(
-    name: "AbsoluteAlarm",
+    name: AlarmKind.absolute.rawValue,
     fields: [
       "at": field(GraphQLNonNull(dateTime), \AlarmView.at, description: FieldDocs.AbsoluteAlarm.at)
     ])
   let relativeAlarm = try GraphQLObjectType(
-    name: "RelativeAlarm",
+    name: AlarmKind.relative.rawValue,
     fields: [
       "offsetSeconds": field(
         GraphQLNonNull(GraphQLFloat), \AlarmView.offsetSeconds,
         description: FieldDocs.RelativeAlarm.offsetSeconds)
     ])
   let locationAlarm = try GraphQLObjectType(
-    name: "LocationAlarm",
+    name: AlarmKind.location.rawValue,
     fields: [
       "geofence": field(
         GraphQLNonNull(geofence), \AlarmView.geofence, description: FieldDocs.LocationAlarm.geofence
@@ -355,7 +356,7 @@ func makeSchema() throws -> GraphQLSchema {
     ])
   let alarmUnion = try GraphQLUnionType(
     name: "ReminderAlarm",
-    resolveType: { value, _ in try record(value, as: AlarmView.self).kind },
+    resolveType: { value, _ in try record(value, as: AlarmView.self).kind.rawValue },
     types: [absoluteAlarm, relativeAlarm, locationAlarm])
   let recurrenceDay = try GraphQLObjectType(
     name: "RecurrenceDay",
@@ -413,19 +414,21 @@ func makeSchema() throws -> GraphQLSchema {
         description: FieldDocs.RecurrenceRule.setPositions),
     ])
   let frequency = try enumeration(
-    "RecurrenceFrequency", ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"],
+    "RecurrenceFrequency", ScheduleFrequency.allCases.map(\.rawValue),
     descriptions: [
       "DAILY": "Repeat in day intervals.", "WEEKLY": "Repeat in week intervals.",
       "MONTHLY": "Repeat in month intervals.", "YEARLY": "Repeat in year intervals.",
     ])
   let weekday = try enumeration(
-    "Weekday", weekdayNames,
-    descriptions: Dictionary(uniqueKeysWithValues: weekdayNames.map { ($0, $0.capitalized + ".") }))
+    "Weekday", Weekday.allCases.map(\.rawValue),
+    descriptions: Dictionary(
+      uniqueKeysWithValues: Weekday.allCases.map { ($0.rawValue, $0.rawValue.capitalized + ".") }))
   let scheduleDay = try GraphQLObjectType(
     name: "ReminderRecurrenceDay",
     fields: [
       "day": field(
-        GraphQLNonNull(weekday), \RecurrenceView.Day.day, description: FieldDocs.ScheduleDay.day),
+        GraphQLNonNull(weekday), { (day: RecurrenceView.Day) in day.day.rawValue },
+        description: FieldDocs.ScheduleDay.day),
       "ordinal": field(
         GraphQLInt, \RecurrenceView.Day.ordinal, description: FieldDocs.ScheduleDay.ordinal),
     ])
@@ -441,7 +444,7 @@ func makeSchema() throws -> GraphQLSchema {
     name: "ReminderRecurrence",
     fields: [
       "frequency": field(
-        GraphQLNonNull(frequency), \RecurrenceView.frequency,
+        GraphQLNonNull(frequency), { (rule: RecurrenceView) in rule.frequency.rawValue },
         description: FieldDocs.Schedule.frequency),
       "interval": field(
         GraphQLNonNull(GraphQLInt), \RecurrenceView.interval,

@@ -68,8 +68,49 @@ struct ListRecord: Codable, Sendable {
 enum DueStatus: String, Codable, Sendable, CaseIterable {
   case overdue, today, future, unscheduled, unknown
 }
-// Index + 1 is the Gregorian weekday number EventKit uses.
-let weekdayNames = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+// Case order follows EventKit's Gregorian weekday numbers, 1 (Sunday) through 7.
+enum Weekday: String, CaseIterable, Codable, Sendable {
+  case sunday = "SUNDAY"
+  case monday = "MONDAY"
+  case tuesday = "TUESDAY"
+  case wednesday = "WEDNESDAY"
+  case thursday = "THURSDAY"
+  case friday = "FRIDAY"
+  case saturday = "SATURDAY"
+  var number: Int { Self.allCases.firstIndex(of: self)! + 1 }
+  init?(number: Int) {
+    guard (1...7).contains(number) else { return nil }
+    self = Self.allCases[number - 1]
+  }
+}
+// A repeating schedule's unit as both APIs spell it; RecurrenceFrequency is the stored form.
+enum ScheduleFrequency: String, CaseIterable, Codable, Sendable {
+  case daily = "DAILY"
+  case weekly = "WEEKLY"
+  case monthly = "MONTHLY"
+  case yearly = "YEARLY"
+  init?(_ stored: RecurrenceFrequency) {
+    switch stored {
+    case .daily: self = .daily
+    case .weekly: self = .weekly
+    case .monthly: self = .monthly
+    case .yearly: self = .yearly
+    case .unknown: return nil
+    }
+  }
+  var stored: RecurrenceFrequency {
+    switch self {
+    case .daily: .daily
+    case .weekly: .weekly
+    case .monthly: .monthly
+    case .yearly: .yearly
+    }
+  }
+}
+enum GeofenceProximity: String, CaseIterable, Codable, Sendable {
+  case arrive = "ARRIVE"
+  case depart = "DEPART"
+}
 enum ReminderSortField: String, CaseIterable, Sendable {
   case name = "NAME"
   case dueDate = "DUE_DATE"
@@ -85,7 +126,9 @@ struct StructuredLocation: Codable, Sendable {
   let radius: Double
 }
 enum AlarmProximity: String, Codable, Sendable { case none, enter, leave, unknown }
-enum RecurrenceFrequency: String, Codable, Sendable { case daily, weekly, monthly, yearly, unknown }
+enum RecurrenceFrequency: String, CaseIterable, Codable, Sendable {
+  case daily, weekly, monthly, yearly, unknown
+}
 struct AlarmRecord: Codable, Sendable {
   let absoluteDate: String?
   let relativeOffset: Double

@@ -60,7 +60,7 @@ struct AlarmInput: Decodable, Sendable {
 struct GeofenceInput: Decodable, Sendable {
   let title: InputField<String>
   let latitude, longitude, radiusMeters: Double
-  let proximity: String
+  let proximity: GeofenceProximity
 
   enum CodingKeys: String, CodingKey, CaseIterable {
     case title, latitude, longitude, radiusMeters, proximity
@@ -71,7 +71,7 @@ struct GeofenceInput: Decodable, Sendable {
     latitude = try c.decode(Double.self, forKey: .latitude)
     longitude = try c.decode(Double.self, forKey: .longitude)
     radiusMeters = try c.decode(Double.self, forKey: .radiusMeters)
-    proximity = try c.decode(String.self, forKey: .proximity)
+    proximity = try c.decode(GeofenceProximity.self, forKey: .proximity)
   }
 }
 
@@ -221,11 +221,11 @@ func alarmChange(_ input: AlarmInput) throws -> ReminderAlarmChange {
   case (nil, nil, let geo?):
     guard geo.latitude.isFinite, geo.longitude.isFinite, geo.radiusMeters.isFinite,
       (-90...90).contains(geo.latitude), (-180...180).contains(geo.longitude),
-      geo.radiusMeters >= 0, ["ARRIVE", "DEPART"].contains(geo.proximity)
+      geo.radiusMeters >= 0
     else { throw ServerError.invalidArgument("invalid geofence") }
     return .location(
       title: geo.title.value, latitude: geo.latitude, longitude: geo.longitude,
-      radius: geo.radiusMeters, arriving: geo.proximity == "ARRIVE")
+      radius: geo.radiusMeters, arriving: geo.proximity == .arrive)
   default:
     throw ServerError.invalidArgument("each alarm requires exactly one trigger")
   }

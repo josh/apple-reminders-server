@@ -120,7 +120,8 @@ private func toolsCatalog() -> [Tool] {
       "latitude": describe(primitive("number"), FieldDocs.Geofence.latitude),
       "longitude": describe(primitive("number"), FieldDocs.Geofence.longitude),
       "radiusMeters": describe(primitive("number"), FieldDocs.Geofence.radiusMeters),
-      "proximity": describe(enumeration(["ARRIVE", "DEPART"]), FieldDocs.Geofence.proximity),
+      "proximity": describe(
+        enumeration(GeofenceProximity.allCases.map(\.rawValue)), FieldDocs.Geofence.proximity),
     ], required: ["latitude", "longitude", "radiusMeters", "proximity"])
   let alarmKind = "The alarm's trigger type."
   reminder["alarms"] = array(
@@ -128,31 +129,31 @@ private func toolsCatalog() -> [Tool] {
       "oneOf": .array([
         schema(
           [
-            "kind": describe(enumeration(["AbsoluteAlarm"]), alarmKind),
+            "kind": describe(enumeration([AlarmKind.absolute.rawValue]), alarmKind),
             "at": describe(primitive("string"), FieldDocs.AbsoluteAlarm.at),
           ],
           required: ["kind", "at"]),
         schema(
           [
-            "kind": describe(enumeration(["RelativeAlarm"]), alarmKind),
+            "kind": describe(enumeration([AlarmKind.relative.rawValue]), alarmKind),
             "offsetSeconds": describe(primitive("number"), FieldDocs.RelativeAlarm.offsetSeconds),
           ],
           required: ["kind", "offsetSeconds"]),
         schema(
           [
-            "kind": describe(enumeration(["LocationAlarm"]), alarmKind),
+            "kind": describe(enumeration([AlarmKind.location.rawValue]), alarmKind),
             "geofence": describe(geofence, FieldDocs.LocationAlarm.geofence),
           ],
           required: ["kind", "geofence"]),
       ])
     ]))
   var schedule: [String: Value] = [
-    "frequency": enumeration(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]),
+    "frequency": enumeration(ScheduleFrequency.allCases.map(\.rawValue)),
     "interval": primitive("integer"),
     "daysOfWeek": array(
       schema(
         [
-          "day": describe(enumeration(weekdayNames), FieldDocs.ScheduleDay.day),
+          "day": describe(enumeration(Weekday.allCases.map(\.rawValue)), FieldDocs.ScheduleDay.day),
           "ordinal": describe(primitive("integer"), FieldDocs.ScheduleDay.ordinal),
         ], required: ["day"])),
     "end": schema(
@@ -173,7 +174,7 @@ private func toolsCatalog() -> [Tool] {
   let rule = schema(schedule, required: ["frequency", "interval"])
   reminder["recurrence"] = nullable(rule)
   var recurrence: [String: Value] = [
-    "frequency": enumeration(["daily", "weekly", "monthly", "yearly", "unknown"]),
+    "frequency": enumeration(RecurrenceFrequency.allCases.map(\.rawValue)),
     "calendarIdentifier": primitive("string"), "interval": primitive("integer"),
     "firstDayOfTheWeek": primitive("integer"),
     "daysOfTheWeek": array(
@@ -374,7 +375,8 @@ private func toolsCatalog() -> [Tool] {
             FieldDocs.Geofence.longitude),
           "radiusMeters": describe(
             .object(["type": "number", "minimum": 0]), FieldDocs.Geofence.radiusMeters),
-          "proximity": describe(enumeration(["ARRIVE", "DEPART"]), FieldDocs.Geofence.proximity),
+          "proximity": describe(
+            enumeration(GeofenceProximity.allCases.map(\.rawValue)), FieldDocs.Geofence.proximity),
         ], required: ["latitude", "longitude", "radiusMeters", "proximity"]),
       FieldDocs.ReminderAlarmInput.geofence),
   ])

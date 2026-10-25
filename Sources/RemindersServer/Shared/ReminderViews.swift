@@ -2,30 +2,31 @@ import Foundation
 
 struct RecurrenceView: Encodable {
   struct Day: Encodable {
-    let day: String
+    let day: Weekday
     let ordinal: Int?
   }
   struct End: Encodable {
     let until: String?
     let count: Int?
   }
-  let frequency: String, interval: Int
+  let frequency: ScheduleFrequency
+  let interval: Int
   let daysOfWeek: [Day]?
   let daysOfMonth: [Int]?, monthsOfYear: [Int]?, weeksOfYear: [Int]?, daysOfYear: [Int]?,
     setPositions: [Int]?
   let end: End?
   init(_ rule: RecurrenceRecord) throws {
-    guard rule.frequency != .unknown else {
+    guard let frequency = ScheduleFrequency(rule.frequency) else {
       throw ServerError.unsupported("unknown recurrence frequency")
     }
-    frequency = rule.frequency.rawValue.uppercased()
+    self.frequency = frequency
     interval = rule.interval
     let days = try rule.daysOfTheWeek.map { value in
-      guard (1...7).contains(value.dayOfTheWeek) else {
+      guard let day = Weekday(number: value.dayOfTheWeek) else {
         throw ServerError.unsupported("unknown recurrence weekday")
       }
       return Day(
-        day: weekdayNames[value.dayOfTheWeek - 1],
+        day: day,
         ordinal: value.weekNumber == 0 ? nil : value.weekNumber)
     }
     daysOfWeek = days.isEmpty ? nil : days
@@ -47,15 +48,20 @@ struct RecurrenceView: Encodable {
     }
   }
 }
+enum AlarmKind: String, Encodable, Sendable {
+  case absolute = "AbsoluteAlarm"
+  case relative = "RelativeAlarm"
+  case location = "LocationAlarm"
+}
 struct AlarmView: Encodable {
   struct Geofence: Encodable {
     let title: String?
     let latitude: Double
     let longitude: Double
     let radiusMeters: Double
-    let proximity: String
+    let proximity: GeofenceProximity
   }
-  let kind: String
+  let kind: AlarmKind
   let at: String?
   let offsetSeconds: Double?
   let geofence: Geofence?
@@ -73,22 +79,22 @@ struct AlarmView: Encodable {
         throw ServerError.unsupported(
           "incomplete or combined location alarm; inspect rawAlarms")
       }
-      kind = "LocationAlarm"
+      kind = .location
       at = nil
       offsetSeconds = nil
       geofence = Geofence(
         title: location.title, latitude: latitude, longitude: longitude,
-        radiusMeters: location.radius, proximity: alarm.proximity == .enter ? "ARRIVE" : "DEPART")
+        radiusMeters: location.radius, proximity: alarm.proximity == .enter ? .arrive : .depart)
     } else if let date = alarm.absoluteDate {
       guard alarm.relativeOffset == 0 else {
         throw ServerError.unsupported("combined alarm triggers; inspect rawAlarms")
       }
-      kind = "AbsoluteAlarm"
+      kind = .absolute
       at = date
       offsetSeconds = nil
       geofence = nil
     } else {
-      kind = "RelativeAlarm"
+      kind = .relative
       at = nil
       offsetSeconds = alarm.relativeOffset
       geofence = nil

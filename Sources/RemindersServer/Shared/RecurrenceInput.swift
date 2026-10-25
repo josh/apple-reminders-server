@@ -1,20 +1,20 @@
 import Foundation
 
 struct RecurrenceInput: Decodable, Sendable {
-  let frequency: String
+  let frequency: ScheduleFrequency
   let interval: Int
   let daysOfWeek: InputField<[Day]>
   let daysOfMonth, monthsOfYear, weeksOfYear, daysOfYear, setPositions: InputField<[Int]>
   let end: InputField<End>
 
   struct Day: Decodable, Sendable {
-    let day: String
+    let day: Weekday
     let ordinal: InputField<Int>
 
     enum CodingKeys: String, CodingKey, CaseIterable { case day, ordinal }
     init(from decoder: Decoder) throws {
       let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
-      day = try c.decode(String.self, forKey: .day)
+      day = try c.decode(Weekday.self, forKey: .day)
       ordinal = try c.field(.ordinal)
     }
   }
@@ -36,7 +36,7 @@ struct RecurrenceInput: Decodable, Sendable {
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
-    frequency = try c.decode(String.self, forKey: .frequency)
+    frequency = try c.decode(ScheduleFrequency.self, forKey: .frequency)
     interval = try c.decode(Int.self, forKey: .interval)
     daysOfWeek = try c.field(.daysOfWeek)
     daysOfMonth = try c.field(.daysOfMonth)
@@ -49,17 +49,11 @@ struct RecurrenceInput: Decodable, Sendable {
 }
 
 func recurrenceChange(_ input: RecurrenceInput) throws -> ReminderRecurrenceChange {
-  guard let frequency = RecurrenceFrequency(rawValue: input.frequency.lowercased()),
-    input.frequency == input.frequency.uppercased()
-  else { throw ServerError.invalidArgument("unknown recurrence frequency") }
   let days = try input.daysOfWeek.value?.map { value -> ReminderRecurrenceChange.Day in
-    guard let index = weekdayNames.firstIndex(of: value.day) else {
-      throw ServerError.invalidArgument("unknown weekday")
-    }
     if value.ordinal.value == 0 {
       throw ServerError.invalidArgument("omit ordinal instead of supplying zero")
     }
-    return .init(weekday: index + 1, ordinal: value.ordinal.value ?? 0)
+    return .init(weekday: value.day.number, ordinal: value.ordinal.value ?? 0)
   }
   var until: Date?
   var count: Int?
@@ -72,7 +66,7 @@ func recurrenceChange(_ input: RecurrenceInput) throws -> ReminderRecurrenceChan
     count = end.count.value
   }
   return try ReminderRecurrenceChange(
-    frequency: frequency, interval: input.interval, days: days,
+    frequency: input.frequency.stored, interval: input.interval, days: days,
     monthDays: input.daysOfMonth.value, months: input.monthsOfYear.value,
     weeks: input.weeksOfYear.value, yearDays: input.daysOfYear.value,
     positions: input.setPositions.value, until: until, count: count)
