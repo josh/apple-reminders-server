@@ -92,7 +92,7 @@ A grant is a list of objects mapping `graphql` and `mcp` to `r` or `rw`, and
 | `REMINDERS_EXIT_WHEN_IDLE_SECONDS` | Stay running | Exit after this many seconds, 1–86400, without open connections |
 | `REMINDERS_LOG_LEVEL` | `info` | Minimum log level: `trace`, `debug`, `info`, `notice`, `warning`, `error`, or `critical` |
 | `REMINDERS_METRICS_INTERVAL_SECONDS` | `3600` | Delay after each metrics collection, 1–604800 seconds |
-| `REMINDERS_REQUEST_ACCESS` | Off | `1` requests EventKit access at startup |
+| `REMINDERS_REQUEST_ACCESS` | Off | `1` requests EventKit access at startup, unless already granted |
 
 An invalid value stops the server at startup. Other environment variables are
 ignored.

@@ -43,8 +43,11 @@ Task.detached {
       }
       serverLogger.logLevel = config.logLevel
       startMainActorWatchdog()
-      let authorizing = OSAllocatedUnfairLock(initialState: config.requestAccess)
-      if config.requestAccess {
+      // With access already granted there is nothing to request, so requests need not wait
+      // behind the main actor for it.
+      let requestAccess = config.requestAccess && (try? requireAccess()) == nil
+      let authorizing = OSAllocatedUnfairLock(initialState: requestAccess)
+      if requestAccess {
         Task { @MainActor in
           do {
             try await authorizeReminders()
