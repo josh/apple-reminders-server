@@ -113,7 +113,7 @@ func collectMetrics() async throws -> String {
   lines.append("reminders_accounts \(accounts.count)")
   family("reminders_lists", "Number of accessible reminder lists in an account.")
   for account in accounts.sorted() {
-    let count = lists.filter { $0.source.id == account }.count
+    let count = lists.count { $0.source.id == account }
     lines.append("reminders_lists{account_id=\"\(metricEscape(account))\"} \(count)")
   }
   family("reminders_list_info", "Reminder list identity and name, with value 1.")
