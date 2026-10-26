@@ -723,9 +723,7 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
       .update(id: update.id, changes: listChanges(update.patch, creating: false)))
   case .listsDelete:
     let delete = try arguments(ListDeleteArguments.self)
-    let deleted = try await deleteList(
-      id: delete.id, allowNonEmpty: delete.allowNonEmpty ?? false)
-    return try result(deleted)
+    return try await result(deleteList(id: delete.id, allowNonEmpty: delete.allowNonEmpty ?? false))
   case .remindersShow:
     let id = try arguments(IDArguments.self).id
     let shown = try await showReminder(id: id)
@@ -736,8 +734,7 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
   case .listsShow:
     return try result(ListOutput(list: try await showList(id: arguments(IDArguments.self).id)))
   case .remindersDelete:
-    let deleted = try await deleteReminder(id: arguments(IDArguments.self).id)
-    return try result(deleted)
+    return try await result(deleteReminder(id: arguments(IDArguments.self).id))
   case .accountsGet:
     let id = try arguments(IDArguments.self).id
     return try result(AccountOutput(account: await readLists().accounts.first { $0.id == id }))
