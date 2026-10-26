@@ -662,11 +662,10 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
     guard args.isEmpty else { throw ServerError.invalidArgument("Unknown input field") }
   }
   func ids(_ field: [String]?, _ name: String) throws -> [String]? {
-    guard let ids = field else { return nil }
-    guard ids.allSatisfy({ !$0.isEmpty }) else {
+    if field?.contains("") == true {
       throw ServerError.invalidArgument("\(name) must contain nonempty identifiers")
     }
-    return ids
+    return field
   }
   // The page at the cursor offset; nextCursor is the following page's offset, and the
   // client keeps the criteria unchanged.
