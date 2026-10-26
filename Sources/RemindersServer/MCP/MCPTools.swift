@@ -828,8 +828,8 @@ private func errorText(_ error: Error) -> String {
   // Sorted keys put code before message; JSONEncoder does not keep declaration order.
   let encoder = JSONEncoder()
   encoder.outputFormatting = .sortedKeys
-  let data = try? encoder.encode(payload)
-  return data.flatMap { String(data: $0, encoding: .utf8) } ?? String(describing: error)
+  // A code and a message are plain strings, which always encode.
+  return String(decoding: try! encoder.encode(payload), as: UTF8.self)
 }
 
 // The JSON-RPC method of a request body, for logging.
