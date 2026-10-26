@@ -52,7 +52,7 @@ struct ListSearchArguments: Decodable {
   let limit: Int?
   let cursor: String?
 
-  struct Filter: Decodable, Sendable {
+  struct Filter: Decodable {
     let query: String?
     let accountIds: [String]?
     let allowsContentModifications, subscribed: Bool?
@@ -68,7 +68,7 @@ struct ListSearchArguments: Decodable {
       subscribed = try c.decodeIfPresent(Bool.self, forKey: .subscribed)
     }
   }
-  struct Order: Decodable, Sendable {
+  struct Order: Decodable {
     let direction: SortDirection?
     enum CodingKeys: String, CodingKey, CaseIterable { case direction }
     init(from decoder: Decoder) throws {
@@ -92,7 +92,7 @@ struct ReminderSearchArguments: Decodable {
   let limit: Int?
   let cursor: String?
 
-  struct Filter: Decodable, Sendable {
+  struct Filter: Decodable {
     let accountIds, listIds: [String]?
     let query, dueFrom, dueBefore, dueOnOrAfter: String?
     let dueStatus: DueStatus?
@@ -116,7 +116,7 @@ struct ReminderSearchArguments: Decodable {
       priorities = try c.decodeIfPresent([Int].self, forKey: .priorities)
     }
   }
-  struct Order: Decodable, Sendable {
+  struct Order: Decodable {
     let field: ReminderSortField
     let direction: SortDirection?
     enum CodingKeys: String, CodingKey, CaseIterable { case field, direction }
