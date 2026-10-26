@@ -878,53 +878,51 @@ private final class ToolOutcome: @unchecked Sendable {
   let server = Server(
     name: "apple-reminders-server", version: "0.3.0",
     capabilities: .init(tools: .init(listChanged: false)))
-  do {
-    await server.withMethodHandler(ListTools.self) { params in
-      guard params.cursor == nil else { throw MCPError.invalidParams("Tool catalog has no cursor") }
-      outcome.ran = true
-      return .init(tools: tools)
+  await server.withMethodHandler(ListTools.self) { params in
+    guard params.cursor == nil else { throw MCPError.invalidParams("Tool catalog has no cursor") }
+    outcome.ran = true
+    return .init(tools: tools)
+  }
+  await server.withMethodHandler(CallTool.self) { params in
+    guard let tool = ToolName(rawValue: params.name) else {
+      throw MCPError.invalidParams("Unknown tool")
     }
-    await server.withMethodHandler(CallTool.self) { params in
-      guard let tool = ToolName(rawValue: params.name) else {
-        throw MCPError.invalidParams("Unknown tool")
-      }
-      outcome.ran = true
-      guard access == .write || (access == .read && readOnlyTools.contains(params.name)) else {
-        outcome.failed = true
-        return .init(
-          content: [
-            .text(text: "Forbidden: MCP write access required", annotations: nil, _meta: nil)
-          ], isError: true)
-      }
-      do { return try await callTool(tool, params) } catch {
-        outcome.failed = true
-        return .init(
-          content: [.text(text: errorText(error), annotations: nil, _meta: nil)], isError: true)
-      }
+    outcome.ran = true
+    guard access == .write || (access == .read && readOnlyTools.contains(params.name)) else {
+      outcome.failed = true
+      return .init(
+        content: [
+          .text(text: "Forbidden: MCP write access required", annotations: nil, _meta: nil)
+        ], isError: true)
     }
-    try await server.start(transport: transport)
-    let response = await transport.handleRequest(
-      .init(method: method.rawValue, headers: headers, body: body, path: Route.mcp.rawValue))
-    await server.stop()
-    let responseBody = response.bodyData ?? Data()
-    var failure: Failure? = outcome.failed ? .mcpTool : nil
-    // Protocol replies (no tool or catalog handler ran) report errors in the JSON-RPC body.
-    if !outcome.ran,
-      case .message(_, hasError: true)? = try? JSONDecoder().decode(
-        RPCEnvelope.self, from: responseBody)
-    {
-      failure = .mcpProtocol
+    do { return try await callTool(tool, params) } catch {
+      outcome.failed = true
+      return .init(
+        content: [.text(text: errorText(error), annotations: nil, _meta: nil)], isError: true)
     }
-    var headers = HTTPHeaders(response.headers.map { ($0.key, $0.value) })
-    if !headers.contains(name: "Content-Type") {
-      headers.add(name: "Content-Type", value: "application/json")
-    }
-    return ServiceResponse(
-      status: .init(statusCode: response.statusCode), headers: headers, body: responseBody,
-      failure: failure,
-      logMetadata: method == .POST ? ["rpc": jsonRPCMethod(body)] : [:])
-  } catch {
+  }
+  do { try await server.start(transport: transport) } catch {
     await server.stop()
     throw error
   }
+  let response = await transport.handleRequest(
+    .init(method: method.rawValue, headers: headers, body: body, path: Route.mcp.rawValue))
+  await server.stop()
+  let responseBody = response.bodyData ?? Data()
+  var failure: Failure? = outcome.failed ? .mcpTool : nil
+  // Protocol replies (no tool or catalog handler ran) report errors in the JSON-RPC body.
+  if !outcome.ran,
+    case .message(_, hasError: true)? = try? JSONDecoder().decode(
+      RPCEnvelope.self, from: responseBody)
+  {
+    failure = .mcpProtocol
+  }
+  var headers = HTTPHeaders(response.headers.map { ($0.key, $0.value) })
+  if !headers.contains(name: "Content-Type") {
+    headers.add(name: "Content-Type", value: "application/json")
+  }
+  return ServiceResponse(
+    status: .init(statusCode: response.statusCode), headers: headers, body: responseBody,
+    failure: failure,
+    logMetadata: method == .POST ? ["rpc": jsonRPCMethod(body)] : [:])
 }
