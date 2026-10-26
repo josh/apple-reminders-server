@@ -108,7 +108,7 @@ func serve(
 ) async throws {
   let metricsCollector = MetricsCollector()
   let collectionTask = Task {
-    await metricsCollector.run(intervalSeconds: config.metricsInterval)
+    await metricsCollector.run(interval: config.metricsInterval)
   }
   defer { collectionTask.cancel() }
   let handlers: [Route: APIHandler] = [

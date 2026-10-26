@@ -59,23 +59,23 @@ func metricEscape(_ text: String) -> String {
 actor MetricsCollector {
   private(set) var exposition: String?
 
-  func run(intervalSeconds: Int) async {
+  func run(interval: Duration) async {
     var failed = false
-    var delay = intervalSeconds
+    var delay = interval
     while !Task.isCancelled {
       do {
         exposition = try await collectMetrics()
         if failed { serverLogger.info("Metrics collection recovered") }
         failed = false
-        delay = intervalSeconds
+        delay = interval
       } catch {
         logFailure("Metrics collection failed", error: error)
         exposition = nil
         // Retry after a minute, doubling toward the interval so a lasting failure stays quiet.
-        delay = failed ? min(delay * 2, intervalSeconds) : min(60, intervalSeconds)
+        delay = failed ? min(delay * 2, interval) : min(.seconds(60), interval)
         failed = true
       }
-      do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+      do { try await Task.sleep(for: delay) } catch { return }
     }
   }
 }

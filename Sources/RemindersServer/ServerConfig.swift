@@ -18,7 +18,7 @@ struct ServerConfig: Sendable {
   var allowedOrigins: [String] = []
   var exitWhenIdle: Duration?
   var logLevel: Logger.Level = .info
-  var metricsInterval = 3600
+  var metricsInterval: Duration = .seconds(3600)
   var requestAccess = false
 
   init(environment: [String: String]) throws {
@@ -48,7 +48,7 @@ struct ServerConfig: Sendable {
         guard let seconds = Int(value), (1...604800).contains(seconds) else {
           throw invalid(variable, "must be between 1 and 604800 seconds")
         }
-        metricsInterval = seconds
+        metricsInterval = .seconds(seconds)
       case .requestAccess:
         guard value == "1" else { throw invalid(variable, "must be 1 when set") }
         requestAccess = true
