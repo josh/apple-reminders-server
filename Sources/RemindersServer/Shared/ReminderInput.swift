@@ -42,23 +42,23 @@ struct ReminderInput: Decodable, Sendable {
 }
 
 struct AlarmInput: Decodable, Sendable {
-  let absoluteDate: InputField<String>
-  let relativeOffsetSeconds: InputField<Double>
-  let geofence: InputField<GeofenceInput>
+  let absoluteDate: String?
+  let relativeOffsetSeconds: Double?
+  let geofence: GeofenceInput?
 
   enum CodingKeys: String, CodingKey, CaseIterable {
     case absoluteDate, relativeOffsetSeconds, geofence
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
-    absoluteDate = try c.field(.absoluteDate)
-    relativeOffsetSeconds = try c.field(.relativeOffsetSeconds)
-    geofence = try c.field(.geofence)
+    absoluteDate = try c.decodeIfPresent(String.self, forKey: .absoluteDate)
+    relativeOffsetSeconds = try c.decodeIfPresent(Double.self, forKey: .relativeOffsetSeconds)
+    geofence = try c.decodeIfPresent(GeofenceInput.self, forKey: .geofence)
   }
 }
 
 struct GeofenceInput: Decodable, Sendable {
-  let title: InputField<String>
+  let title: String?
   let latitude, longitude, radiusMeters: Double
   let proximity: GeofenceProximity
 
@@ -67,7 +67,7 @@ struct GeofenceInput: Decodable, Sendable {
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
-    title = try c.field(.title)
+    title = try c.decodeIfPresent(String.self, forKey: .title)
     latitude = try c.decode(Double.self, forKey: .latitude)
     longitude = try c.decode(Double.self, forKey: .longitude)
     radiusMeters = try c.decode(Double.self, forKey: .radiusMeters)
@@ -202,7 +202,7 @@ func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderC
 }
 
 func alarmChange(_ input: AlarmInput) throws -> ReminderAlarmChange {
-  switch (input.absoluteDate.value, input.relativeOffsetSeconds.value, input.geofence.value) {
+  switch (input.absoluteDate, input.relativeOffsetSeconds, input.geofence) {
   case (let date?, nil, nil):
     return .absolute(try parseTimestamp(date))
   case (nil, let offset?, nil):
@@ -216,7 +216,7 @@ func alarmChange(_ input: AlarmInput) throws -> ReminderAlarmChange {
       geo.radiusMeters >= 0
     else { throw ServerError.invalidArgument("invalid geofence") }
     return .location(
-      title: geo.title.value, latitude: geo.latitude, longitude: geo.longitude,
+      title: geo.title, latitude: geo.latitude, longitude: geo.longitude,
       radius: geo.radiusMeters, arriving: geo.proximity == .arrive)
   default:
     throw ServerError.invalidArgument("each alarm requires exactly one trigger")
