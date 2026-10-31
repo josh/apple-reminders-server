@@ -1,5 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "enabledManagers": ["swift", "github-actions"]
+  "enabledManagers": ["swift", "github-actions"],
+  "rebaseWhen": "behind-base-branch",
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch", "minor"],
+      "assignees": ["merge-bot"]
+    }
+  ]
 }
