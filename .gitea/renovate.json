@@ -3,6 +3,7 @@
   "extends": ["config:recommended"],
   "enabledManagers": ["swift", "github-actions"],
   "rebaseWhen": "behind-base-branch",
+  "minimumReleaseAge": "7 days",
   "packageRules": [
     {
       "matchUpdateTypes": ["patch", "minor"],
