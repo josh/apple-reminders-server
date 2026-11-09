@@ -3314,6 +3314,14 @@
                 "description": "Match completed or incomplete reminders; omission includes both.",
                 "type": "boolean"
               },
+              "completedBefore": {
+                "description": "Exclusive upper completion-time bound. Matches only completed reminders with a completion timestamp.",
+                "type": "string"
+              },
+              "completedFrom": {
+                "description": "Inclusive lower completion-time bound. Matches only completed reminders with a completion timestamp.",
+                "type": "string"
+              },
               "dueBefore": {
                 "description": "Exclusive upper deadline bound: timestamp or YYYY-MM-DD. Do not mix timestamp and calendar-day bounds.",
                 "type": "string"

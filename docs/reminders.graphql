@@ -305,6 +305,16 @@ input ReminderFilter {
   completed: Boolean
 
   """
+  Inclusive lower completion-time bound. Matches only completed reminders with a completion timestamp.
+  """
+  completedFrom: DateTime
+
+  """
+  Exclusive upper completion-time bound. Matches only completed reminders with a completion timestamp.
+  """
+  completedBefore: DateTime
+
+  """
   Case-insensitive substring of the reminder name.
   """
   nameContains: String

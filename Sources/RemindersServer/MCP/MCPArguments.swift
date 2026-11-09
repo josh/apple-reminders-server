@@ -95,12 +95,14 @@ struct ReminderSearchArguments: Decodable {
   struct Filter: Decodable {
     let accountIds, listIds: [String]?
     let query, dueFrom, dueBefore, dueOnOrAfter: String?
+    let completedFrom, completedBefore: String?
     let dueStatus: DueStatus?
     let completed, hasDueDate: Bool?
     let priorities: [Int]?
     enum CodingKeys: String, CodingKey, CaseIterable {
       case accountIds, listIds, query, dueFrom, dueBefore, dueOnOrAfter, dueStatus, completed
       case hasDueDate, priorities
+      case completedFrom, completedBefore
     }
     init(from decoder: Decoder) throws {
       let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
@@ -112,6 +114,8 @@ struct ReminderSearchArguments: Decodable {
       dueOnOrAfter = try c.decodeIfPresent(String.self, forKey: .dueOnOrAfter)
       dueStatus = try c.decodeIfPresent(DueStatus.self, forKey: .dueStatus)
       completed = try c.decodeIfPresent(Bool.self, forKey: .completed)
+      completedFrom = try c.decodeIfPresent(String.self, forKey: .completedFrom)
+      completedBefore = try c.decodeIfPresent(String.self, forKey: .completedBefore)
       hasDueDate = try c.decodeIfPresent(Bool.self, forKey: .hasDueDate)
       priorities = try c.decodeIfPresent([Int].self, forKey: .priorities)
     }

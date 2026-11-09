@@ -324,6 +324,8 @@ private func toolsCatalog() -> [Tool] {
             .dueStatus: describe(
               enumeration(DueStatus.allCases.map(\.rawValue)), FieldDocs.ReminderFilter.dueStatus),
             .completed: describe(boolean, FieldDocs.ReminderFilter.completed),
+            .completedFrom: describe(string, FieldDocs.ReminderFilter.completedFrom),
+            .completedBefore: describe(string, FieldDocs.ReminderFilter.completedBefore),
             .hasDueDate: describe(boolean, FieldDocs.ReminderFilter.hasDueDate),
             .priorities: describe(
               array(priority),
@@ -787,6 +789,8 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
       criteria.listIds = try ids(filter.listIds, "listIds")
       criteria.hasDueDate = filter.hasDueDate
       criteria.completed = filter.completed
+      criteria.completedFrom = filter.completedFrom
+      criteria.completedBefore = filter.completedBefore
       criteria.priorities = filter.priorities
       criteria.dueStatus = filter.dueStatus
     }

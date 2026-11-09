@@ -10,12 +10,14 @@ struct GraphQLReminderSearch: Decodable {
 
   struct Filter: Decodable, Sendable {
     let query, nameContains, dueStatus, dueOnOrAfter, dueBefore, dueFrom: InputField<String>
+    let completedFrom, completedBefore: InputField<String>
     let accountIds, listIds: InputField<[String]>
     let hasDueDate, completed, flagged: InputField<Bool>
     let priorities: InputField<[Int]>
     enum CodingKeys: String, CodingKey, CaseIterable {
       case query, nameContains, dueStatus, dueOnOrAfter, dueBefore, dueFrom, accountIds, listIds
       case hasDueDate, completed, flagged, priorities
+      case completedFrom, completedBefore
     }
     init(from decoder: Decoder) throws {
       let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
@@ -29,6 +31,8 @@ struct GraphQLReminderSearch: Decodable {
       listIds = try c.field(.listIds)
       hasDueDate = try c.field(.hasDueDate)
       completed = try c.field(.completed)
+      completedFrom = try c.field(.completedFrom)
+      completedBefore = try c.field(.completedBefore)
       flagged = try c.field(.flagged)
       priorities = try c.field(.priorities)
     }

@@ -38,6 +38,8 @@ private func searchPage(
     search.listIds = filter.listIds.value
     search.hasDueDate = filter.hasDueDate.value
     search.completed = filter.completed.value
+    search.completedFrom = filter.completedFrom.value
+    search.completedBefore = filter.completedBefore.value
     search.priorities = filter.priorities.value
     // Enum values are the uppercase names; records store lowercase statuses.
     search.dueStatus = filter.dueStatus.value.flatMap { DueStatus(rawValue: $0.lowercased()) }
@@ -523,6 +525,10 @@ func makeSchema() throws -> GraphQLSchema {
         type: GraphQLString, description: FieldDocs.ReminderFilter.dueBefore),
       "completed": InputObjectField(
         type: GraphQLBoolean, description: FieldDocs.ReminderFilter.completed),
+      "completedFrom": InputObjectField(
+        type: dateTime, description: FieldDocs.ReminderFilter.completedFrom),
+      "completedBefore": InputObjectField(
+        type: dateTime, description: FieldDocs.ReminderFilter.completedBefore),
       "nameContains": InputObjectField(
         type: GraphQLString, description: "Case-insensitive substring of the reminder name."),
     ])

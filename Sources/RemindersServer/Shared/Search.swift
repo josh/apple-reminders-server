@@ -17,6 +17,7 @@ struct Search: Sendable {
   var listIds: [String]?
   var hasDueDate: Bool?
   var completed: Bool?
+  var completedFrom, completedBefore: String?
   var priorities: [Int]?
   var dueStatus: DueStatus?
   var dueFrom: String?
@@ -44,12 +45,24 @@ struct Search: Sendable {
     if let fromDate, let beforeDate, fromDate >= beforeDate {
       throw ServerError.invalidArgument("dueFrom must precede dueBefore")
     }
+    let completionFrom = try completedFrom.map(parseTimestamp)
+    let completionBefore = try completedBefore.map(parseTimestamp)
+    if let completionFrom, let completionBefore, completionFrom >= completionBefore {
+      throw ServerError.invalidArgument("completedFrom must precede completedBefore")
+    }
     let accountLists = accountIds.map { ids in
       Set(data.lists.filter { ids.contains($0.source.id) }.map(\.id))
     }
     let text = query?.lowercased()
     let name = nameContains?.lowercased()
-    let items = data.reminders.filter { item in
+    let items = try data.reminders.filter { item in
+      if completionFrom != nil || completionBefore != nil {
+        guard item.completed, let completion = item.completionDate else { return false }
+        let date = try parseTimestamp(completion)
+        guard completionFrom == nil || date >= completionFrom!,
+          completionBefore == nil || date < completionBefore!
+        else { return false }
+      }
       if fromDate != nil || beforeDate != nil {
         guard let date = (try? projectDate(item.dueDateComponents))?.instant,
           fromDate == nil || date >= fromDate!, beforeDate == nil || date < beforeDate!

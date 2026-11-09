@@ -35,6 +35,10 @@ enum FieldDocs {
       "Direction of ordering. Nulls sort last either way and ties use identifier order; without orderBy, reminders use identifier order."
   }
   enum ReminderFilter {
+    static let completedFrom =
+      "Inclusive lower completion-time bound. Matches only completed reminders with a completion timestamp."
+    static let completedBefore =
+      "Exclusive upper completion-time bound. Matches only completed reminders with a completion timestamp."
     static let query = "Match text in the reminder name or notes."
     static let accountIds = "Match reminders belonging to these accounts; [] matches nothing."
     static let hasDueDate = "Match reminders with or without a timed or all-day deadline."
