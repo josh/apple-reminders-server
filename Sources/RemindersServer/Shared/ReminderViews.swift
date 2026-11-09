@@ -69,11 +69,18 @@ struct AlarmView: Encodable {
     enum CodingKeys: String, CodingKey { case title, latitude, longitude, radiusMeters, proximity }
   }
   let kind: AlarmKind
+  let action: String
+  let soundName, emailAddress: String?
   let at: String?
   let offsetSeconds: Double?
   let geofence: Geofence?
-  enum CodingKeys: String, CodingKey { case kind, at, offsetSeconds, geofence }
+  enum CodingKeys: String, CodingKey {
+    case kind, action, soundName, emailAddress, at, offsetSeconds, geofence
+  }
   init(_ alarm: AlarmRecord) throws {
+    action = alarm.action
+    soundName = alarm.soundName
+    emailAddress = alarm.emailAddress
     guard alarm.relativeOffset.isFinite else {
       throw ServerError.unsupported("nonfinite alarm offset")
     }

@@ -94,6 +94,23 @@ and [recurrence-rule support](https://developer.apple.com/documentation/eventkit
 
 Date components distinguish floating zones and all-day dates.
 
+Apple documents `soundName` and `emailAddress` as mutually exclusive audio and
+email actions. Native objects can behave differently: a sound name can accompany
+a display action, and assigning an email address can leave the sound name set.
+The server accepts only one delivery option per alarm and returns the actual
+stored action. It verifies requested settings after saving and reports
+`WRITE_APPLIED` if the provider changes or drops them. Stored settings do not
+prove that a notification will be delivered.
+See [soundName](https://developer.apple.com/documentation/eventkit/ekalarm/soundname)
+and [emailAddress](https://developer.apple.com/documentation/eventkit/ekalarm/emailaddress).
+
+Live GraphQL and MCP tests on macOS 27.2 (26B123) with an iCloud reminder list
+discarded both sound names and email recipients on save. Absolute and relative
+triggers remained as display alarms, and the server returned `WRITE_APPLIED`
+with the saved reminder ID. These delivery options are therefore not supported
+by that tested store; accepting the input does not establish provider support.
+Tests used disposable reminders with triggers in 2099 and did not test delivery.
+
 ## Identifiers and refresh
 
 Apple warns that `calendarItemIdentifier` can be lost during a full sync.

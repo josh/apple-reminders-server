@@ -330,6 +330,15 @@ func makeSchema() throws -> GraphQLSchema {
     name: "RawAlarm",
     description: "An alarm exactly as stored.",
     fields: [
+      "action": field(
+        GraphQLNonNull(GraphQLString), \AlarmRecord.action,
+        description: FieldDocs.RawAlarm.action),
+      "soundName": field(
+        GraphQLString, \AlarmRecord.soundName,
+        description: FieldDocs.RawAlarm.soundName),
+      "emailAddress": field(
+        GraphQLString, \AlarmRecord.emailAddress,
+        description: FieldDocs.RawAlarm.emailAddress),
       "absoluteDate": field(
         dateTime, \AlarmRecord.absoluteDate, description: FieldDocs.RawAlarm.absoluteDate),
       "relativeOffset": field(
@@ -369,21 +378,48 @@ func makeSchema() throws -> GraphQLSchema {
   let absoluteAlarm = try GraphQLObjectType(
     name: AlarmKind.absolute.rawValue,
     fields: [
-      "at": field(GraphQLNonNull(dateTime), \AlarmView.at, description: FieldDocs.AbsoluteAlarm.at)
+      "action": field(
+        GraphQLNonNull(GraphQLString), \AlarmView.action,
+        description: FieldDocs.RawAlarm.action),
+      "soundName": field(
+        GraphQLString, \AlarmView.soundName,
+        description: FieldDocs.RawAlarm.soundName),
+      "emailAddress": field(
+        GraphQLString, \AlarmView.emailAddress,
+        description: FieldDocs.RawAlarm.emailAddress),
+      "at": field(GraphQLNonNull(dateTime), \AlarmView.at, description: FieldDocs.AbsoluteAlarm.at),
     ])
   let relativeAlarm = try GraphQLObjectType(
     name: AlarmKind.relative.rawValue,
     fields: [
+      "action": field(
+        GraphQLNonNull(GraphQLString), \AlarmView.action,
+        description: FieldDocs.RawAlarm.action),
+      "soundName": field(
+        GraphQLString, \AlarmView.soundName,
+        description: FieldDocs.RawAlarm.soundName),
+      "emailAddress": field(
+        GraphQLString, \AlarmView.emailAddress,
+        description: FieldDocs.RawAlarm.emailAddress),
       "offsetSeconds": field(
         GraphQLNonNull(GraphQLFloat), \AlarmView.offsetSeconds,
-        description: FieldDocs.RelativeAlarm.offsetSeconds)
+        description: FieldDocs.RelativeAlarm.offsetSeconds),
     ])
   let locationAlarm = try GraphQLObjectType(
     name: AlarmKind.location.rawValue,
     fields: [
+      "action": field(
+        GraphQLNonNull(GraphQLString), \AlarmView.action,
+        description: FieldDocs.RawAlarm.action),
+      "soundName": field(
+        GraphQLString, \AlarmView.soundName,
+        description: FieldDocs.RawAlarm.soundName),
+      "emailAddress": field(
+        GraphQLString, \AlarmView.emailAddress,
+        description: FieldDocs.RawAlarm.emailAddress),
       "geofence": field(
         GraphQLNonNull(geofence), \AlarmView.geofence, description: FieldDocs.LocationAlarm.geofence
-      )
+      ),
     ])
   let alarmUnion = try GraphQLUnionType(
     name: "ReminderAlarm",

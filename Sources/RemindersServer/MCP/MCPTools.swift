@@ -115,12 +115,15 @@ private func toolsCatalog() -> [Tool] {
   let rawAlarm = schema(
     AlarmRecord.CodingKeys.self,
     [
+      .action: describe(string, FieldDocs.RawAlarm.action),
+      .soundName: describe(string, FieldDocs.RawAlarm.soundName),
+      .emailAddress: describe(string, FieldDocs.RawAlarm.emailAddress),
       .absoluteDate: describe(string, FieldDocs.RawAlarm.absoluteDate),
       .relativeOffset: describe(number, FieldDocs.RawAlarm.relativeOffset),
       .proximity: describe(
         enumeration(AlarmProximity.allCases.map(\.rawValue)), FieldDocs.RawAlarm.proximity),
       .structuredLocation: describe(structuredLocation, FieldDocs.RawAlarm.structuredLocation),
-    ], required: [.relativeOffset, .proximity])
+    ], required: [.action, .relativeOffset, .proximity])
   let geofence = schema(
     AlarmView.Geofence.CodingKeys.self,
     [
@@ -138,20 +141,29 @@ private func toolsCatalog() -> [Tool] {
         AlarmView.CodingKeys.self,
         [
           .kind: describe(enumeration([AlarmKind.absolute.rawValue]), alarmKind),
+          .action: describe(string, FieldDocs.RawAlarm.action),
+          .soundName: describe(string, FieldDocs.RawAlarm.soundName),
+          .emailAddress: describe(string, FieldDocs.RawAlarm.emailAddress),
           .at: describe(string, FieldDocs.AbsoluteAlarm.at),
-        ], required: [.kind, .at]),
+        ], required: [.kind, .action, .at]),
       schema(
         AlarmView.CodingKeys.self,
         [
           .kind: describe(enumeration([AlarmKind.relative.rawValue]), alarmKind),
+          .action: describe(string, FieldDocs.RawAlarm.action),
+          .soundName: describe(string, FieldDocs.RawAlarm.soundName),
+          .emailAddress: describe(string, FieldDocs.RawAlarm.emailAddress),
           .offsetSeconds: describe(number, FieldDocs.RelativeAlarm.offsetSeconds),
-        ], required: [.kind, .offsetSeconds]),
+        ], required: [.kind, .action, .offsetSeconds]),
       schema(
         AlarmView.CodingKeys.self,
         [
           .kind: describe(enumeration([AlarmKind.location.rawValue]), alarmKind),
+          .action: describe(string, FieldDocs.RawAlarm.action),
+          .soundName: describe(string, FieldDocs.RawAlarm.soundName),
+          .emailAddress: describe(string, FieldDocs.RawAlarm.emailAddress),
           .geofence: describe(geofence, FieldDocs.LocationAlarm.geofence),
-        ], required: [.kind, .geofence]),
+        ], required: [.kind, .action, .geofence]),
     ])
   ])
   // Reminder output and input use the same repeating-schedule shape.
@@ -384,6 +396,8 @@ private func toolsCatalog() -> [Tool] {
   let alarmInput = schema(
     AlarmInput.CodingKeys.self,
     [
+      .soundName: describe(string, FieldDocs.ReminderAlarmInput.soundName),
+      .emailAddress: describe(string, FieldDocs.ReminderAlarmInput.emailAddress),
       .absoluteDate: describe(string, FieldDocs.ReminderAlarmInput.absoluteDate),
       .relativeOffsetSeconds: describe(number, FieldDocs.ReminderAlarmInput.relativeOffsetSeconds),
       .geofence: describe(
@@ -452,6 +466,10 @@ private func toolsCatalog() -> [Tool] {
     readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
   let changed = Tool.Annotations(
     readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false)
+  let reminderCreated = Tool.Annotations(
+    readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true)
+  let reminderChanged = Tool.Annotations(
+    readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true)
   let listPatch = schema(
     ListInput.CodingKeys.self,
     [
@@ -567,13 +585,14 @@ private func toolsCatalog() -> [Tool] {
       name: ToolName.remindersCreate.rawValue,
       description:
         "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
-      inputSchema: createReminder, annotations: created,
+      inputSchema: createReminder, annotations: reminderCreated,
       outputSchema: reminderResult(item, "The saved reminder.")),
     Tool(
       name: ToolName.remindersUpdate.rawValue,
       description:
         "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch before retrying.",
-      inputSchema: patch(ReminderInput.self, "reminder", reminderPatch), annotations: changed,
+      inputSchema: patch(ReminderInput.self, "reminder", reminderPatch),
+      annotations: reminderChanged,
       outputSchema: reminderResult(item, "The saved reminder.")),
     Tool(
       name: ToolName.remindersDelete.rawValue,

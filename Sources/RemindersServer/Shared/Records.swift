@@ -121,7 +121,7 @@ enum ReminderSortField: String, CaseIterable, Decodable, Sendable {
   case modificationDate = "MODIFICATION_DATE"
   case completionDate = "COMPLETION_DATE"
 }
-struct StructuredLocation: Encodable, Sendable {
+struct StructuredLocation: Encodable, Sendable, Equatable {
   let title: String?
   let latitude: Double?
   let longitude: Double?
@@ -133,12 +133,15 @@ enum RecurrenceFrequency: String, CaseIterable, Encodable, Sendable {
   case daily, weekly, monthly, yearly, unknown
 }
 struct AlarmRecord: Encodable, Sendable {
+  let action: String
+  let soundName, emailAddress: String?
   let absoluteDate: String?
   let relativeOffset: Double
   let proximity: AlarmProximity
   let structuredLocation: StructuredLocation?
   enum CodingKeys: String, CodingKey {
-    case absoluteDate, relativeOffset, proximity, structuredLocation
+    case action, soundName, emailAddress, absoluteDate, relativeOffset, proximity,
+      structuredLocation
   }
 }
 struct RecurrenceDay: Encodable, Sendable {

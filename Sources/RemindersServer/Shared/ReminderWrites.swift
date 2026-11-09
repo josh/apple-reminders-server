@@ -1,3 +1,4 @@
+import AppKit
 import CoreLocation
 import EventKit
 import Foundation
@@ -27,10 +28,15 @@ enum ReminderClearValue: String, Sendable, CaseIterable {
     }
   }
 }
-enum ReminderAlarmChange: Equatable, Sendable {
+enum ReminderAlarmTrigger: Equatable, Sendable {
   case absolute(Date)
   case relative(Double)
   case location(title: String?, latitude: Double, longitude: Double, radius: Double, arriving: Bool)
+}
+struct ReminderAlarmChange: Equatable, Sendable {
+  let trigger: ReminderAlarmTrigger
+  let soundName: String?
+  let emailAddress: String?
 }
 struct ReminderChanges: Equatable, Sendable {
   var listId: String?
@@ -100,6 +106,7 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   guard let list = item.calendar, list.allowsContentModifications else {
     throw ServerError.readOnly("reminder list is not editable")
   }
+  let listID = list.calendarIdentifier
   if let name = patch.name {
     guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       throw ServerError.invalidArgument("name must not be blank")
@@ -138,21 +145,13 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   }
   if patch.clear.contains(.recurrence) { item.recurrenceRules = nil }
   if let recurrence = patch.recurrence { item.recurrenceRules = [recurrence.eventKitRule()] }
+  var requestedDelivery: [AlarmRecord] = []
   if let alarms = patch.alarms {
-    item.alarms = alarms.map { value in
-      switch value {
-      case .absolute(let date): return EKAlarm(absoluteDate: date)
-      case .relative(let offset): return EKAlarm(relativeOffset: offset)
-      case .location(let title, let latitude, let longitude, let radius, let arriving):
-        let alarm = EKAlarm(relativeOffset: 0)
-        let location = EKStructuredLocation(title: title ?? "")
-        location.geoLocation = CLLocation(latitude: latitude, longitude: longitude)
-        location.radius = radius
-        alarm.structuredLocation = location
-        alarm.proximity = arriving ? .enter : .leave
-        return alarm
-      }
-    }
+    let configured = try alarms.map(makeReminderAlarm)
+    requestedDelivery =
+      configured
+      .filter { $0.soundName != nil || $0.emailAddress != nil }.map(AlarmRecord.init)
+    item.alarms = configured
   }
   if item.startDateComponents == nil,
     (item.alarms ?? []).contains(where: {
@@ -180,16 +179,23 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
     )
   }
   let savedItem: EKReminder
-  if let destinationID = patch.listId {
+  if patch.listId != nil || !requestedDelivery.isEmpty {
     let savedID = item.calendarItemIdentifier
     store.reset()
-    guard let refreshed = store.calendarItem(withIdentifier: savedID) as? EKReminder,
-      refreshed.calendar?.calendarIdentifier == destinationID
-    else {
+    guard let refreshed = store.calendarItem(withIdentifier: savedID) as? EKReminder else {
+      throw ServerError.writeApplied(
+        "reminder \(savedID) was saved but is unavailable for verification; refetch before retrying"
+      )
+    }
+    if let destinationID = patch.listId,
+      refreshed.calendar?.calendarIdentifier != destinationID
+    {
       throw ServerError.writeApplied(
         "reminder \(savedID) was saved, but its destination list could not be verified; refetch this ID before retrying"
       )
     }
+    try verifyAlarmDelivery(
+      requestedDelivery, stored: (refreshed.alarms ?? []).map(AlarmRecord.init), id: savedID)
     savedItem = refreshed
   } else {
     savedItem = item
@@ -197,14 +203,59 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   if automation {
     return .automation(
       PendingAutomation(
-        reminderID: savedItem.calendarItemIdentifier,
-        listID: patch.listId ?? list.calendarIdentifier,
+        reminderID: savedItem.calendarItemIdentifier, listID: listID,
         flagged: patch.flagged, remindMeDate: patch.remindMeDate))
   }
   do { return .finished(try ReminderRecord(savedItem, now: Date(), flagged: nil)) } catch {
     throw ServerError.writeApplied(
       "EventKit saved reminder \(savedItem.calendarItemIdentifier), but response projection failed: \(error). Refetch this ID before retrying"
     )
+  }
+}
+
+@MainActor
+func makeReminderAlarm(_ value: ReminderAlarmChange) throws -> EKAlarm {
+  let alarm: EKAlarm
+  switch value.trigger {
+  case .absolute(let date): alarm = EKAlarm(absoluteDate: date)
+  case .relative(let offset): alarm = EKAlarm(relativeOffset: offset)
+  case .location(let title, let latitude, let longitude, let radius, let arriving):
+    alarm = EKAlarm(relativeOffset: 0)
+    let location = EKStructuredLocation(title: title ?? "")
+    location.geoLocation = CLLocation(latitude: latitude, longitude: longitude)
+    location.radius = radius
+    alarm.structuredLocation = location
+    alarm.proximity = arriving ? .enter : .leave
+  }
+  if let sound = value.soundName {
+    guard NSSound(named: NSSound.Name(sound)) != nil else {
+      throw ServerError.invalidArgument("soundName must name an available system sound")
+    }
+    alarm.soundName = sound
+  }
+  if let email = value.emailAddress { alarm.emailAddress = email }
+  return alarm
+}
+
+// Compare triggers and delivery settings. A sound can accompany a display or audio action.
+func verifyAlarmDelivery(_ requested: [AlarmRecord], stored: [AlarmRecord], id: String) throws {
+  var unmatched = stored
+  for alarm in requested {
+    let index = unmatched.firstIndex {
+      let actionMatches =
+        alarm.soundName != nil
+        ? ["display", "audio"].contains($0.action) : $0.action == alarm.action
+      return actionMatches && $0.soundName == alarm.soundName
+        && $0.emailAddress == alarm.emailAddress
+        && $0.absoluteDate == alarm.absoluteDate && $0.relativeOffset == alarm.relativeOffset
+        && $0.proximity == alarm.proximity && $0.structuredLocation == alarm.structuredLocation
+    }
+    guard let index else {
+      throw ServerError.writeApplied(
+        "reminder \(id) was saved, but the provider did not retain the requested alarm delivery; refetch this ID before retrying"
+      )
+    }
+    unmatched.remove(at: index)
   }
 }
 

@@ -23,6 +23,7 @@ the EventKit save, so a write can partly succeed:
 | Outcome | Response | Client action |
 | --- | --- | --- |
 | Automation fails after the save | Null result, `WRITE_APPLIED` error naming the saved ID | Inspect that ID and apply only what is missing; never repeat a create automatically. |
+| Requested sound/email alarms are not retained after the save | Null result, `WRITE_APPLIED` error naming the saved ID | Inspect the stored alarms before retrying; the provider may not support these alarm actions. |
 | A response field fails after the save | Selected fields such as `id` remain; the failed field is null with an error | Always select `id` and keep it even when `errors` is present. |
 | Navigation fails after showing | `SHOW_APPLIED`, or `SHOW_FAILED` if it may have changed the UI | Treat the UI as possibly changed. |
 | Timeout or lost connection | No confirmed outcome | Check existing data before retrying a create. |

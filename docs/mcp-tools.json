@@ -337,22 +337,42 @@
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
                         "at": {
                           "description": "The date and time at which the alert triggers.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
                           "type": "string"
                         },
                         "kind": {
                           "description": "The alarm's trigger type.",
                           "enum": ["AbsoluteAlarm"],
                           "type": "string"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "at"],
+                      "required": ["kind", "action", "at"],
                       "type": "object"
                     },
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
+                          "type": "string"
+                        },
                         "kind": {
                           "description": "The alarm's trigger type.",
                           "enum": ["RelativeAlarm"],
@@ -361,14 +381,26 @@
                         "offsetSeconds": {
                           "description": "Seconds from the start date: negative before, zero at, positive after.",
                           "type": "number"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "offsetSeconds"],
+                      "required": ["kind", "action", "offsetSeconds"],
                       "type": "object"
                     },
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
+                          "type": "string"
+                        },
                         "geofence": {
                           "additionalProperties": false,
                           "description": "Region and direction that trigger the alert.",
@@ -407,9 +439,13 @@
                           "description": "The alarm's trigger type.",
                           "enum": ["LocationAlarm"],
                           "type": "string"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "geofence"],
+                      "required": ["kind", "action", "geofence"],
                       "type": "object"
                     }
                   ]
@@ -587,6 +623,14 @@
                       "description": "Absolute trigger time, when set.",
                       "type": "string"
                     },
+                    "action": {
+                      "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                      "type": "string"
+                    },
+                    "emailAddress": {
+                      "description": "Stored email alarm recipient, when set.",
+                      "type": "string"
+                    },
                     "proximity": {
                       "description": "none, enter, leave, or unknown.",
                       "enum": ["none", "enter", "leave", "unknown"],
@@ -595,6 +639,10 @@
                     "relativeOffset": {
                       "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                       "type": "number"
+                    },
+                    "soundName": {
+                      "description": "Stored sound name, when set.",
+                      "type": "string"
                     },
                     "structuredLocation": {
                       "additionalProperties": false,
@@ -621,7 +669,7 @@
                       "type": "object"
                     }
                   },
-                  "required": ["relativeOffset", "proximity"],
+                  "required": ["action", "relativeOffset", "proximity"],
                   "type": "object"
                 },
                 "type": "array"
@@ -1044,7 +1092,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false
       },
       "description": "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
@@ -1058,6 +1106,10 @@
               "properties": {
                 "absoluteDate": {
                   "description": "Trigger at this instant.",
+                  "type": "string"
+                },
+                "emailAddress": {
+                  "description": "Email alarm recipient as a single address without whitespace. Mutually exclusive with soundName. Provider support is required; saving does not guarantee delivery.",
                   "type": "string"
                 },
                 "geofence": {
@@ -1102,6 +1154,10 @@
                 "relativeOffsetSeconds": {
                   "description": "Seconds from the reminder's start date; negative means before. Requires a resulting start date.",
                   "type": "number"
+                },
+                "soundName": {
+                  "description": "Available macOS sound name, such as Glass. Mutually exclusive with emailAddress. Omit both for a display alarm. Provider support is required; saving does not guarantee notification delivery.",
+                  "type": "string"
                 }
               },
               "required": [],
@@ -1278,22 +1334,42 @@
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
                         "at": {
                           "description": "The date and time at which the alert triggers.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
                           "type": "string"
                         },
                         "kind": {
                           "description": "The alarm's trigger type.",
                           "enum": ["AbsoluteAlarm"],
                           "type": "string"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "at"],
+                      "required": ["kind", "action", "at"],
                       "type": "object"
                     },
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
+                          "type": "string"
+                        },
                         "kind": {
                           "description": "The alarm's trigger type.",
                           "enum": ["RelativeAlarm"],
@@ -1302,14 +1378,26 @@
                         "offsetSeconds": {
                           "description": "Seconds from the start date: negative before, zero at, positive after.",
                           "type": "number"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "offsetSeconds"],
+                      "required": ["kind", "action", "offsetSeconds"],
                       "type": "object"
                     },
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
+                          "type": "string"
+                        },
                         "geofence": {
                           "additionalProperties": false,
                           "description": "Region and direction that trigger the alert.",
@@ -1348,9 +1436,13 @@
                           "description": "The alarm's trigger type.",
                           "enum": ["LocationAlarm"],
                           "type": "string"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "geofence"],
+                      "required": ["kind", "action", "geofence"],
                       "type": "object"
                     }
                   ]
@@ -1528,6 +1620,14 @@
                       "description": "Absolute trigger time, when set.",
                       "type": "string"
                     },
+                    "action": {
+                      "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                      "type": "string"
+                    },
+                    "emailAddress": {
+                      "description": "Stored email alarm recipient, when set.",
+                      "type": "string"
+                    },
                     "proximity": {
                       "description": "none, enter, leave, or unknown.",
                       "enum": ["none", "enter", "leave", "unknown"],
@@ -1536,6 +1636,10 @@
                     "relativeOffset": {
                       "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                       "type": "number"
+                    },
+                    "soundName": {
+                      "description": "Stored sound name, when set.",
+                      "type": "string"
                     },
                     "structuredLocation": {
                       "additionalProperties": false,
@@ -1562,7 +1666,7 @@
                       "type": "object"
                     }
                   },
-                  "required": ["relativeOffset", "proximity"],
+                  "required": ["action", "relativeOffset", "proximity"],
                   "type": "object"
                 },
                 "type": "array"
@@ -1898,7 +2002,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false
       },
       "description": "Patch a reminder by ID. Omitted fields are unchanged; null is invalid. At least one change is required. clearFields removes optional values; [] alone is not a change. Do not set and clear a property together, or combine completed and completionDate changes. alarms replaces all alerts; [] removes them. Dates can affect alerts. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch before retrying.",
@@ -1920,6 +2024,10 @@
                   "properties": {
                     "absoluteDate": {
                       "description": "Trigger at this instant.",
+                      "type": "string"
+                    },
+                    "emailAddress": {
+                      "description": "Email alarm recipient as a single address without whitespace. Mutually exclusive with soundName. Provider support is required; saving does not guarantee delivery.",
                       "type": "string"
                     },
                     "geofence": {
@@ -1964,6 +2072,10 @@
                     "relativeOffsetSeconds": {
                       "description": "Seconds from the reminder's start date; negative means before. Requires a resulting start date.",
                       "type": "number"
+                    },
+                    "soundName": {
+                      "description": "Available macOS sound name, such as Glass. Mutually exclusive with emailAddress. Omit both for a display alarm. Provider support is required; saving does not guarantee notification delivery.",
+                      "type": "string"
                     }
                   },
                   "required": [],
@@ -2170,22 +2282,42 @@
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
                         "at": {
                           "description": "The date and time at which the alert triggers.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
                           "type": "string"
                         },
                         "kind": {
                           "description": "The alarm's trigger type.",
                           "enum": ["AbsoluteAlarm"],
                           "type": "string"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "at"],
+                      "required": ["kind", "action", "at"],
                       "type": "object"
                     },
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
+                          "type": "string"
+                        },
                         "kind": {
                           "description": "The alarm's trigger type.",
                           "enum": ["RelativeAlarm"],
@@ -2194,14 +2326,26 @@
                         "offsetSeconds": {
                           "description": "Seconds from the start date: negative before, zero at, positive after.",
                           "type": "number"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "offsetSeconds"],
+                      "required": ["kind", "action", "offsetSeconds"],
                       "type": "object"
                     },
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
+                          "type": "string"
+                        },
                         "geofence": {
                           "additionalProperties": false,
                           "description": "Region and direction that trigger the alert.",
@@ -2240,9 +2384,13 @@
                           "description": "The alarm's trigger type.",
                           "enum": ["LocationAlarm"],
                           "type": "string"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         }
                       },
-                      "required": ["kind", "geofence"],
+                      "required": ["kind", "action", "geofence"],
                       "type": "object"
                     }
                   ]
@@ -2420,6 +2568,14 @@
                       "description": "Absolute trigger time, when set.",
                       "type": "string"
                     },
+                    "action": {
+                      "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                      "type": "string"
+                    },
+                    "emailAddress": {
+                      "description": "Stored email alarm recipient, when set.",
+                      "type": "string"
+                    },
                     "proximity": {
                       "description": "none, enter, leave, or unknown.",
                       "enum": ["none", "enter", "leave", "unknown"],
@@ -2428,6 +2584,10 @@
                     "relativeOffset": {
                       "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                       "type": "number"
+                    },
+                    "soundName": {
+                      "description": "Stored sound name, when set.",
+                      "type": "string"
                     },
                     "structuredLocation": {
                       "additionalProperties": false,
@@ -2454,7 +2614,7 @@
                       "type": "object"
                     }
                   },
-                  "required": ["relativeOffset", "proximity"],
+                  "required": ["action", "relativeOffset", "proximity"],
                   "type": "object"
                 },
                 "type": "array"
@@ -3485,22 +3645,42 @@
                       {
                         "additionalProperties": false,
                         "properties": {
+                          "action": {
+                            "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                            "type": "string"
+                          },
                           "at": {
                             "description": "The date and time at which the alert triggers.",
+                            "type": "string"
+                          },
+                          "emailAddress": {
+                            "description": "Stored email alarm recipient, when set.",
                             "type": "string"
                           },
                           "kind": {
                             "description": "The alarm's trigger type.",
                             "enum": ["AbsoluteAlarm"],
                             "type": "string"
+                          },
+                          "soundName": {
+                            "description": "Stored sound name, when set.",
+                            "type": "string"
                           }
                         },
-                        "required": ["kind", "at"],
+                        "required": ["kind", "action", "at"],
                         "type": "object"
                       },
                       {
                         "additionalProperties": false,
                         "properties": {
+                          "action": {
+                            "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                            "type": "string"
+                          },
+                          "emailAddress": {
+                            "description": "Stored email alarm recipient, when set.",
+                            "type": "string"
+                          },
                           "kind": {
                             "description": "The alarm's trigger type.",
                             "enum": ["RelativeAlarm"],
@@ -3509,14 +3689,26 @@
                           "offsetSeconds": {
                             "description": "Seconds from the start date: negative before, zero at, positive after.",
                             "type": "number"
+                          },
+                          "soundName": {
+                            "description": "Stored sound name, when set.",
+                            "type": "string"
                           }
                         },
-                        "required": ["kind", "offsetSeconds"],
+                        "required": ["kind", "action", "offsetSeconds"],
                         "type": "object"
                       },
                       {
                         "additionalProperties": false,
                         "properties": {
+                          "action": {
+                            "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                            "type": "string"
+                          },
+                          "emailAddress": {
+                            "description": "Stored email alarm recipient, when set.",
+                            "type": "string"
+                          },
                           "geofence": {
                             "additionalProperties": false,
                             "description": "Region and direction that trigger the alert.",
@@ -3555,9 +3747,13 @@
                             "description": "The alarm's trigger type.",
                             "enum": ["LocationAlarm"],
                             "type": "string"
+                          },
+                          "soundName": {
+                            "description": "Stored sound name, when set.",
+                            "type": "string"
                           }
                         },
-                        "required": ["kind", "geofence"],
+                        "required": ["kind", "action", "geofence"],
                         "type": "object"
                       }
                     ]
@@ -3735,6 +3931,14 @@
                         "description": "Absolute trigger time, when set.",
                         "type": "string"
                       },
+                      "action": {
+                        "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                        "type": "string"
+                      },
+                      "emailAddress": {
+                        "description": "Stored email alarm recipient, when set.",
+                        "type": "string"
+                      },
                       "proximity": {
                         "description": "none, enter, leave, or unknown.",
                         "enum": ["none", "enter", "leave", "unknown"],
@@ -3743,6 +3947,10 @@
                       "relativeOffset": {
                         "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                         "type": "number"
+                      },
+                      "soundName": {
+                        "description": "Stored sound name, when set.",
+                        "type": "string"
                       },
                       "structuredLocation": {
                         "additionalProperties": false,
@@ -3769,7 +3977,7 @@
                         "type": "object"
                       }
                     },
-                    "required": ["relativeOffset", "proximity"],
+                    "required": ["action", "relativeOffset", "proximity"],
                     "type": "object"
                   },
                   "type": "array"
@@ -4146,22 +4354,42 @@
                         {
                           "additionalProperties": false,
                           "properties": {
+                            "action": {
+                              "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                              "type": "string"
+                            },
                             "at": {
                               "description": "The date and time at which the alert triggers.",
+                              "type": "string"
+                            },
+                            "emailAddress": {
+                              "description": "Stored email alarm recipient, when set.",
                               "type": "string"
                             },
                             "kind": {
                               "description": "The alarm's trigger type.",
                               "enum": ["AbsoluteAlarm"],
                               "type": "string"
+                            },
+                            "soundName": {
+                              "description": "Stored sound name, when set.",
+                              "type": "string"
                             }
                           },
-                          "required": ["kind", "at"],
+                          "required": ["kind", "action", "at"],
                           "type": "object"
                         },
                         {
                           "additionalProperties": false,
                           "properties": {
+                            "action": {
+                              "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                              "type": "string"
+                            },
+                            "emailAddress": {
+                              "description": "Stored email alarm recipient, when set.",
+                              "type": "string"
+                            },
                             "kind": {
                               "description": "The alarm's trigger type.",
                               "enum": ["RelativeAlarm"],
@@ -4170,14 +4398,26 @@
                             "offsetSeconds": {
                               "description": "Seconds from the start date: negative before, zero at, positive after.",
                               "type": "number"
+                            },
+                            "soundName": {
+                              "description": "Stored sound name, when set.",
+                              "type": "string"
                             }
                           },
-                          "required": ["kind", "offsetSeconds"],
+                          "required": ["kind", "action", "offsetSeconds"],
                           "type": "object"
                         },
                         {
                           "additionalProperties": false,
                           "properties": {
+                            "action": {
+                              "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                              "type": "string"
+                            },
+                            "emailAddress": {
+                              "description": "Stored email alarm recipient, when set.",
+                              "type": "string"
+                            },
                             "geofence": {
                               "additionalProperties": false,
                               "description": "Region and direction that trigger the alert.",
@@ -4216,9 +4456,13 @@
                               "description": "The alarm's trigger type.",
                               "enum": ["LocationAlarm"],
                               "type": "string"
+                            },
+                            "soundName": {
+                              "description": "Stored sound name, when set.",
+                              "type": "string"
                             }
                           },
-                          "required": ["kind", "geofence"],
+                          "required": ["kind", "action", "geofence"],
                           "type": "object"
                         }
                       ]
@@ -4396,6 +4640,14 @@
                           "description": "Absolute trigger time, when set.",
                           "type": "string"
                         },
+                        "action": {
+                          "description": "Stored alarm action: display, audio, email, procedure, or unknown.",
+                          "type": "string"
+                        },
+                        "emailAddress": {
+                          "description": "Stored email alarm recipient, when set.",
+                          "type": "string"
+                        },
                         "proximity": {
                           "description": "none, enter, leave, or unknown.",
                           "enum": ["none", "enter", "leave", "unknown"],
@@ -4404,6 +4656,10 @@
                         "relativeOffset": {
                           "description": "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers.",
                           "type": "number"
+                        },
+                        "soundName": {
+                          "description": "Stored sound name, when set.",
+                          "type": "string"
                         },
                         "structuredLocation": {
                           "additionalProperties": false,
@@ -4430,7 +4686,7 @@
                           "type": "object"
                         }
                       },
-                      "required": ["relativeOffset", "proximity"],
+                      "required": ["action", "relativeOffset", "proximity"],
                       "type": "object"
                     },
                     "type": "array"

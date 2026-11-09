@@ -90,6 +90,9 @@ enum FieldDocs {
     static let allDayStartDate = "A date-only start, without a time of day."
   }
   enum RawAlarm {
+    static let action = "Stored alarm action: display, audio, email, procedure, or unknown."
+    static let soundName = "Stored sound name, when set."
+    static let emailAddress = "Stored email alarm recipient, when set."
     static let absoluteDate = "Absolute trigger time, when set."
     static let relativeOffset =
       "Seconds from the start date. Zero alone does not distinguish absolute and relative triggers."
@@ -216,6 +219,10 @@ enum FieldDocs {
       "Destination list; omission uses the default list. No default produces an error."
   }
   enum ReminderAlarmInput {
+    static let soundName =
+      "Available macOS sound name, such as Glass. Mutually exclusive with emailAddress. Omit both for a display alarm. Provider support is required; saving does not guarantee notification delivery."
+    static let emailAddress =
+      "Email alarm recipient as a single address without whitespace. Mutually exclusive with soundName. Provider support is required; saving does not guarantee delivery."
     static let absoluteDate = "Trigger at this instant."
     static let relativeOffsetSeconds =
       "Seconds from the reminder's start date; negative means before. Requires a resulting start date."

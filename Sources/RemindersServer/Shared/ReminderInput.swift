@@ -45,15 +45,18 @@ struct AlarmInput: Decodable, Sendable {
   let absoluteDate: String?
   let relativeOffsetSeconds: Double?
   let geofence: GeofenceInput?
+  let soundName, emailAddress: String?
 
   enum CodingKeys: String, CodingKey, CaseIterable {
-    case absoluteDate, relativeOffsetSeconds, geofence
+    case absoluteDate, relativeOffsetSeconds, geofence, soundName, emailAddress
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
     absoluteDate = try c.decodeIfPresent(String.self, forKey: .absoluteDate)
     relativeOffsetSeconds = try c.decodeIfPresent(Double.self, forKey: .relativeOffsetSeconds)
     geofence = try c.decodeIfPresent(GeofenceInput.self, forKey: .geofence)
+    soundName = try c.decodeIfPresent(String.self, forKey: .soundName)
+    emailAddress = try c.decodeIfPresent(String.self, forKey: .emailAddress)
   }
 }
 
@@ -208,23 +211,41 @@ func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderC
 }
 
 func alarmChange(_ input: AlarmInput) throws -> ReminderAlarmChange {
+  guard input.soundName == nil || input.emailAddress == nil else {
+    throw ServerError.invalidArgument("an alarm cannot combine soundName and emailAddress")
+  }
+  if let sound = input.soundName, sound.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+    throw ServerError.invalidArgument("soundName must not be blank")
+  }
+  if let email = input.emailAddress {
+    let parts = email.split(separator: "@", omittingEmptySubsequences: false)
+    guard parts.count == 2, parts.allSatisfy({ !$0.isEmpty }),
+      email.rangeOfCharacter(
+        from: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "<>,;"))) == nil
+    else {
+      throw ServerError.invalidArgument("emailAddress must be a single address without whitespace")
+    }
+  }
+  let trigger: ReminderAlarmTrigger
   switch (input.absoluteDate, input.relativeOffsetSeconds, input.geofence) {
   case (let date?, nil, nil):
-    return .absolute(try parseTimestamp(date))
+    trigger = .absolute(try parseTimestamp(date))
   case (nil, let offset?, nil):
     guard offset.isFinite else {
       throw ServerError.invalidArgument("alarm offset must be finite")
     }
-    return .relative(offset)
+    trigger = .relative(offset)
   case (nil, nil, let geo?):
     guard geo.latitude.isFinite, geo.longitude.isFinite, geo.radiusMeters.isFinite,
       (-90...90).contains(geo.latitude), (-180...180).contains(geo.longitude),
       geo.radiusMeters >= 0
     else { throw ServerError.invalidArgument("invalid geofence") }
-    return .location(
+    trigger = .location(
       title: geo.title, latitude: geo.latitude, longitude: geo.longitude,
       radius: geo.radiusMeters, arriving: geo.proximity == .arrive)
   default:
     throw ServerError.invalidArgument("each alarm requires exactly one trigger")
   }
+  return ReminderAlarmChange(
+    trigger: trigger, soundName: input.soundName, emailAddress: input.emailAddress)
 }

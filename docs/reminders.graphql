@@ -581,6 +581,21 @@ An alarm exactly as stored.
 """
 type RawAlarm {
   """
+  Stored alarm action: display, audio, email, procedure, or unknown.
+  """
+  action: String!
+
+  """
+  Stored sound name, when set.
+  """
+  soundName: String
+
+  """
+  Stored email alarm recipient, when set.
+  """
+  emailAddress: String
+
+  """
   Absolute trigger time, when set.
   """
   absoluteDate: DateTime
@@ -627,6 +642,21 @@ union ReminderAlarm = AbsoluteAlarm | RelativeAlarm | LocationAlarm
 
 type AbsoluteAlarm {
   """
+  Stored alarm action: display, audio, email, procedure, or unknown.
+  """
+  action: String!
+
+  """
+  Stored sound name, when set.
+  """
+  soundName: String
+
+  """
+  Stored email alarm recipient, when set.
+  """
+  emailAddress: String
+
+  """
   The date and time at which the alert triggers.
   """
   at: DateTime!
@@ -634,12 +664,42 @@ type AbsoluteAlarm {
 
 type RelativeAlarm {
   """
+  Stored alarm action: display, audio, email, procedure, or unknown.
+  """
+  action: String!
+
+  """
+  Stored sound name, when set.
+  """
+  soundName: String
+
+  """
+  Stored email alarm recipient, when set.
+  """
+  emailAddress: String
+
+  """
   Seconds from the start date: negative before, zero at, positive after.
   """
   offsetSeconds: Float!
 }
 
 type LocationAlarm {
+  """
+  Stored alarm action: display, audio, email, procedure, or unknown.
+  """
+  action: String!
+
+  """
+  Stored sound name, when set.
+  """
+  soundName: String
+
+  """
+  Stored email alarm recipient, when set.
+  """
+  emailAddress: String
+
   """
   Region and direction that trigger the alert.
   """
@@ -1150,6 +1210,16 @@ input ReminderAlarmInput {
   Trigger on arrival at or departure from this region.
   """
   geofence: GeofenceInput
+
+  """
+  Available macOS sound name, such as Glass. Mutually exclusive with emailAddress. Omit both for a display alarm. Provider support is required; saving does not guarantee notification delivery.
+  """
+  soundName: String
+
+  """
+  Email alarm recipient as a single address without whitespace. Mutually exclusive with soundName. Provider support is required; saving does not guarantee delivery.
+  """
+  emailAddress: String
 }
 
 input GeofenceInput {

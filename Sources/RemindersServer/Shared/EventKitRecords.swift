@@ -68,6 +68,14 @@ extension ReminderRecord {
 }
 extension AlarmRecord {
   init(_ alarm: EKAlarm) {
+    let action: String
+    switch alarm.type {
+    case .display: action = "display"
+    case .audio: action = "audio"
+    case .email: action = "email"
+    case .procedure: action = "procedure"
+    @unknown default: action = "unknown"
+    }
     let proximity: AlarmProximity
     switch alarm.proximity {
     case .none: proximity = .none
@@ -76,6 +84,7 @@ extension AlarmRecord {
     @unknown default: proximity = .unknown
     }
     self.init(
+      action: action, soundName: alarm.soundName, emailAddress: alarm.emailAddress,
       absoluteDate: alarm.absoluteDate.map(timestamp), relativeOffset: alarm.relativeOffset,
       proximity: proximity,
       structuredLocation: alarm.structuredLocation.map {

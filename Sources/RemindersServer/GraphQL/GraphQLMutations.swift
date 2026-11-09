@@ -53,6 +53,10 @@ func makeMutationType(
           type: GraphQLFloat, description: FieldDocs.ReminderAlarmInput.relativeOffsetSeconds),
         .geofence: InputObjectField(
           type: geofence, description: FieldDocs.ReminderAlarmInput.geofence),
+        .soundName: InputObjectField(
+          type: GraphQLString, description: FieldDocs.ReminderAlarmInput.soundName),
+        .emailAddress: InputObjectField(
+          type: GraphQLString, description: FieldDocs.ReminderAlarmInput.emailAddress),
       ]))
   let recurrenceDay = try GraphQLInputObjectType(
     name: "RecurrenceDayInput",
