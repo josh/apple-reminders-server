@@ -166,35 +166,43 @@ private func toolsCatalog() -> [Tool] {
         ], required: [.kind, .action, .geofence]),
     ])
   ])
-  // Reminder output and input use the same repeating-schedule shape.
-  let rule = schema(
-    RecurrenceView.CodingKeys.self,
-    [
-      .frequency: describe(
-        enumeration(ScheduleFrequency.allCases.map(\.rawValue)), FieldDocs.Schedule.frequency),
-      .interval: describe(integer, FieldDocs.Schedule.interval),
-      .daysOfWeek: describe(
-        array(
-          schema(
-            RecurrenceView.Day.CodingKeys.self,
-            [
-              .day: describe(
-                enumeration(Weekday.allCases.map(\.rawValue)), FieldDocs.ScheduleDay.day),
-              .ordinal: describe(integer, FieldDocs.ScheduleDay.ordinal),
-            ], required: [.day])), FieldDocs.Schedule.daysOfWeek),
-      .end: describe(
+  // Outputs remain canonical; inputs additionally accept weekday phrases.
+  let ruleFields: KeyValuePairs<RecurrenceView.CodingKeys, Value> = [
+    .frequency: describe(
+      enumeration(ScheduleFrequency.allCases.map(\.rawValue)), FieldDocs.Schedule.frequency),
+    .interval: describe(integer, FieldDocs.Schedule.interval),
+    .daysOfWeek: describe(
+      array(
         schema(
-          RecurrenceView.End.CodingKeys.self,
+          RecurrenceView.Day.CodingKeys.self,
           [
-            .until: describe(string, FieldDocs.ScheduleEnd.until),
-            .count: describe(integer, FieldDocs.ScheduleEnd.count),
-          ]), FieldDocs.Schedule.end),
-      .daysOfMonth: describe(integers, FieldDocs.Schedule.daysOfMonth),
-      .monthsOfYear: describe(integers, FieldDocs.Schedule.monthsOfYear),
-      .weeksOfYear: describe(integers, FieldDocs.Schedule.weeksOfYear),
-      .daysOfYear: describe(integers, FieldDocs.Schedule.daysOfYear),
-      .setPositions: describe(integers, FieldDocs.Schedule.setPositions),
-    ], required: [.frequency, .interval])
+            .day: describe(
+              enumeration(Weekday.allCases.map(\.rawValue)), FieldDocs.ScheduleDay.day),
+            .ordinal: describe(integer, FieldDocs.ScheduleDay.ordinal),
+          ], required: [.day])), FieldDocs.Schedule.daysOfWeek),
+    .end: describe(
+      schema(
+        RecurrenceView.End.CodingKeys.self,
+        [
+          .until: describe(string, FieldDocs.ScheduleEnd.until),
+          .count: describe(integer, FieldDocs.ScheduleEnd.count),
+        ]), FieldDocs.Schedule.end),
+    .daysOfMonth: describe(integers, FieldDocs.Schedule.daysOfMonth),
+    .monthsOfYear: describe(integers, FieldDocs.Schedule.monthsOfYear),
+    .weeksOfYear: describe(integers, FieldDocs.Schedule.weeksOfYear),
+    .daysOfYear: describe(integers, FieldDocs.Schedule.daysOfYear),
+    .setPositions: describe(integers, FieldDocs.Schedule.setPositions),
+  ]
+  let rule = schema(RecurrenceView.CodingKeys.self, ruleFields, required: [.frequency, .interval])
+  let ruleInput = object(
+    Dictionary(uniqueKeysWithValues: ruleFields.map { ($0.key.stringValue, $0.value) })
+      .merging([
+        RecurrenceInput.CodingKeys.daysOfWeekNames.rawValue:
+          describe(array(string), FieldDocs.Schedule.daysOfWeekNames)
+      ]) { _, alias in alias },
+    required: [
+      RecurrenceInput.CodingKeys.frequency.rawValue, RecurrenceInput.CodingKeys.interval.rawValue,
+    ])
   let recurrenceRule = schema(
     RecurrenceRecord.CodingKeys.self,
     [
@@ -423,6 +431,7 @@ private func toolsCatalog() -> [Tool] {
     ReminderInput.CodingKeys.self,
     [
       .listId: describe(string, FieldDocs.CreateReminderInput.listId),
+      .listName: describe(string, FieldDocs.CreateReminderInput.listName),
       .name: describe(string, FieldDocs.CreateReminderInput.name),
       .body: describe(string, FieldDocs.CreateReminderInput.body),
       .location: describe(string, FieldDocs.CreateReminderInput.location),
@@ -434,14 +443,16 @@ private func toolsCatalog() -> [Tool] {
       .timeZone: describe(string, FieldDocs.CreateReminderInput.timeZone),
       .remindMeDate: describe(string, FieldDocs.CreateReminderInput.remindMeDate),
       .priority: describe(priority, FieldDocs.CreateReminderInput.priority),
+      .priorityName: describe(string, FieldDocs.CreateReminderInput.priorityName),
       .flagged: describe(boolean, FieldDocs.CreateReminderInput.flagged),
       .alarms: describe(array(alarmInput), FieldDocs.CreateReminderInput.alarms),
-      .recurrence: describe(rule, FieldDocs.CreateReminderInput.recurrence),
+      .recurrence: describe(ruleInput, FieldDocs.CreateReminderInput.recurrence),
     ], required: [.name])
   let reminderPatch = schema(
     ReminderInput.CodingKeys.self,
     [
       .listId: describe(string, FieldDocs.ReminderPatch.listId),
+      .listName: describe(string, FieldDocs.ReminderPatch.listName),
       .name: describe(string, FieldDocs.ReminderPatch.name),
       .body: describe(string, FieldDocs.ReminderPatch.body),
       .location: describe(string, FieldDocs.ReminderPatch.location),
@@ -454,10 +465,11 @@ private func toolsCatalog() -> [Tool] {
       .remindMeDate: describe(string, FieldDocs.ReminderPatch.remindMeDate),
       .completionDate: describe(string, FieldDocs.ReminderPatch.completionDate),
       .priority: describe(priority, FieldDocs.ReminderPatch.priority),
+      .priorityName: describe(string, FieldDocs.ReminderPatch.priorityName),
       .flagged: describe(boolean, FieldDocs.ReminderPatch.flagged),
       .completed: describe(boolean, FieldDocs.ReminderPatch.completed),
       .alarms: describe(array(alarmInput), FieldDocs.ReminderPatch.alarms),
-      .recurrence: describe(rule, FieldDocs.ReminderPatch.recurrence),
+      .recurrence: describe(ruleInput, FieldDocs.ReminderPatch.recurrence),
       .clearFields: describe(
         array(enumeration(ReminderClearValue.allCases.map(\.rawValue))),
         FieldDocs.ReminderPatch.clearFields),
@@ -584,7 +596,7 @@ private func toolsCatalog() -> [Tool] {
     Tool(
       name: ToolName.remindersCreate.rawValue,
       description:
-        "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
+        "Create an incomplete reminder. Specify listId or an unambiguous listName; omit both to use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
       inputSchema: createReminder, annotations: reminderCreated,
       outputSchema: reminderResult(item, "The saved reminder.")),
     Tool(

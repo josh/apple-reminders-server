@@ -1130,9 +1130,14 @@ input CreateReminderInput {
   body: String
 
   """
-  Priority from 0 through 9.
+  Priority from 0 through 9. Mutually exclusive with priorityName.
   """
   priority: Int
+
+  """
+  none (0), high (1), medium (5), or low (9), ignoring case. Mutually exclusive with priority.
+  """
+  priorityName: String
 
   """
   Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm.
@@ -1190,9 +1195,14 @@ input CreateReminderInput {
   recurrence: RecurrenceRuleInput
 
   """
-  Destination list; omission uses the default list. No default produces an error.
+  Destination list ID; mutually exclusive with listName. Omit both to use the default list. No default produces an error.
   """
   listId: ID
+
+  """
+  Exact list name, ignoring case; missing or ambiguous names fail. Mutually exclusive with listId.
+  """
+  listName: String
 }
 
 input ReminderAlarmInput {
@@ -1266,6 +1276,11 @@ input RecurrenceRuleInput {
   daysOfWeek: [RecurrenceDayInput!]
 
   """
+  Weekday phrases such as tuesday or second tuesday, ignoring case. Ordinals: first through fifth and last through fifth-to-last. Mutually exclusive with daysOfWeek.
+  """
+  daysOfWeekNames: [String!]
+
+  """
   When repetition stops; null means no specified end.
   """
   end: RecurrenceEndInput
@@ -1322,9 +1337,14 @@ input RecurrenceEndInput {
 
 input ReminderPatch {
   """
-  Move to this list. Both lists must be editable. Omission keeps the current list. Use the returned reminder ID after saving.
+  Move to this list. Both lists must be editable. Mutually exclusive with listName; omit both to keep the current list. Use the returned reminder ID after saving.
   """
   listId: ID
+
+  """
+  Move to a uniquely named list, ignoring case. Both lists must be editable. Mutually exclusive with listId; use the returned reminder ID.
+  """
+  listName: String
 
   """
   The new name of the reminder.
@@ -1337,9 +1357,14 @@ input ReminderPatch {
   body: String
 
   """
-  Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low.
+  Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low. Mutually exclusive with priorityName.
   """
   priority: Int
+
+  """
+  none (0), high (1), medium (5), or low (9), ignoring case. Mutually exclusive with priority.
+  """
+  priorityName: String
 
   """
   Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm.

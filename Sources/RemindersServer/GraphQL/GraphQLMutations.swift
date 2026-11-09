@@ -88,6 +88,9 @@ func makeMutationType(
         .daysOfWeek: InputObjectField(
           type: GraphQLList(GraphQLNonNull(recurrenceDay)),
           description: FieldDocs.Schedule.daysOfWeek),
+        .daysOfWeekNames: InputObjectField(
+          type: GraphQLList(GraphQLNonNull(GraphQLString)),
+          description: FieldDocs.Schedule.daysOfWeekNames),
         .end: InputObjectField(type: recurrenceEnd, description: FieldDocs.Schedule.end),
         .daysOfMonth: InputObjectField(
           type: selectors, description: FieldDocs.Schedule.daysOfMonth),
@@ -115,6 +118,7 @@ func makeMutationType(
         .name: InputObjectField(type: GraphQLNonNull(GraphQLString), description: Create.name),
         .body: InputObjectField(type: GraphQLString, description: Create.body),
         .priority: InputObjectField(type: GraphQLInt, description: Create.priority),
+        .priorityName: InputObjectField(type: GraphQLString, description: Create.priorityName),
         .location: InputObjectField(type: GraphQLString, description: Create.location),
         .url: InputObjectField(type: GraphQLString, description: Create.url),
         .dueDate: InputObjectField(type: dateTime, description: Create.dueDate),
@@ -127,6 +131,7 @@ func makeMutationType(
         .alarms: InputObjectField(type: alarms, description: Create.alarms),
         .recurrence: InputObjectField(type: recurrence, description: Create.recurrence),
         .listId: InputObjectField(type: GraphQLID, description: Create.listId),
+        .listName: InputObjectField(type: GraphQLString, description: Create.listName),
       ]))
   typealias Patch = FieldDocs.ReminderPatch
   let patch = try GraphQLInputObjectType(
@@ -135,9 +140,11 @@ func makeMutationType(
       ReminderInput.CodingKeys.self,
       [
         .listId: InputObjectField(type: GraphQLID, description: Patch.listId),
+        .listName: InputObjectField(type: GraphQLString, description: Patch.listName),
         .name: InputObjectField(type: GraphQLString, description: Patch.name),
         .body: InputObjectField(type: GraphQLString, description: Patch.body),
         .priority: InputObjectField(type: GraphQLInt, description: Patch.priority),
+        .priorityName: InputObjectField(type: GraphQLString, description: Patch.priorityName),
         .location: InputObjectField(type: GraphQLString, description: Patch.location),
         .url: InputObjectField(type: GraphQLString, description: Patch.url),
         .dueDate: InputObjectField(type: dateTime, description: Patch.dueDate),

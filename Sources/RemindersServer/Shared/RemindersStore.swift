@@ -169,6 +169,20 @@ func reminderList(_ store: EKEventStore, id: String) -> EKCalendar? {
   else { return nil }
   return list
 }
+// Resolve a supplied name exactly, ignoring case; never fall back to the default.
+@MainActor
+func reminderList(_ store: EKEventStore, named name: String) throws -> EKCalendar {
+  let matches = store.calendars(for: .reminder).filter {
+    $0.title.compare(name, options: .caseInsensitive) == .orderedSame
+  }
+  guard let match = matches.first else {
+    throw ServerError.notFound("no reminder list matches listName")
+  }
+  guard matches.count == 1 else {
+    throw ServerError.invalidArgument("listName matches multiple lists; use listId")
+  }
+  return match
+}
 @MainActor
 func readList(id: String) throws -> ListRecord? {
   try requireAccess()

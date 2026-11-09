@@ -1095,7 +1095,7 @@
         "openWorldHint": true,
         "readOnlyHint": false
       },
-      "description": "Create an incomplete reminder. Specify listId or use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
+      "description": "Create an incomplete reminder. Specify listId or an unambiguous listName; omit both to use the application's default list. Optional values must be omitted, not null. Timed/all-day due dates are exclusive; allDayStartDate is currently unsupported. Each alarm needs exactly one trigger; relative alarms require a start date. flagged and remindMeDate are applied after the reminder is saved; the result echoes flagged. A retry can create duplicates. A WRITE_APPLIED error means the save succeeded but a later step failed; refetch using the reported ID.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -1186,7 +1186,11 @@
             "type": "boolean"
           },
           "listId": {
-            "description": "Destination list; omission uses the default list. No default produces an error.",
+            "description": "Destination list ID; mutually exclusive with listName. Omit both to use the default list. No default produces an error.",
+            "type": "string"
+          },
+          "listName": {
+            "description": "Exact list name, ignoring case; missing or ambiguous names fail. Mutually exclusive with listId.",
             "type": "string"
           },
           "location": {
@@ -1198,10 +1202,14 @@
             "type": "string"
           },
           "priority": {
-            "description": "Priority from 0 through 9.",
+            "description": "Priority from 0 through 9. Mutually exclusive with priorityName.",
             "maximum": 9,
             "minimum": 0,
             "type": "integer"
+          },
+          "priorityName": {
+            "description": "none (0), high (1), medium (5), or low (9), ignoring case. Mutually exclusive with priority.",
+            "type": "string"
           },
           "recurrence": {
             "additionalProperties": false,
@@ -1239,6 +1247,13 @@
                   },
                   "required": ["day"],
                   "type": "object"
+                },
+                "type": "array"
+              },
+              "daysOfWeekNames": {
+                "description": "Weekday phrases such as tuesday or second tuesday, ignoring case. Ordinals: first through fifth and last through fifth-to-last. Mutually exclusive with daysOfWeek.",
+                "items": {
+                  "type": "string"
                 },
                 "type": "array"
               },
@@ -2130,7 +2145,11 @@
                 "type": "boolean"
               },
               "listId": {
-                "description": "Move to this list. Both lists must be editable. Omission keeps the current list. Use the returned reminder ID after saving.",
+                "description": "Move to this list. Both lists must be editable. Mutually exclusive with listName; omit both to keep the current list. Use the returned reminder ID after saving.",
+                "type": "string"
+              },
+              "listName": {
+                "description": "Move to a uniquely named list, ignoring case. Both lists must be editable. Mutually exclusive with listId; use the returned reminder ID.",
                 "type": "string"
               },
               "location": {
@@ -2142,10 +2161,14 @@
                 "type": "string"
               },
               "priority": {
-                "description": "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low.",
+                "description": "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low. Mutually exclusive with priorityName.",
                 "maximum": 9,
                 "minimum": 0,
                 "type": "integer"
+              },
+              "priorityName": {
+                "description": "none (0), high (1), medium (5), or low (9), ignoring case. Mutually exclusive with priority.",
+                "type": "string"
               },
               "recurrence": {
                 "additionalProperties": false,
@@ -2183,6 +2206,13 @@
                       },
                       "required": ["day"],
                       "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "daysOfWeekNames": {
+                    "description": "Weekday phrases such as tuesday or second tuesday, ignoring case. Ordinals: first through fifth and last through fifth-to-last. Mutually exclusive with daysOfWeek.",
+                    "items": {
+                      "type": "string"
                     },
                     "type": "array"
                   },

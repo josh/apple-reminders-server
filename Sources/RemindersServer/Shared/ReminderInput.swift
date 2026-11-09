@@ -2,7 +2,8 @@ import Foundation
 
 // Reminder create and patch input. Creation and patches accept different fields.
 struct ReminderInput: Decodable, Sendable {
-  let listId, name, body, location, url: InputField<String>
+  let listId, listName, name, body, location, url: InputField<String>
+  let priorityName: InputField<String>
   let dueDate, allDayDueDate, startDate, allDayStartDate: InputField<String>
   let timeZone, remindMeDate, completionDate: InputField<String>
   let priority: InputField<Int>
@@ -13,13 +14,16 @@ struct ReminderInput: Decodable, Sendable {
   let containsNull: Bool
 
   enum CodingKeys: String, CodingKey, CaseIterable {
-    case listId, name, body, location, url, dueDate, allDayDueDate, startDate, allDayStartDate
-    case timeZone, remindMeDate, completionDate, priority, flagged, completed, alarms
+    case listId, listName, name, body, location, url, dueDate, allDayDueDate, startDate,
+      allDayStartDate
+    case timeZone, remindMeDate, completionDate, priority, priorityName, flagged, completed, alarms
     case recurrence, clearFields
   }
   init(from decoder: Decoder) throws {
     let c = try decoder.inputContainer(keyedBy: CodingKeys.self)
     listId = try c.field(.listId)
+    listName = try c.field(.listName)
+    priorityName = try c.field(.priorityName)
     name = try c.field(.name)
     body = try c.field(.body)
     location = try c.field(.location)
@@ -87,7 +91,20 @@ func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderC
   if !creating, input.containsNull {
     throw ServerError.invalidArgument("patch values cannot be null; use clearFields")
   }
+  guard input.listId.isAbsent || input.listName.isAbsent else {
+    throw ServerError.invalidArgument("listId and listName are mutually exclusive")
+  }
+  guard input.priority.isAbsent || input.priorityName.isAbsent else {
+    throw ServerError.invalidArgument("priority and priorityName are mutually exclusive")
+  }
   var result = ReminderChanges()
+  if !input.listName.isAbsent {
+    let name = try input.listName.required("listName")
+    guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      throw ServerError.invalidArgument("listName must not be blank")
+    }
+    result.listName = name
+  }
   if !creating, let listId = input.listId.value {
     guard !listId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       throw ServerError.invalidArgument("listId must not be blank")
@@ -108,6 +125,16 @@ func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderC
     result.url = url
   }
   result.priority = input.priority.value
+  if !input.priorityName.isAbsent {
+    let name = try input.priorityName.required("priorityName").lowercased()
+    switch name {
+    case "none": result.priority = 0
+    case "high": result.priority = 1
+    case "medium": result.priority = 5
+    case "low": result.priority = 9
+    default: throw ServerError.invalidArgument("priorityName must be none, high, medium, or low")
+    }
+  }
   result.completed = input.completed.value
   if let names = input.clearFields.value {
     guard Set(names).count == names.count else {

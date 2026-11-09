@@ -40,6 +40,7 @@ struct ReminderAlarmChange: Equatable, Sendable {
 }
 struct ReminderChanges: Equatable, Sendable {
   var listId: String?
+  var listName: String?
   var name: String?
   var body: String?
   var completed: Bool?
@@ -82,7 +83,9 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   switch request {
   case .create(let listID, let changes):
     let list =
-      if let listID { reminderList(store, id: listID) } else {
+      if let listName = changes.listName {
+        try reminderList(store, named: listName)
+      } else if let listID { reminderList(store, id: listID) } else {
         store.defaultCalendarForNewReminders()
       }
     guard let list else { throw ServerError.notFound("reminder list is unavailable") }
@@ -93,8 +96,12 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   case .update(let id, let changes):
     item = try editableReminder(store, id: id)
     patch = changes
-    if let listID = patch.listId {
-      guard let destination = reminderList(store, id: listID) else {
+    if patch.listId != nil || patch.listName != nil {
+      let destination =
+        if let name = patch.listName { try reminderList(store, named: name) } else {
+          patch.listId.flatMap { reminderList(store, id: $0) }
+        }
+      guard let destination else {
         throw ServerError.notFound("destination reminder list is unavailable")
       }
       guard destination.allowsContentModifications else {
@@ -186,7 +193,8 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   let savedItem: EKReminder
   let changesCompletion =
     patch.completed != nil || patch.completionDate != nil || patch.clear.contains(.completionDate)
-  if patch.listId != nil || !requestedDelivery.isEmpty || changesCompletion {
+  if patch.listId != nil || patch.listName != nil || !requestedDelivery.isEmpty || changesCompletion
+  {
     let savedID = item.calendarItemIdentifier
     store.reset()
     guard let refreshed = store.calendarItem(withIdentifier: savedID) as? EKReminder else {
@@ -194,8 +202,8 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
         "reminder \(savedID) was saved but is unavailable for verification; refetch before retrying"
       )
     }
-    if let destinationID = patch.listId,
-      refreshed.calendar?.calendarIdentifier != destinationID
+    if patch.listId != nil || patch.listName != nil,
+      refreshed.calendar?.calendarIdentifier != listID
     {
       throw ServerError.writeApplied(
         "reminder \(savedID) was saved, but its destination list could not be verified; refetch this ID before retrying"

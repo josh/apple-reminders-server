@@ -26,6 +26,8 @@ including nested values; omit optional inputs instead. Calls read fresh data.
 Pagination cursors are decimal offsets, not snapshots: keep filters, ordering,
 and limit unchanged, and expect concurrent edits to affect later pages.
 
+The [input alias rules](GRAPHQL.md#input-aliases) apply to both APIs.
+
 Reminder results include all supported projections, so any unrepresentable date,
 alarm, or recurrence fails the call. Search converts all matching reminders before
 pagination; an unsupported reminder outside the requested page can still fail it.

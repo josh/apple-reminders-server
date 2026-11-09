@@ -149,6 +149,8 @@ enum FieldDocs {
     static let interval = "Positive number of frequency units between occurrences."
     static let daysOfWeek =
       "Weekday constraints. Null means unconstrained. Not allowed for daily rules."
+    static let daysOfWeekNames =
+      "Weekday phrases such as tuesday or second tuesday, ignoring case. Ordinals: first through fifth and last through fifth-to-last. Mutually exclusive with daysOfWeek."
     static let end = "When repetition stops; null means no specified end."
     static let daysOfMonth =
       "Days 1..31 or -31..-1 counting backward from the end of the month. Monthly rules only."
@@ -195,7 +197,9 @@ enum FieldDocs {
   enum CreateReminderInput {
     static let name = "Name of the new reminder."
     static let body = "Notes to attach to the reminder."
-    static let priority = "Priority from 0 through 9."
+    static let priority = "Priority from 0 through 9. Mutually exclusive with priorityName."
+    static let priorityName =
+      "none (0), high (1), medium (5), or low (9), ignoring case. Mutually exclusive with priority."
     static let location =
       "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm."
     static let url = Reminder.url
@@ -216,7 +220,9 @@ enum FieldDocs {
       "Alerts to configure; omission or an empty list configures no explicit alerts."
     static let recurrence = "Repeating schedule; omission creates a non-repeating reminder."
     static let listId =
-      "Destination list; omission uses the default list. No default produces an error."
+      "Destination list ID; mutually exclusive with listName. Omit both to use the default list. No default produces an error."
+    static let listName =
+      "Exact list name, ignoring case; missing or ambiguous names fail. Mutually exclusive with listId."
   }
   enum ReminderAlarmInput {
     static let soundName =
@@ -230,10 +236,14 @@ enum FieldDocs {
   }
   enum ReminderPatch {
     static let listId =
-      "Move to this list. Both lists must be editable. Omission keeps the current list. Use the returned reminder ID after saving."
+      "Move to this list. Both lists must be editable. Mutually exclusive with listName; omit both to keep the current list. Use the returned reminder ID after saving."
+    static let listName =
+      "Move to a uniquely named list, ignoring case. Both lists must be editable. Mutually exclusive with listId; use the returned reminder ID."
+    static let priorityName = CreateReminderInput.priorityName
     static let name = "The new name of the reminder."
     static let body = "The new notes attached to the reminder. An empty string removes the notes."
-    static let priority = "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low."
+    static let priority =
+      "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low. Mutually exclusive with priorityName."
     static let location = CreateReminderInput.location
     static let url = Reminder.url
     static let dueDate =

@@ -34,6 +34,20 @@ An unknown flag returns null with an error and matches neither true nor false
 filters. A failed flag read fails the filtered collection. Unselected optional
 fields do not trigger their reads.
 
+## Input aliases
+
+Both APIs accept the aliases in the schema and return canonical IDs, numeric
+priorities, and structured weekdays. Alias values reject null, even on creation;
+supplying both forms fails even when one is null.
+
+`listName` searches all accessible lists, including other accounts and read-only
+lists, before checking editability. No match returns `NOT_FOUND`; multiple matches
+return `INVALID_ARGUMENT`. A supplied name never falls back to the default list.
+
+List names preserve whitespace; priority names are not trimmed. Weekday phrases
+use full English names and ignore surrounding/repeated whitespace. Duplicates
+are checked after normalization; structured recurrence constraints still apply.
+
 ## Errors
 
 [Error codes](SERVER.md#errors) appear in `extensions.code`. Select `id` in
