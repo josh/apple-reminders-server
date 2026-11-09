@@ -29,31 +29,31 @@ private func searchPage(
   _ data: RemindersData, args: Map, context: (any Sendable)?, scope: Set<String>? = nil
 ) async throws -> GraphQLPage<ReminderRecord> {
   let arguments = try decodeInput(GraphQLReminderSearch.self, from: args)
-  let filter = arguments.filter.value
+  let filter = arguments.filter
   var search = Search()
   if let filter {
-    search.query = filter.query.value
-    search.nameContains = filter.nameContains.value
-    search.accountIds = filter.accountIds.value
-    search.listIds = filter.listIds.value
-    search.hasDueDate = filter.hasDueDate.value
-    search.completed = filter.completed.value
-    search.completedFrom = filter.completedFrom.value
-    search.completedBefore = filter.completedBefore.value
-    search.priorities = filter.priorities.value
+    search.query = filter.query
+    search.nameContains = filter.nameContains
+    search.accountIds = filter.accountIds
+    search.listIds = filter.listIds
+    search.hasDueDate = filter.hasDueDate
+    search.completed = filter.completed
+    search.completedFrom = filter.completedFrom
+    search.completedBefore = filter.completedBefore
+    search.priorities = filter.priorities
     // Enum values are the uppercase names; records store lowercase statuses.
-    search.dueStatus = filter.dueStatus.value.flatMap { DueStatus(rawValue: $0.lowercased()) }
-    search.dueOnOrAfter = filter.dueOnOrAfter.value
-    search.dueBefore = filter.dueBefore.value
-    search.dueFrom = filter.dueFrom.value
+    search.dueStatus = filter.dueStatus.flatMap { DueStatus(rawValue: $0.lowercased()) }
+    search.dueOnOrAfter = filter.dueOnOrAfter
+    search.dueBefore = filter.dueBefore
+    search.dueFrom = filter.dueFrom
   }
-  if let order = arguments.orderBy.value {
+  if let order = arguments.orderBy {
     search.reminderOrder = order.field
-    search.direction = order.direction.value ?? .ascending
+    search.direction = order.direction ?? .ascending
   }
   var items = try search.reminders(data, scope: scope)
   // Flags come from Reminders automation, so the flag filter applies only here.
-  if let flagged = filter?.flagged.value {
+  if let flagged = filter?.flagged {
     let flags = try await requestContext(context).flags()
     // An unknown flag (not yet exposed by Reminders) matches neither filter value.
     items = items.filter { flags[GraphQLContext.flagKey($0.id)] == flagged }
@@ -65,15 +65,15 @@ private func listSearchPage(_ data: RemindersData, args: Map, accountID: String?
 {
   let arguments = try decodeInput(GraphQLListSearch.self, from: args)
   var search = Search()
-  if let filter = arguments.filter.value {
-    search.query = filter.query.value
-    search.accountIds = filter.accountIds.value
-    search.allowsContentModifications = filter.allowsContentModifications.value
-    search.subscribed = filter.subscribed.value
+  if let filter = arguments.filter {
+    search.query = filter.query
+    search.accountIds = filter.accountIds
+    search.allowsContentModifications = filter.allowsContentModifications
+    search.subscribed = filter.subscribed
   }
-  if let order = arguments.orderBy.value {
+  if let order = arguments.orderBy {
     search.sortListsByName = true
-    search.direction = order.direction.value ?? .ascending
+    search.direction = order.direction ?? .ascending
   }
   return try page(
     search.lists(data, accountID: accountID), limit: arguments.limit, offset: arguments.offset)
