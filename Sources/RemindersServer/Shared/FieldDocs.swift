@@ -250,9 +250,9 @@ enum FieldDocs {
     static let alarms = "Replace all configured alerts. An empty list removes all alerts."
     static let recurrence = "Replace the repeating schedule. Use clearFields to stop repetition."
     static let completionDate =
-      "Set the date and time the reminder was completed, which marks it completed. Cannot be combined with completed."
+      "Set completion time and mark completed; can advance recurrence. Mutually exclusive with completed."
     static let completed =
-      "Whether to mark the reminder completed. Cannot be combined with completionDate changes."
+      "Complete or reopen. Recurring completion can advance the returned ID to the next incomplete occurrence; do not retry blindly. Cannot combine with completionDate changes."
     static let clearFields =
       "Remove these values. Omission preserves them; explicit null is rejected. Do not set and clear the same field, or clear both forms of one date."
   }

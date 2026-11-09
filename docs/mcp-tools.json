@@ -2114,11 +2114,11 @@
                 "type": "array"
               },
               "completed": {
-                "description": "Whether to mark the reminder completed. Cannot be combined with completionDate changes.",
+                "description": "Complete or reopen. Recurring completion can advance the returned ID to the next incomplete occurrence; do not retry blindly. Cannot combine with completionDate changes.",
                 "type": "boolean"
               },
               "completionDate": {
-                "description": "Set the date and time the reminder was completed, which marks it completed. Cannot be combined with completed.",
+                "description": "Set completion time and mark completed; can advance recurrence. Mutually exclusive with completed.",
                 "type": "string"
               },
               "dueDate": {

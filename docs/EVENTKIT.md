@@ -73,19 +73,21 @@ cannot combine with `weeksOfYear`. Interval/count must fit positive Int32.
 An explicit end must choose exactly one of count or until.
 
 Completion uses native coupling: completing stamps now, reopening clears the date,
-and setting a completion date marks completed. Refetch to observe progression.
+and setting a completion date marks completed. After setting or clearing completion,
+reset/refetch the saved ID to return current state; failure returns `WRITE_APPLIED`.
 iCloud checks advanced the original ID to the next incomplete occurrence and created
 a completed copy with another ID. Reopening the copy did not rewind the series.
 DST shifted starts and relative alarms while due times stayed fixed. These are
-provider observations. Current start ≤ due validation runs on every edit, so native
-shifts can block unrelated patches.
+provider observations.
 
 ## Writes
 
 Assign new reminders a calendar and new lists a source. Validate resulting state
-before saving with `commit: true`, including start/due order and relative-alarm
-requirements. Reject date-only starts and free-text locations because storage
-normalizes/discards them. Scripting changes follow the save; see [write phases](APPLESCRIPT.md#writes).
+before saving with `commit: true`. Check start ≤ due only when setting start/due or
+setting/clearing their zone, so native recurrence dates cannot block unrelated edits.
+Enforce relative-alarm requirements on every write. Reject date-only starts and
+free-text locations because storage normalizes/discards them. Scripting changes
+follow the save; see [write phases](APPLESCRIPT.md#writes).
 
 Moves reassign the existing reminder's calendar and reset/refetch to verify its
 destination; both lists must be editable. Do not recreate the reminder. List deletion

@@ -161,7 +161,12 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
     throw ServerError.invalidArgument(
       "relative alarms require a start date on the resulting reminder")
   }
-  if let start = item.startDateComponents, let due = item.dueDateComponents {
+  // Native recurrence can advance start and due differently across DST. An
+  // unrelated edit must not be blocked by a combination the provider stored.
+  let changesDates =
+    patch.start != nil || patch.due != nil || patch.timeZone != nil
+    || patch.clear.contains(.timeZone)
+  if changesDates, let start = item.startDateComponents, let due = item.dueDateComponents {
     guard let startDate = resolvedInstant(start), let dueDate = resolvedInstant(due) else {
       throw ServerError.unsupportedOperation(
         "cannot validate the existing start/due date combination")
@@ -179,7 +184,9 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
     )
   }
   let savedItem: EKReminder
-  if patch.listId != nil || !requestedDelivery.isEmpty {
+  let changesCompletion =
+    patch.completed != nil || patch.completionDate != nil || patch.clear.contains(.completionDate)
+  if patch.listId != nil || !requestedDelivery.isEmpty || changesCompletion {
     let savedID = item.calendarItemIdentifier
     store.reset()
     guard let refreshed = store.calendarItem(withIdentifier: savedID) as? EKReminder else {
