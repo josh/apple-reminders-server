@@ -1,5 +1,20 @@
 type Query {
   """
+  Find places or addresses through Apple Maps. Select a result and use its coordinates in a geofence alarm. Sends the query to Apple; does not change reminders.
+  """
+  searchLocations(
+    """
+    Place name or address. Include a city or region to narrow the search.
+    """
+    query: String!
+
+    """
+    Maximum candidates to return, from 1 through 10; defaults to 5.
+    """
+    limit: Int! = 5
+  ): [LocationSearchResult!]
+
+  """
   Accounts available in Reminders.
   """
   accounts: [Account!]
@@ -48,6 +63,28 @@ type Query {
   The default reminder list, or null if none is available.
   """
   defaultList: ReminderList
+}
+
+type LocationSearchResult {
+  """
+  Name of the place, when available.
+  """
+  name: String
+
+  """
+  Formatted address or place description, when available.
+  """
+  address: String
+
+  """
+  Latitude in degrees, between -90 and 90.
+  """
+  latitude: Float!
+
+  """
+  Longitude in degrees, between -180 and 180.
+  """
+  longitude: Float!
 }
 
 type Account {

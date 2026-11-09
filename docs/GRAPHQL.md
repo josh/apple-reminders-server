@@ -8,7 +8,7 @@ curl http://127.0.0.1:8171/graphql -H 'Content-Type: application/json' \
 The [schema](reminders.graphql) documents every type, field, argument, and
 validation rule; live introspection is authoritative.
 
-All fields in one request observe the same data, and a failed read fails every
+Reminder fields in one request observe the same data, and a failed read fails every
 field that needs it. Root mutations run serially, later fields observe earlier
 writes, and a rejected mutation changes nothing.
 

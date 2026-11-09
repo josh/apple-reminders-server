@@ -1,5 +1,13 @@
 // Field descriptions shared by the GraphQL schema and the MCP catalog.
 enum FieldDocs {
+  enum LocationSearch {
+    static let description =
+      "Find places or addresses through Apple Maps. Select a result and use its coordinates in a geofence alarm. Sends the query to Apple; does not change reminders."
+    static let query = "Place name or address. Include a city or region to narrow the search."
+    static let limit = "Maximum candidates to return, from 1 through 10; defaults to 5."
+    static let name = "Name of the place, when available."
+    static let address = "Formatted address or place description, when available."
+  }
   enum Account {
     static let id = "Unique identifier of the account. Treat this value as opaque."
     static let name = "The name of the account."

@@ -808,10 +808,40 @@ func makeSchema() throws -> GraphQLSchema {
   let mutation = try makeMutationType(
     reminder: reminder, list: list, dateTime: dateTime, localDate: localDate, proximity: proximity,
     frequency: frequency, weekday: weekday)
+  let locationSearchResult = try GraphQLObjectType(
+    name: "LocationSearchResult",
+    fields: [
+      "name": field(
+        GraphQLString, \LocationSearchResult.name,
+        description: FieldDocs.LocationSearch.name),
+      "address": field(
+        GraphQLString, \LocationSearchResult.address,
+        description: FieldDocs.LocationSearch.address),
+      "latitude": field(
+        GraphQLNonNull(GraphQLFloat), \LocationSearchResult.latitude,
+        description: FieldDocs.Geofence.latitude),
+      "longitude": field(
+        GraphQLNonNull(GraphQLFloat), \LocationSearchResult.longitude,
+        description: FieldDocs.Geofence.longitude),
+    ])
   return try GraphQLSchema(
     query: GraphQLObjectType(
       name: "Query",
       fields: [
+        "searchLocations": GraphQLField(
+          type: GraphQLList(GraphQLNonNull(locationSearchResult)),
+          description: FieldDocs.LocationSearch.description,
+          args: [
+            "query": GraphQLArgument(
+              type: GraphQLNonNull(GraphQLString),
+              description: FieldDocs.LocationSearch.query),
+            "limit": GraphQLArgument(
+              type: GraphQLNonNull(GraphQLInt),
+              description: FieldDocs.LocationSearch.limit, defaultValue: 5),
+          ],
+          resolve: { _, args, _, _ in
+            try await searchLocations(decodeInput(LocationSearchArguments.self, from: args))
+          }),
         "accounts": GraphQLField(
           type: GraphQLList(GraphQLNonNull(account)),
           description: "Accounts available in Reminders.",

@@ -20,6 +20,10 @@ private struct AccountsOutput: Encodable {
   let items: [AccountRecord]
   enum CodingKeys: String, CodingKey { case items }
 }
+private struct LocationSearchOutput: Encodable {
+  let items: [LocationSearchResult]
+  enum CodingKeys: String, CodingKey { case items }
+}
 private struct SummaryOutput: Encodable {
   let items: [ListSummary]
   enum CodingKeys: String, CodingKey { case items }
@@ -500,7 +504,30 @@ private func toolsCatalog() -> [Tool] {
   let noArguments = object([:])
   let navigation = Tool.Annotations(
     readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false)
+  let locationSearchResult = schema(
+    LocationSearchResult.CodingKeys.self,
+    [
+      .name: describe(string, FieldDocs.LocationSearch.name),
+      .address: describe(string, FieldDocs.LocationSearch.address),
+      .latitude: describe(number, FieldDocs.Geofence.latitude),
+      .longitude: describe(number, FieldDocs.Geofence.longitude),
+    ], required: [.latitude, .longitude])
   return [
+    Tool(
+      name: ToolName.locationsSearch.rawValue,
+      description: FieldDocs.LocationSearch.description,
+      inputSchema: schema(
+        LocationSearchArguments.CodingKeys.self,
+        [
+          .query: describe(string, FieldDocs.LocationSearch.query),
+          .limit: describe(
+            primitive(.integer, ["minimum": 1, "maximum": 10, "default": 5]),
+            FieldDocs.LocationSearch.limit),
+        ], required: [.query]),
+      annotations: .init(readOnlyHint: true, destructiveHint: false, openWorldHint: true),
+      outputSchema: schema(
+        LocationSearchOutput.CodingKeys.self,
+        [.items: array(locationSearchResult)], required: [.items])),
     Tool(
       name: ToolName.listsCreate.rawValue,
       description:
@@ -638,6 +665,7 @@ private func result<T: Encodable>(_ value: T) throws -> CallTool.Result {
 }
 // Tool names are the MCP contract; the catalog and dispatch both use these cases.
 enum ToolName: String {
+  case locationsSearch = "locations_search"
   case listsCreate = "lists_create"
   case listsUpdate = "lists_update"
   case listsDelete = "lists_delete"
@@ -706,6 +734,9 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
     try result(ListOutput(list: try await writeList(request)))
   }
   switch tool {
+  case .locationsSearch:
+    return try await result(
+      LocationSearchOutput(items: searchLocations(arguments(LocationSearchArguments.self))))
   case .remindersCreate:
     let input = try arguments(ReminderInput.self)
     return try await savedReminder(

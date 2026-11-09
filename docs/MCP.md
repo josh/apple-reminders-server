@@ -13,7 +13,7 @@ curl http://127.0.0.1:8171/mcp -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"example","version":"1"}}}'
 ```
 
-Use `tools/list` for the sixteen tools, their descriptions, and their input and
+Use `tools/list` for the seventeen tools, their descriptions, and their input and
 output JSON Schemas; the [catalog reference](mcp-tools.json) is an export of that
 result body. Tool annotations are hints, not permission enforcement. Read tools
 never use Reminders automation, so they never need Automation permission.

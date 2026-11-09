@@ -3,6 +3,66 @@
     {
       "annotations": {
         "destructiveHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Find places or addresses through Apple Maps. Select a result and use its coordinates in a geofence alarm. Sends the query to Apple; does not change reminders.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 5,
+            "description": "Maximum candidates to return, from 1 through 10; defaults to 5.",
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "query": {
+            "description": "Place name or address. Include a city or region to narrow the search.",
+            "type": "string"
+          }
+        },
+        "required": ["query"],
+        "type": "object"
+      },
+      "name": "locations_search",
+      "outputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "address": {
+                  "description": "Formatted address or place description, when available.",
+                  "type": "string"
+                },
+                "latitude": {
+                  "description": "Latitude in degrees, between -90 and 90.",
+                  "type": "number"
+                },
+                "longitude": {
+                  "description": "Longitude in degrees, between -180 and 180.",
+                  "type": "number"
+                },
+                "name": {
+                  "description": "Name of the place, when available.",
+                  "type": "string"
+                }
+              },
+              "required": ["latitude", "longitude"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["items"],
+        "type": "object"
+      }
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
