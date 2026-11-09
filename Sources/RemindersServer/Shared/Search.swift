@@ -27,8 +27,10 @@ struct Search: Sendable {
   var allowsContentModifications: Bool?
   var subscribed: Bool?
 
-  // Matching reminders in the requested order. `scope` restricts the list IDs.
-  func reminders(_ data: RemindersData, scope: Set<String>? = nil) throws -> [ReminderRecord] {
+  // Shared validation for native candidate selection and exact filtering.
+  func bounds() throws -> (
+    dueFrom: Date?, dueBefore: Date?, completedFrom: Date?, completedBefore: Date?
+  ) {
     let timestampUpper = dueBefore.flatMap { $0.contains("T") ? $0 : nil }
     let dayUpper = dueBefore.flatMap { $0.contains("T") ? nil : $0 }
     guard !(dueFrom != nil && (dueOnOrAfter != nil || dayUpper != nil)),
@@ -50,6 +52,13 @@ struct Search: Sendable {
     if let completionFrom, let completionBefore, completionFrom >= completionBefore {
       throw ServerError.invalidArgument("completedFrom must precede completedBefore")
     }
+    return (fromDate, beforeDate, completionFrom, completionBefore)
+  }
+
+  // Matching reminders in the requested order. `scope` restricts the list IDs.
+  func reminders(_ data: RemindersData, scope: Set<String>? = nil) throws -> [ReminderRecord] {
+    let (fromDate, beforeDate, completionFrom, completionBefore) = try bounds()
+    let dayUpper = dueBefore.flatMap { $0.contains("T") ? nil : $0 }
     let accountLists = accountIds.map { ids in
       Set(data.lists.filter { ids.contains($0.source.id) }.map(\.id))
     }

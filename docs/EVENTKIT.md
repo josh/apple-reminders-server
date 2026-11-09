@@ -25,6 +25,14 @@ editability rules before writing, while allowing for native save failures.
 Incomplete predicates optionally bound due dates; completed predicates bound completion dates.
 See the [predicate reference](https://developer.apple.com/documentation/eventkit/retrieving-events-and-reminders).
 
+MCP search intersects list/account scopes and selects completed/incomplete predicates.
+Empty scopes, or completion bounds with `completed: false`, skip fetching after
+validating bounds. Widen supplied completion bounds by one second in each direction,
+then apply exact inclusive-lower/exclusive-upper bounds to millisecond-serialized
+completion dates. This avoids native precision and endpoint differences losing matches.
+Due-date filtering uses shared projections, not native due bounds. GraphQL snapshots
+and metrics still fetch all accessible reminders.
+
 Nil calendars means all lists; skip fetching when no accessible lists exist.
 `fetchReminders(matching:completion:)` has a 30-second limit. Finish its waiter
 on completion, cancellation, or timeout and call `cancelFetchRequest(_:)`;

@@ -850,7 +850,8 @@ private func callTool(_ tool: ToolName, _ params: CallTool.Parameters) async thr
     }
     return try await result(
       page(
-        criteria.reminders(readRemindersData()).map(MCPReminder.init(record:)), limit: search.limit,
+        criteria.reminders(readRemindersData(matching: criteria)).map(MCPReminder.init(record:)),
+        limit: search.limit,
         cursor: search.cursor))
   }
 }

@@ -100,11 +100,39 @@ func readLists() throws -> RemindersData {
   return RemindersData(lists: lists, reminders: [], defaultListId: defaultListID)
 }
 @MainActor
-func readRemindersData() async throws -> RemindersData {
-  let (store, calendars, lists, defaultListID) = try readCalendars()
-  let fetched =
-    calendars.isEmpty
-    ? [] : try await fetchReminders(store, matching: store.predicateForReminders(in: calendars))
+func readRemindersData(matching search: Search = Search()) async throws -> RemindersData {
+  let bounds = try search.bounds()
+  let (store, available, lists, defaultListID) = try readCalendars()
+  let calendars = available.filter {
+    (search.listIds == nil || search.listIds!.contains($0.calendarIdentifier))
+      && (search.accountIds == nil || search.accountIds!.contains($0.source.sourceIdentifier))
+  }
+  let hasCompletionBounds = bounds.completedFrom != nil || bounds.completedBefore != nil
+  let fetched: [EKReminder]
+  // An empty calendar array can mean all calendars to EventKit; never fetch it.
+  if calendars.isEmpty || (hasCompletionBounds && search.completed == false) {
+    fetched = []
+  } else {
+    let predicate: NSPredicate
+    if hasCompletionBounds || search.completed == true {
+      // Exact bounds are applied to millisecond-serialized dates below. Fetch a
+      // superset so native precision and endpoint inclusivity cannot lose a match.
+      predicate = store.predicateForCompletedReminders(
+        withCompletionDateStarting: bounds.completedFrom?.addingTimeInterval(-1),
+        ending: bounds.completedBefore?.addingTimeInterval(1), calendars: calendars)
+    } else if search.completed == false {
+      // Keep due-date filtering in Search: date-only and floating components have
+      // explicit projection rules that native due-date predicates need not share.
+      predicate = store.predicateForIncompleteReminders(
+        withDueDateStarting: nil, ending: nil, calendars: calendars)
+    } else {
+      predicate = store.predicateForReminders(in: calendars)
+    }
+    fetched = try await fetchReminders(store, matching: predicate)
+  }
+  serverLogger.debug(
+    "Read reminder candidates",
+    metadata: ["lists": "\(calendars.count)", "reminders": "\(fetched.count)"])
   try requireAccess()
   return try autoreleasepool {
     let now = Date()
