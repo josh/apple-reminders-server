@@ -1,32 +1,45 @@
-# GraphQL API
+# GraphQL
+
+`POST /graphql`. The [schema](reminders.graphql) documents types, fields, inputs,
+and validation; introspection describes the running version. No subscriptions.
 
 ```sh
-curl http://127.0.0.1:8171/graphql -H 'Content-Type: application/json' \
+curl --unix-socket /path/to/server.sock http://localhost/graphql \
+  -H 'Content-Type: application/json' \
   --data '{"query":"{ lists(limit: 10) { totalCount items { id name } pageInfo { hasNextPage } } }"}'
 ```
 
-The [schema](reminders.graphql) documents every type, field, argument, and
-validation rule; live introspection is authoritative.
+Send one object with `query`, optional `variables`, and optional `operationName`.
+Null `variables`/`operationName` mean absent. Invalid envelopes return 400, other
+methods 405. A read-only grant permits only the selected query operation; mutations,
+including UI navigation, require write access. Execution errors normally use HTTP
+200 with `errors`; clients must inspect the body.
 
-Reminder fields in one request observe the same data, and a failed read fails every
-field that needs it. Root mutations run serially, later fields observe earlier
-writes, and a rejected mutation changes nothing.
+## Reads and mutations
 
-## Errors and partial saves
+Repeated reads share results/failures within a request; unrelated fields may still
+succeed. Root mutations run serially and refresh reads after attempted writes,
+including failures. Later fields see earlier writes; separate requests can interleave.
+See [access and sync limits](SERVER.md#limits).
 
-Every error carries a code in `extensions.code`; [SERVER.md](SERVER.md#errors)
-lists the codes.
+Collections filter and sort before pagination. `limit` is 1–100 (default 50),
+`offset` is nonnegative, and an offset beyond the end returns an empty page with
+the full matching count. Pages across requests have no shared snapshot.
 
-`flagged`, `remindMeDate`, and `emblem` apply through Reminders automation after
-the EventKit save, so a write can partly succeed:
+Nullable create/filter inputs generally treat null as absent. Top-level patch
+values reject null; remove values with `clearFields`. Reject invalid changes before
+saving. Later mutation failures do not undo earlier successful mutations.
 
-| Outcome | Response | Client action |
-| --- | --- | --- |
-| Automation fails after the save | Null result, `WRITE_APPLIED` error naming the saved ID | Inspect that ID and apply only what is missing; never repeat a create automatically. |
-| Requested sound/email alarms are not retained after the save | Null result, `WRITE_APPLIED` error naming the saved ID | Inspect the stored alarms before retrying; the provider may not support these alarm actions. |
-| A response field fails after the save | Selected fields such as `id` remain; the failed field is null with an error | Always select `id` and keep it even when `errors` is present. |
-| Navigation fails after showing | `SHOW_APPLIED`, or `SHOW_FAILED` if it may have changed the UI | Treat the UI as possibly changed. |
-| Timeout or lost connection | No confirmed outcome | Check existing data before retrying a create. |
+An unknown flag returns null with an error and matches neither true nor false
+filters. A failed flag read fails the filtered collection. Unselected optional
+fields do not trigger their reads.
 
-There is no transaction across EventKit and automation, no rollback, and no
-idempotency key. Saved IDs appear only in error messages.
+## Errors
+
+[Error codes](SERVER.md#errors) appear in `extensions.code`. Select `id` in
+mutation responses and retain it even when other fields return errors.
+A failed response field can be null after a successful save; `WRITE_APPLIED`
+can instead return a null mutation result with the saved ID only in the error
+message. Follow the [partial-save recovery guidance](SERVER.md#errors).
+Clearing completed reminders returns a count only on success; a failed batch can
+have persisted deletions. Refetch the explicit list before retrying.

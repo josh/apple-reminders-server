@@ -1,148 +1,154 @@
-# HTTP server
+# Server
 
-The server runs on macOS 14+ and exposes `POST /graphql`, `POST /mcp`, and
-`GET /metrics`.
+Requires macOS 14+. Serves `POST /graphql`, `POST /mcp`, and `GET /metrics`.
+`swift build -c release` produces `.build/release/apple-reminders-server`.
 
-Reminder and list writes honor EventKit authorization and editability. See
-[GraphQL API](GRAPHQL.md) for supported inputs and failures after a save.
+## Setup
 
-## Running under launchd
-
-launchd is the only supported way to start the server. A LaunchAgent owns the
-listening sockets: launchd starts the server on the first connection, hands it the
-sockets, and starts it again after it exits. Run directly, the server refuses to
-start. Configuration comes only from the plist's `EnvironmentVariables`.
+launchd owns the sockets and starts the server on connection, including after
+exit. Direct launch is refused. Use absolute executable/socket paths (`~` is not
+expanded); Unix socket paths have a 104-byte limit. Adjust this LaunchAgent to
+the installed binary and user, and create its socket directory:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>local.apple-reminders-server</string>
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.github.josh.apple-reminders-server</string>
   <key>ProgramArguments</key>
-  <array>
-    <string>/path/to/apple-reminders-server</string>
-  </array>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>REMINDERS_TAILSCALE_APP_CAPABILITY</key>
-    <string>example.com/cap/reminders</string>
-    <key>REMINDERS_EXIT_WHEN_IDLE_SECONDS</key>
-    <string>600</string>
+  <array><string>/usr/local/bin/apple-reminders-server</string></array>
+  <key>EnvironmentVariables</key><dict>
+    <key>REMINDERS_REQUEST_ACCESS</key><string>1</string>
   </dict>
-  <key>Sockets</key>
-  <dict>
-    <key>Listeners</key>
-    <dict>
-      <key>SockPathName</key>
-      <string>/Users/you/Library/Application Support/apple-reminders-server/server.sock</string>
-      <key>SockPathMode</key>
-      <integer>384</integer>
-    </dict>
-    <key>TailscaleServe</key>
-    <dict>
-      <key>SockNodeName</key>
-      <string>127.0.0.1</string>
-      <key>SockServiceName</key>
-      <string>8172</string>
+  <key>Sockets</key><dict>
+    <key>Listeners</key><dict>
+      <key>SockPathName</key><string>/Users/you/Library/Application Support/apple-reminders-server/server.sock</string>
+      <key>SockPathMode</key><integer>384</integer>
     </dict>
   </dict>
-</dict>
-</plist>
+</dict></plist>
 ```
 
-Save it as `~/Library/LaunchAgents/local.apple-reminders-server.plist`, create the
-socket directory, and load it with
-`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.apple-reminders-server.plist`.
-launchd does not expand `~` inside the plist, and Unix socket paths are limited to
-104 bytes.
+Save as `~/Library/LaunchAgents/com.github.josh.apple-reminders-server.plist`, then load:
+
+```sh
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.github.josh.apple-reminders-server.plist
+```
+
+The executable embeds `NSRemindersFullAccessUsageDescription` and
+`NSAppleEventsUsageDescription` in its `__TEXT,__info_plist` section. Native access
+stays in this process so authorization belongs to the executable launchd runs.
+
+`REMINDERS_REQUEST_ACCESS=1` requests missing full Reminders access at startup;
+reads never request it. There is no native read-only grant. While authorization
+is pending, `/graphql` and `/mcp` return 503; metrics remain available. Denial or
+authorization failure exits the process. Writes honor native editability.
+Apple events may prompt separately for Automation permission; MCP reads and
+metrics do not need it.
 
 ## Sockets
 
-The keys of the plist's `Sockets` dictionary are labels; the label a request
-arrives on decides how it is trusted. Each label may use a Unix socket
-(`SockPathName`, with `SockPathMode`) or TCP (`SockNodeName`, `SockServiceName`),
-and may list several sockets. Only `TailscaleServe` checks request headers; the
-others grant fixed access. At least one label is required.
+At least one `Sockets` label is required; each may hold multiple sockets. Use
+`SockPathName`/`SockPathMode` for Unix or `SockNodeName`/`SockServiceName` for TCP.
+Only `TailscaleServe` checks grants; other labels grant fixed access. Excluded
+endpoints or missing grants return 403.
 
-| Label | Trust |
-| --- | --- |
-| `Listeners` | The default: full access to every endpoint. Restrict it with the socket file mode or address. |
-| `Metrics` | Only `GET /metrics`; other endpoints return 403. |
-| `GraphQL` | Only `/graphql`, with write access; other endpoints return 403. |
-| `MCP` | Only `/mcp`, with write access; other endpoints return 403. |
-| `TailscaleServe` | Requires the `Tailscale-App-Capabilities` grant named by `REMINDERS_TAILSCALE_APP_CAPABILITY`; requests without one get 403. |
+| Label            | Access                                                             |
+| ---------------- | ------------------------------------------------------------------ |
+| `Listeners`      | All endpoints, including writes. Restrict who can connect.         |
+| `Metrics`        | `/metrics` only.                                                   |
+| `GraphQL`        | `/graphql`, including writes.                                      |
+| `MCP`            | `/mcp`, including writes.                                          |
+| `TailscaleServe` | Checks `Tailscale-App-Capabilities` for the configured capability. |
 
-Point Tailscale Serve at the `TailscaleServe` socket and forward the capability,
-for example
-`tailscale serve --bg --https=443 --accept-app-caps=example.com/cap/reminders http://127.0.0.1:8172`.
-A Tailscale build that can open Unix sockets can use `SockPathName` and a
-`unix:<path>` target instead; the Mac App Store build cannot.
+For `TailscaleServe`, use `SockNodeName=127.0.0.1` and `SockServiceName=8172`:
 
-A grant is a list of objects mapping `graphql` and `mcp` to `r` or `rw`, and
-`metrics` to `r`.
+```sh
+tailscale serve --bg --https=443 --accept-app-caps=example.com/cap/reminders http://127.0.0.1:8172
+```
+
+Capability grants are a list of objects mapping `graphql`/`mcp` to `r` or `rw`,
+and `metrics` to `r`, under the configured capability key:
+
+```json
+{
+  "example.com/cap/reminders": [{ "graphql": "r", "mcp": "rw", "metrics": "r" }]
+}
+```
+
+Combine grants using the greatest access per endpoint; omitted endpoints get none.
+Unknown API names/levels, `metrics: "rw"`, malformed headers, or headers over
+16 KiB deny access. Accept plain JSON or RFC 2047 UTF-8 Q-encoded header values.
+Only a trusted Tailscale Serve proxy may reach this socket: the header is its
+assertion of identity and access, not a credential the server verifies independently.
+
+Tailscale builds supporting Unix sockets can instead use
+`SockPathName` with a `unix:<path>` target; the Mac App Store build cannot.
+No built-in authentication or TLS beyond socket access: keep direct sockets private
+and use Tailscale Serve remotely.
 
 ## Configuration
 
-| Variable | Default | Behavior |
-| --- | --- | --- |
-| `REMINDERS_TAILSCALE_APP_CAPABILITY` | None | Capability name, `domain/path`; required with a `TailscaleServe` socket |
-| `REMINDERS_ALLOWED_ORIGINS` | None | Space-separated browser origins, `http(s)://host[:port]` |
-| `REMINDERS_EXIT_WHEN_IDLE_SECONDS` | Stay running | Exit after this many seconds, 1–86400, without open connections |
-| `REMINDERS_LOG_LEVEL` | `info` | Minimum log level: `trace`, `debug`, `info`, `notice`, `warning`, `error`, or `critical` |
-| `REMINDERS_METRICS_INTERVAL_SECONDS` | `3600` | Delay after each metrics collection, 1–604800 seconds |
-| `REMINDERS_REQUEST_ACCESS` | Off | `1` requests EventKit access at startup, unless already granted |
+Configuration comes only from the plist's `EnvironmentVariables`. Invalid values
+prevent startup; other environment variables are ignored.
 
-An invalid value stops the server at startup. Other environment variables are
-ignored.
+| Variable                             | Default      | Value                                                                        |
+| ------------------------------------ | ------------ | ---------------------------------------------------------------------------- |
+| `REMINDERS_REQUEST_ACCESS`           | Off          | `1` to request Reminders access.                                             |
+| `REMINDERS_TAILSCALE_APP_CAPABILITY` | None         | `domain/path`; required for `TailscaleServe`.                                |
+| `REMINDERS_ALLOWED_ORIGINS`          | None         | Space-separated `http(s)://host[:port]` origins.                             |
+| `REMINDERS_EXIT_WHEN_IDLE_SECONDS`   | Stay running | 1–86400 seconds without open connections.                                    |
+| `REMINDERS_LOG_LEVEL`                | `info`       | Minimum: `trace`, `debug`, `info`, `notice`, `warning`, `error`, `critical`. |
+| `REMINDERS_METRICS_INTERVAL_SECONDS` | `3600`       | Delay after collection, 1–604800 seconds.                                    |
 
-## Permissions and execution
+## HTTP
 
-Permissions are granted to the program launchd runs. EventKit permission is
-requested only when `REMINDERS_REQUEST_ACCESS` is `1`, not in response to a read.
-EventKit grants full reminder access rather than a read-only grant. Automation
-permission is separate and may be requested when an operation first sends Apple
-events to Reminders. Metrics collection never needs Automation permission.
+HTTP/1.1 supports concurrent requests, keep-alive, and chunked bodies. JSON POSTs
+require `Content-Type: application/json` (415 otherwise). Bodies over 1 MiB,
+including chunked uploads, receive 413.
 
-## HTTP behavior
+Host is not validated. An unlisted `Origin` receives 403; allowed origins receive
+CORS headers and OPTIONS preflight support. Configured origins cannot contain
+paths, queries, fragments, or credentials; default ports are removed.
+Repeated `Origin`, `Content-Type`, or `Tailscale-App-Capabilities` headers return
+400 rather than choosing a value.
 
-The server speaks HTTP/1.1 with concurrent requests, keep-alive, and chunked
-request bodies.
+## Deadlines and recovery
 
-Host is not validated. Origin, when present, must be listed in
-`REMINDERS_ALLOWED_ORIGINS`; other origins return 403. Allowed origins receive
-CORS headers and OPTIONS preflight support. Origins must have no path, query,
-fragment, or credentials, and a default port is dropped. JSON POSTs require
-`Content-Type: application/json`; other media types return 415. Request bodies
-are limited to 1 MiB, including chunked uploads; excess returns 413.
+GraphQL/MCP handlers have a 60-second deadline after the body is collected.
+Expiry cancels their task and returns 504 without waiting for it to finish.
+Cancellation cannot interrupt a synchronous native call or undo a save, so work
+may finish after the timeout. Refetch before retrying writes.
 
-There is no built-in authentication or TLS beyond the socket labels; keep
-`Listeners` private and reach the server remotely through Tailscale Serve. GraphQL
-subscriptions are not implemented.
+An independent watchdog checks the main actor every 10 seconds and exits with
+status 1 after more than 120 seconds without a heartbeat. This lets launchd recover
+from native calls that block the actor; an HTTP deadline alone cannot free it.
+Idle exit counts open connections, including keep-alive connections, rather than
+time since the last request. Native fetch and automation limits are described in
+[EventKit](EVENTKIT.md#reads) and [Reminders automation](APPLESCRIPT.md#writes).
 
 ## Errors
 
-GraphQL and MCP errors carry the same codes. GraphQL reports the code in
-`extensions.code`; MCP reports it in the tool error payload.
+| Code                    | Meaning                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `INVALID_ARGUMENT`      | Invalid input; nothing saved.                                                 |
+| `NOT_FOUND`             | Object missing or inaccessible.                                               |
+| `READ_ONLY`             | List does not allow the change.                                               |
+| `UNSUPPORTED`           | Stored value cannot be represented.                                           |
+| `UNSUPPORTED_OPERATION` | Requested change cannot be stored.                                            |
+| `LIST_NOT_EMPTY`        | Deleting a nonempty list requires `allowNonEmpty`.                            |
+| `WRITE_FAILED`          | Save failed; message includes the native error code. Refetch before retrying. |
+| `WRITE_APPLIED`         | Saved, but a later step failed; message includes the saved ID.                |
+| `SHOW_APPLIED`          | Navigation succeeded, but the response failed.                                |
+| `SHOW_FAILED`           | Navigation failed; the UI may have changed.                                   |
+| `INTERNAL`              | Unexpected failure.                                                           |
 
-| Code | Meaning |
-| --- | --- |
-| `INVALID_ARGUMENT` | Input failed validation; nothing was saved. |
-| `NOT_FOUND` | The object does not exist or is not accessible. |
-| `READ_ONLY` | The list does not allow the change. |
-| `UNSUPPORTED` | A stored value cannot be represented in the response. |
-| `UNSUPPORTED_OPERATION` | Reminders cannot store the requested change. |
-| `LIST_NOT_EMPTY` | The list has reminders; deleting it needs `allowNonEmpty`. |
-| `WRITE_FAILED` | EventKit refused the save; the message includes its code. |
-| `WRITE_APPLIED` | The save succeeded but a later step failed; the message names the saved ID. |
-| `SHOW_APPLIED` | Navigation happened but the response could not be built. |
-| `SHOW_FAILED` | Navigation failed and may still have changed the UI. |
-| `INTERNAL` | An unexpected server error. |
+On `WRITE_APPLIED`, inspect the saved ID and apply only missing changes.
+Check existing data before retrying a create after a timeout or lost connection.
+Writes have no transaction spanning all steps, rollback, or idempotency key.
 
 ## Limits
 
-Accounts are derived from accessible reminder lists. The default account is
-inferred from the default list. Reads are not atomic across the
-Reminders database, and accessible records do not establish complete cloud synchronization.
-Identifiers may change after a full sync.
+Accounts come from accessible lists; the default account comes from the default
+list. Reads are not atomic across the database and do not prove complete cloud
+sync. IDs can change after full sync.

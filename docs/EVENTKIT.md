@@ -1,144 +1,115 @@
-# EventKit data-access reference
+# EventKit
 
-EventKit is Apple's public framework for reading and changing calendars and
-reminders. This reference covers the public APIs relevant to reminders. Method
-names use Swift notation.
+Use [EKEventStore](https://developer.apple.com/documentation/eventkit/ekeventstore)
+for reminder data and [automation](APPLESCRIPT.md) for scripting-only properties.
 
-Start with Apple's [EventKit overview](https://developer.apple.com/documentation/eventkit),
-[accessing the event store](https://developer.apple.com/documentation/eventkit/accessing-the-event-store),
-and [retrieving events and reminders](https://developer.apple.com/documentation/eventkit/retrieving-events-and-reminders).
+## Ownership and access
 
-## Objects and terminology
+Native calls run on the main actor in the server process. Each read/write phase
+uses a fresh store, kept alive until conversion to value records to preserve
+list/account references. Only value records leave the actor. Awaited fetches and
+retry waits allow requests to interleave; multi-step writes are not globally serialized.
 
-| EventKit type | Meaning | Apple reference |
-| --- | --- | --- |
-| `EKEventStore` | Access point for authorization, discovery, queries, and writes. | [Event store](https://developer.apple.com/documentation/eventkit/ekeventstore) |
-| `EKSource` | Source/account that owns calendars. | [Source](https://developer.apple.com/documentation/eventkit/eksource) |
-| `EKCalendar` with reminder support | A reminder list, despite the calendar terminology. | [Calendar](https://developer.apple.com/documentation/eventkit/ekcalendar) |
-| `EKReminder` | Reminder-specific state, dates, and priority. | [Reminder](https://developer.apple.com/documentation/eventkit/ekreminder) |
-| `EKCalendarItem` | Inherited fields such as title, notes, identifiers, alarms, and recurrence. | [Calendar item](https://developer.apple.com/documentation/eventkit/ekcalendaritem) |
+Require full access before operations and recheck after awaited fetches. Denied
+access fails rather than returning empty data. See [startup authorization](SERVER.md#setup).
 
-## Authorization
+A reminder list is an [EKCalendar](https://developer.apple.com/documentation/eventkit/ekcalendar),
+owned by an [EKSource](https://developer.apple.com/documentation/eventkit/eksource).
+Use `calendars(for: .reminder)`; `sources` includes unrelated accounts. ID lookups
+must check reminder support; defaults count only if accessible. Apply the schema's
+editability rules before writing, while allowing for native save failures.
 
-| API or setting | Why it is useful |
-| --- | --- |
-| `EKEventStore.authorizationStatus(for: .reminder)` | Check current access before treating an empty read as an empty collection. |
-| `requestFullAccessToReminders(completion:)` | Request reminder access; available on macOS 14 and later. |
-| `NSRemindersFullAccessUsageDescription` | Describe why an application requests reminder access. |
+## Reads
 
-Apple references: [requesting full reminder access](https://developer.apple.com/documentation/eventkit/ekeventstore/requestfullaccesstoreminders%28completion%3A%29),
-[authorization status](https://developer.apple.com/documentation/eventkit/ekeventstore/authorizationstatus%28for%3A%29),
-and [usage-description key](https://developer.apple.com/documentation/bundleresources/information-property-list/nsremindersfullaccessusagedescription).
+`predicateForReminders(in:)` includes completed and undated reminders in selected lists.
+Incomplete predicates optionally bound due dates; completed predicates bound completion dates.
+See the [predicate reference](https://developer.apple.com/documentation/eventkit/retrieving-events-and-reminders).
 
-Reminder reads require full-access authorization.
+Nil calendars means all lists; skip fetching when no accessible lists exist.
+`fetchReminders(matching:completion:)` has a 30-second limit. Finish its waiter
+on completion, cancellation, or timeout and call `cancelFetchRequest(_:)`;
+cancellation may suppress the callback. A nil result fails the read.
 
-## Discover accounts and lists
+Fail snapshots with duplicate IDs, missing owners, out-of-scope lists, or priorities
+outside 0–9; never drop bad records silently. Use one observation time per snapshot.
+Verify direct item lookups return `EKReminder`.
 
-| Call or property | Useful behavior |
-| --- | --- |
-| `calendars(for: .reminder)` | Enumerate accessible reminder lists. Start here for listing lists and per-list reads. |
-| `sources` | Enumerate sources, including ones unrelated to reminders. |
-| `calendar.source` | Associate a list with its source/account. |
-| `sourceIdentifier`, `source.title`, `sourceType` | Identify and describe the account/source. |
-| `calendarIdentifier`, `calendar.title` | Identify and name each list without relying on unique names. |
-| `calendar(withIdentifier:)` | Resolve a previously discovered list ID. |
-| `defaultCalendarForNewReminders()` | Obtain the default destination list; may return nil. |
-| `allowsContentModifications` | Check whether reminders in a list can be added, edited, or deleted. |
-| `isImmutable`, `isSubscribed`, `cgColor` | Read list editability, subscription status, and color. |
+[EKReminder](https://developer.apple.com/documentation/eventkit/ekreminder) and
+[EKCalendarItem](https://developer.apple.com/documentation/eventkit/ekcalendaritem)
+define stored fields. Group by owning calendar and use `isCompleted` even without
+`completionDate`. Retain raw components, all alarms, and all recurrence rules.
 
-`isImmutable` and `allowsContentModifications` describe different capabilities;
-neither guarantees that a requested operation will succeed.
+## Dates and recurrence
 
-## Fetch reminders
+Simplified dates require Gregorian/unset calendars, era 1/unset, valid year/month/day
+in years 1–9999, and valid clock components. An hour marks a timed date; smaller
+clock fields require it and default to zero when absent. Floating dates use the
+host zone. Reject invalid zones and year/month/day/hour/minute/second round-trip
+changes, including DST gaps. Repeated wall times use `Calendar.date(from:)`;
+there is no separate occurrence selector.
 
-| Call | When to use it |
-| --- | --- |
-| `predicateForReminders(in:)` | Build a query for all reminders in selected lists. Useful for complete snapshot counts, including completed and undated items. |
-| `predicateForIncompleteReminders(withDueDateStarting:ending:calendars:)` | Query incomplete reminders, optionally constrained by due date. |
-| `predicateForCompletedReminders(withCompletionDateStarting:ending:calendars:)` | Query completed reminders, optionally constrained by **completion date**. |
-| `fetchReminders(matching:completion:)` | Execute a reminder predicate asynchronously. Returns a cancellation handle. |
-| `cancelFetchRequest(_:)` | Cancel an outstanding fetch using its handle. |
-| `calendarItem(withIdentifier:)` | Look up an item directly; verify the result is an `EKReminder`. |
+Zone changes preserve timed instants and date-only calendar days. Clearing a zone
+converts to host wall time before making it floating: January 1 at 17:00Z becomes
+09:00 in Los Angeles, then floating 09:00 if cleared on that host. See
+[Metrics](METRICS.md#deadlines) for reporting-day classification.
 
-Apple's [retrieval guide](https://developer.apple.com/documentation/eventkit/retrieving-events-and-reminders)
-explains predicate and identifier-based access. Direct references:
-[all-reminders predicate](https://developer.apple.com/documentation/eventkit/ekeventstore/predicateforreminders%28in%3A%29),
-[incomplete predicate](https://developer.apple.com/documentation/eventkit/ekeventstore/predicateforincompletereminders%28withduedatestarting%3Aending%3Acalendars%3A%29),
-[completed predicate](https://developer.apple.com/documentation/eventkit/ekeventstore/predicateforcompletedreminders%28withcompletiondatestarting%3Aending%3Acalendars%3A%29),
-[fetch](https://developer.apple.com/documentation/eventkit/ekeventstore/fetchreminders%28matching%3Acompletion%3A%29),
-and [cancellation](https://developer.apple.com/documentation/eventkit/ekeventstore/cancelfetchrequest%28_%3A%29).
+Unsupported dates retain raw components. Simplified GraphQL fields fail individually;
+MCP conversion fails the call. Deadline bounds exclude unresolvable dates; due-date
+sorting fails rather than inventing an order.
 
-Passing nil calendars means all available calendars, not an empty scope. Completed-date
-predicates constrain completion dates, not due dates. A nil fetch result is
-indeterminate, unlike an empty array.
+Use [EKRecurrenceRule](https://developer.apple.com/documentation/eventkit/ekrecurrencerule)
+for repetition; do not generate future reminders or repair native DST shifts.
+The simplified API supports one rule. Selector arrays must be nonempty and unique;
+monthly weekday ordinals are limited to ±5, yearly to ±53, and ordinal weekdays
+cannot combine with `weeksOfYear`. Interval/count must fit positive Int32.
+An explicit end must choose exactly one of count or until.
 
-## Fields worth reading
+Completion uses native coupling: completing stamps now, reopening clears the date,
+and setting a completion date marks completed. Refetch to observe progression.
+iCloud checks advanced the original ID to the next incomplete occurrence and created
+a completed copy with another ID. Reopening the copy did not rewind the series.
+DST shifted starts and relative alarms while due times stayed fixed. These are
+provider observations. Current start ≤ due validation runs on every edit, so native
+shifts can block unrelated patches.
 
-| Field or measurement | EventKit properties | Notes |
-| --- | --- | --- |
-| Reminder identity and list | `calendarItemIdentifier`, `calendar` | Use the actual owning calendar when grouping results. |
-| Name and body | `title`, `notes` | Inherited from `EKCalendarItem`. |
-| Completed/incomplete counts | `isCompleted` | Do not infer completion solely from the presence of a completion date. |
-| Completion timestamp | `completionDate` | Can be absent even for a completed reminder from another client. |
-| Priority partitions | `priority` | 0 none, 1–4 high, 5 medium, 6–9 low. |
-| Start and due dates | `startDateComponents`, `dueDateComponents` | Preserve date-only versus timed values and floating time-zone semantics. |
-| Created/modified metadata | `creationDate`, `lastModifiedDate` | Useful for display and sorting, not a substitute for a change feed. |
-| Location and URL | `location`, `url` | Location text is separate from a geofence; a URL does not guarantee a rich-link attachment in the app. |
-| Alerts | `alarms` | Examine each `EKAlarm`, not just one alert timestamp. |
-| Repeating schedule | `recurrenceRules` | Apple documents support for a single recurrence rule. |
+## Writes
 
-See [EKAlarm](https://developer.apple.com/documentation/eventkit/ekalarm),
-[EKStructuredLocation](https://developer.apple.com/documentation/eventkit/ekstructuredlocation),
-[EKRecurrenceRule](https://developer.apple.com/documentation/eventkit/ekrecurrencerule),
-and [recurrence-rule support](https://developer.apple.com/documentation/eventkit/ekcalendaritem/recurrencerules).
+Assign new reminders a calendar and new lists a source. Validate resulting state
+before saving with `commit: true`, including start/due order and relative-alarm
+requirements. Reject date-only starts and free-text locations because storage
+normalizes/discards them. Scripting changes follow the save; see [write phases](APPLESCRIPT.md#writes).
 
-Date components distinguish floating zones and all-day dates.
+Moves reassign the existing reminder's calendar and reset/refetch to verify its
+destination; both lists must be editable. Do not recreate the reminder. List deletion
+checks emptiness unless `allowNonEmpty`; external edits remain unlocked.
 
-Apple documents `soundName` and `emailAddress` as mutually exclusive audio and
-email actions. Native objects can behave differently: a sound name can accompany
-a display action, and assigning an email address can leave the sound name set.
-The server accepts only one delivery option per alarm and returns the actual
-stored action. It verifies requested settings after saving and reports
-`WRITE_APPLIED` if the provider changes or drops them. Stored settings do not
-prove that a notification will be delivered.
-See [soundName](https://developer.apple.com/documentation/eventkit/ekalarm/soundname)
-and [emailAddress](https://developer.apple.com/documentation/eventkit/ekalarm/emailaddress).
+Clearing completed reminders requires an explicit editable list. After fetching,
+recheck access, completion, membership, and editability. Stage deletes with
+`commit: false`, then commit once; empty results return zero. Failure resets the
+store and returns `WRITE_FAILED`, without guaranteeing rollback of persisted deletes.
 
-Live GraphQL and MCP tests on macOS 27.2 (26B123) with an iCloud reminder list
-discarded both sound names and email recipients on save. Absolute and relative
-triggers remained as display alarms, and the server returned `WRITE_APPLIED`
-with the saved reminder ID. These delivery options are therefore not supported
-by that tested store; accepting the input does not establish provider support.
-Tests used disposable reminders with triggers in 2099 and did not test delivery.
+### Alarms
 
-## Identifiers and refresh
+[EKAlarm](https://developer.apple.com/documentation/eventkit/ekalarm) supports absolute,
+relative, and [location](https://developer.apple.com/documentation/eventkit/ekstructuredlocation)
+triggers. Keep combined/invalid triggers raw; fail simplified projection. Validate
+sound names against available system sounds. Native objects may retain a sound
+with a display action, or retain it when an email address is set.
 
-Apple warns that `calendarItemIdentifier` can be lost during a full sync.
-`calendarItemExternalIdentifier` is a server-provided alternative, but is not
-guaranteed unique across copies. `calendarItems(withExternalIdentifier:)` can
-therefore return multiple matches. Preserve source/list context when reconciling;
-never silently mutate a same-title reminder as a substitute for a missing ID.
-See [local identifier](https://developer.apple.com/documentation/eventkit/ekcalendaritem/calendaritemidentifier)
-and [external identifier](https://developer.apple.com/documentation/eventkit/ekcalendaritem/calendaritemexternalidentifier).
+For sound/email writes, reset/refetch and match every requested trigger/delivery
+once; sound permits display or audio action. Missing/changed settings return
+`WRITE_APPLIED` with the ID. Stored settings do not prove delivery. iCloud on macOS
+27.2 (26B123) dropped sound/email for absolute/relative alarms, retaining display
+triggers; both APIs returned `WRITE_APPLIED`. Tests used disposable 2099 triggers
+and did not test delivery.
 
-`Notification.Name.EKEventStoreChanged` signals invalidation, not item deltas.
-See Apple's [notification guide](https://developer.apple.com/documentation/eventkit/updating-with-notifications).
-`refreshSourcesIfNecessary()` does not guarantee completed cloud synchronization.
+## Identity and refresh
 
-## Related write calls
+`calendarItemIdentifier` may change after full sync. `calendarItemExternalIdentifier`
+is server-provided but not unique across copies; `calendarItems(withExternalIdentifier:)`
+may return multiple matches. Preserve source/list context; never substitute a same-title
+reminder for a missing ID.
 
-Reminder and list writes use these calls:
-
-| Call | Purpose |
-| --- | --- |
-| `EKReminder(eventStore:)` | Construct a reminder, then assign its calendar and properties. |
-| `save(_:commit:)` / `remove(_:commit:)` for reminders | Persist changes or delete a reminder. |
-| `EKCalendar(for: .reminder, eventStore:)` | Construct a reminder list; select an appropriate source. |
-| `saveCalendar(_:commit:)` / `removeCalendar(_:commit:)` | Persist or delete a list, subject to source capabilities. |
-| `commit()` | Save pending changes when using deferred commits. |
-
-See Apple's [creating events and reminders](https://developer.apple.com/documentation/eventkit/creating-events-and-reminders).
-Deferred commits are not a transaction or rollback guarantee across multiple
-operations. Completing a reminder and setting its completion date are coupled
-operations; test recurrence and completion behavior before relying on a faithful
-round trip.
+[EKEventStoreChanged](https://developer.apple.com/documentation/eventkit/updating-with-notifications)
+signals invalidation, not item deltas. Creation/modification timestamps are not a
+change feed, and `refreshSourcesIfNecessary()` does not prove cloud sync has finished.
