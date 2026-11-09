@@ -33,6 +33,7 @@ enum ReminderAlarmChange: Equatable, Sendable {
   case location(title: String?, latitude: Double, longitude: Double, radius: Double, arriving: Bool)
 }
 struct ReminderChanges: Equatable, Sendable {
+  var listId: String?
   var name: String?
   var body: String?
   var completed: Bool?
@@ -86,6 +87,15 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
   case .update(let id, let changes):
     item = try editableReminder(store, id: id)
     patch = changes
+    if let listID = patch.listId {
+      guard let destination = reminderList(store, id: listID) else {
+        throw ServerError.notFound("destination reminder list is unavailable")
+      }
+      guard destination.allowsContentModifications else {
+        throw ServerError.readOnly("destination reminder list is not editable")
+      }
+      item.calendar = destination
+    }
   }
   guard let list = item.calendar, list.allowsContentModifications else {
     throw ServerError.readOnly("reminder list is not editable")
@@ -169,15 +179,31 @@ func executeReminderWrite(_ request: ReminderWrite) throws -> ReminderWritePhase
       "EventKit save failed (code \((error as NSError).code)); refetch before retrying"
     )
   }
+  let savedItem: EKReminder
+  if let destinationID = patch.listId {
+    let savedID = item.calendarItemIdentifier
+    store.reset()
+    guard let refreshed = store.calendarItem(withIdentifier: savedID) as? EKReminder,
+      refreshed.calendar?.calendarIdentifier == destinationID
+    else {
+      throw ServerError.writeApplied(
+        "reminder \(savedID) was saved, but its destination list could not be verified; refetch this ID before retrying"
+      )
+    }
+    savedItem = refreshed
+  } else {
+    savedItem = item
+  }
   if automation {
     return .automation(
       PendingAutomation(
-        reminderID: item.calendarItemIdentifier, listID: list.calendarIdentifier,
+        reminderID: savedItem.calendarItemIdentifier,
+        listID: patch.listId ?? list.calendarIdentifier,
         flagged: patch.flagged, remindMeDate: patch.remindMeDate))
   }
-  do { return .finished(try ReminderRecord(item, now: Date(), flagged: nil)) } catch {
+  do { return .finished(try ReminderRecord(savedItem, now: Date(), flagged: nil)) } catch {
     throw ServerError.writeApplied(
-      "EventKit saved reminder \(item.calendarItemIdentifier), but response projection failed: \(error). Refetch this ID before retrying"
+      "EventKit saved reminder \(savedItem.calendarItemIdentifier), but response projection failed: \(error). Refetch this ID before retrying"
     )
   }
 }

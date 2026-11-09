@@ -210,6 +210,8 @@ enum FieldDocs {
     static let geofence = "Trigger on arrival at or departure from this region."
   }
   enum ReminderPatch {
+    static let listId =
+      "Move to this list. Both lists must be editable. Omission keeps the current list. Use the returned reminder ID after saving."
     static let name = "The new name of the reminder."
     static let body = "The new notes attached to the reminder. An empty string removes the notes."
     static let priority = "Set the priority: 0 none, 1–4 high, 5 medium, or 6–9 low."

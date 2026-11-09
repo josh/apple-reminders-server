@@ -130,6 +130,7 @@ func makeMutationType(
     fields: inputFields(
       ReminderInput.CodingKeys.self,
       [
+        .listId: InputObjectField(type: GraphQLID, description: Patch.listId),
         .name: InputObjectField(type: GraphQLString, description: Patch.name),
         .body: InputObjectField(type: GraphQLString, description: Patch.body),
         .priority: InputObjectField(type: GraphQLInt, description: Patch.priority),

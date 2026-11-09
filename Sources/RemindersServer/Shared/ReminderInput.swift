@@ -78,13 +78,19 @@ struct GeofenceInput: Decodable, Sendable {
 func reminderChanges(_ input: ReminderInput, creating: Bool) throws -> ReminderChanges {
   let patchFieldsAbsent =
     input.completed.isAbsent && input.completionDate.isAbsent && input.clearFields.isAbsent
-  guard creating ? patchFieldsAbsent : input.listId.isAbsent else {
+  guard !creating || patchFieldsAbsent else {
     throw ServerError.invalidArgument("Unknown input field")
   }
   if !creating, input.containsNull {
     throw ServerError.invalidArgument("patch values cannot be null; use clearFields")
   }
   var result = ReminderChanges()
+  if !creating, let listId = input.listId.value {
+    guard !listId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      throw ServerError.invalidArgument("listId must not be blank")
+    }
+    result.listId = listId
+  }
   result.name = input.name.value
   result.body = input.body.value
   // Reminders drops free-text locations on save; reject them rather than lose data silently.

@@ -421,6 +421,7 @@ private func toolsCatalog() -> [Tool] {
   let reminderPatch = schema(
     ReminderInput.CodingKeys.self,
     [
+      .listId: describe(string, FieldDocs.ReminderPatch.listId),
       .name: describe(string, FieldDocs.ReminderPatch.name),
       .body: describe(string, FieldDocs.ReminderPatch.body),
       .location: describe(string, FieldDocs.ReminderPatch.location),

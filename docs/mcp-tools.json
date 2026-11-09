@@ -1957,6 +1957,10 @@
                 "description": "Set whether the reminder is flagged, independently of priority.",
                 "type": "boolean"
               },
+              "listId": {
+                "description": "Move to this list. Both lists must be editable. Omission keeps the current list. Use the returned reminder ID after saving.",
+                "type": "string"
+              },
               "location": {
                 "description": "Unsupported: Reminders does not keep free-text locations, so writes are rejected. Use a geofence alarm.",
                 "type": "string"

@@ -1205,6 +1205,11 @@ input RecurrenceEndInput {
 
 input ReminderPatch {
   """
+  Move to this list. Both lists must be editable. Omission keeps the current list. Use the returned reminder ID after saving.
+  """
+  listId: ID
+
+  """
   The new name of the reminder.
   """
   name: String
