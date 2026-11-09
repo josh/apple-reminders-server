@@ -55,7 +55,7 @@ func decodeInput<T: Decodable>(_ type: T.Type, from value: some Encodable) throw
   }
 }
 
-private func inputMessage(_ error: DecodingError) -> String {
+func inputMessage(_ error: DecodingError) -> String {
   func name(_ path: [CodingKey]) -> String {
     path.isEmpty
       ? "input" : path.map { $0.intValue.map(String.init) ?? $0.stringValue }.joined(separator: ".")
