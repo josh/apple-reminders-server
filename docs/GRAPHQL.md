@@ -30,7 +30,8 @@ values reject null; remove values with `clearFields`. Reject invalid changes bef
 saving. Later mutation failures do not undo earlier successful mutations.
 
 An unknown flag returns null with an error and matches neither true nor false
-filters. A failed flag read fails the filtered collection.
+filters. A failed flag read fails the filtered collection. A simplified date field
+with unsupported stored components fails individually.
 
 ## Input aliases
 

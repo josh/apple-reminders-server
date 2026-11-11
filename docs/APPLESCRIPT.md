@@ -18,8 +18,7 @@ Apple does not guarantee cross-API correspondence. Names/positions are not ident
 
 Read IDs before and after each bulk property read; require matching counts,
 unchanged order, unique IDs, and typed values. Fail inconsistent reads. Scripting
-and EventKit are not atomic. Cache each property's result/failure per GraphQL
-request; invalidate after attempted mutations.
+and EventKit are not atomic.
 
 A property's `missing value` becomes null; a missing object or invalid flag is
 an error, never false. Containers require unique-ID references with account/list
@@ -42,9 +41,11 @@ Post-save failure or cancellation returns `WRITE_APPLIED` with the saved ID.
 Scripts may partly apply changes. Event timeouts exclude app launch and do not
 bound the entire operation; see [server recovery](SERVER.md#deadlines-and-recovery).
 
-## Navigation
+## Show
 
-`show` requires a UUID and an existing native object. Use the dictionary's command
-with a 10-second event timeout, no save, and no retry. Failed/mismatched replies
-return `SHOW_FAILED` because the UI may have changed; later MCP response-conversion
-failure returns `SHOW_APPLIED`.
+The dictionary's `show` command opens a list or reminder in the Reminders app.
+It changes only the UI, so nothing is saved.
+
+Require a UUID and an existing native object. Use a 10-second event timeout and
+no retry. Return `SHOW_FAILED` if the command fails or replies with a different
+ID, because the UI may still have changed.

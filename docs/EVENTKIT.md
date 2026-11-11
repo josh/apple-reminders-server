@@ -16,8 +16,8 @@ access fails rather than returning empty data. See [startup authorization](SERVE
 A reminder list is an [EKCalendar](https://developer.apple.com/documentation/eventkit/ekcalendar),
 owned by an [EKSource](https://developer.apple.com/documentation/eventkit/eksource).
 Use `calendars(for: .reminder)`; `sources` includes unrelated accounts. ID lookups
-must check reminder support; defaults count only if accessible. Apply the schema's
-editability rules before writing, while allowing for native save failures.
+must check reminder support; defaults count only if accessible. Check list
+editability before writing, while allowing for native save failures.
 
 ## Reads
 
@@ -25,13 +25,13 @@ editability rules before writing, while allowing for native save failures.
 Incomplete predicates optionally bound due dates; completed predicates bound completion dates.
 See the [predicate reference](https://developer.apple.com/documentation/eventkit/retrieving-events-and-reminders).
 
-MCP search intersects list/account scopes and selects completed/incomplete predicates.
+Scoped searches intersect list/account scopes and select completed/incomplete predicates.
 Empty scopes, or completion bounds with `completed: false`, skip fetching after
 validating bounds. Widen supplied completion bounds by one second in each direction,
 then apply exact inclusive-lower/exclusive-upper bounds to millisecond-serialized
 completion dates. This avoids native precision and endpoint differences losing matches.
-Due-date filtering uses shared projections, not native due bounds. GraphQL snapshots
-and metrics still fetch all accessible reminders.
+Due-date filtering uses shared projections, not native due bounds. Unscoped snapshots
+fetch all accessible reminders.
 
 Nil calendars means all lists; skip fetching when no accessible lists exist.
 `fetchReminders(matching:completion:)` has a 30-second limit. Finish its waiter
@@ -61,9 +61,9 @@ converts to host wall time before making it floating: January 1 at 17:00Z become
 09:00 in Los Angeles, then floating 09:00 if cleared on that host. See
 [Metrics](METRICS.md#deadlines) for reporting-day classification.
 
-Unsupported dates retain raw components. Simplified GraphQL fields fail individually;
-MCP conversion fails the call. Deadline bounds exclude unresolvable dates; due-date
-sorting fails rather than inventing an order.
+Unsupported dates retain raw components and fail simplified projection. Deadline
+bounds exclude unresolvable dates; due-date sorting fails rather than inventing an
+order.
 
 Use [EKRecurrenceRule](https://developer.apple.com/documentation/eventkit/ekrecurrencerule)
 for repetition; do not generate future reminders or repair native DST shifts.
@@ -110,7 +110,7 @@ For sound/email writes, reset/refetch and match every requested trigger/delivery
 once; sound permits display or audio action. Missing/changed settings return
 `WRITE_APPLIED` with the ID. Stored settings do not prove delivery. iCloud on macOS
 27.2 (26B123) dropped sound/email for absolute/relative alarms, retaining display
-triggers; both APIs returned `WRITE_APPLIED`. Tests used disposable 2099 triggers
+triggers; the writes returned `WRITE_APPLIED`. Tests used disposable 2099 triggers
 and did not test delivery.
 
 ## Identity and refresh
