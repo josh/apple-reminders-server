@@ -60,11 +60,12 @@ func dueStatus(_ components: DateComponents?, now: Date) -> DueStatus {
   let comparison = reporting.compare(resolved.instant, to: now, toGranularity: .day)
   return comparison == .orderedAscending ? .overdue : comparison == .orderedSame ? .today : .future
 }
-// Calendar-day searches use the same resolution rules as deadline metrics.
+// Timed deadlines report the host's day; all-day deadlines keep their stored day.
 func dueDay(_ components: DateComponents?) -> String? {
   guard let components, let resolved = try? projectDate(ComponentDate(components)) else {
     return nil
   }
+  guard resolved.timed else { return resolved.day }
   return resolved.instant.formatted(
     Date.ISO8601FormatStyle(timeZone: .current).year().month().day())
 }
