@@ -125,7 +125,7 @@ status 1 after more than 120 seconds without a heartbeat. This lets launchd reco
 from native calls that block the actor; an HTTP deadline alone cannot free it.
 Idle exit counts open connections, including keep-alive connections, rather than
 time since the last request. Native fetch and automation limits are described in
-[EventKit](EVENTKIT.md#reads) and [Reminders automation](APPLESCRIPT.md#writes).
+[EventKit](EVENTKIT.md#reads) and [AppleScript](APPLESCRIPT.md#writes).
 
 ## Errors
 

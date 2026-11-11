@@ -1,4 +1,4 @@
-# Reminders automation
+# AppleScript
 
 Flags, emblems, alert dates, and containers use the [scripting dictionary](Reminders.sdef)
 through [NSAppleScript](https://developer.apple.com/documentation/foundation/nsapplescript)

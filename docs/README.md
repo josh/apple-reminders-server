@@ -5,7 +5,7 @@
 - [MCP](MCP.md) · [Tool catalog](mcp-tools.json)
 - [Metrics](METRICS.md) · [Example](metrics.prom)
 - [EventKit](EVENTKIT.md): ownership, reads, dates, recurrence, and writes.
-- [Reminders automation](APPLESCRIPT.md): identity checks, verification, and retries.
+- [AppleScript](APPLESCRIPT.md): identity checks, verification, and retries.
 - [Reminders scripting dictionary](Reminders.sdef)
 
 The schema and catalog are exports; live introspection and MCP discovery describe

@@ -1,4 +1,4 @@
-# Project conventions
+# Agents
 
 - launchd is the only supported launcher: it owns the sockets, and the plist's environment variables are the only configuration.
 - Keep EventKit and AppleScript access in the server process. Writes must honor native authorization and editability.
