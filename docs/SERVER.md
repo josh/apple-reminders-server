@@ -61,11 +61,17 @@ endpoints or missing grants return 403.
 | `MCP`            | `/mcp`, including writes.                                          |
 | `TailscaleServe` | Checks `Tailscale-App-Capabilities` for the configured capability. |
 
-For `TailscaleServe`, use `SockNodeName=127.0.0.1` and `SockServiceName=8172`:
+For `TailscaleServe`, a Unix socket with `SockPathName` and `SockPathMode` 384 is
+recommended:
 
 ```sh
-tailscale serve --bg --https=443 --accept-app-caps=example.com/cap/reminders http://127.0.0.1:8172
+tailscale serve --bg --https=443 --accept-app-caps=example.com/cap/reminders unix:/path/to/tailscale-serve.sock
 ```
+
+`tailscaled` must run as root or as the socket's owner to open it. The sandboxed
+Mac App Store build cannot use Unix sockets; use `SockNodeName=127.0.0.1`,
+`SockServiceName=8172`, and an `http://127.0.0.1:8172` target instead. Any local
+process can reach a loopback port and forge the capability header.
 
 Capability grants are a list of objects mapping `graphql`/`mcp` to `r` or `rw`,
 and `metrics` to `r`, under the configured capability key:
@@ -82,8 +88,6 @@ Unknown API names/levels, `metrics: "rw"`, malformed headers, or headers over
 Only a trusted Tailscale Serve proxy may reach this socket: the header is its
 assertion of identity and access, not a credential the server verifies independently.
 
-Tailscale builds supporting Unix sockets can instead use
-`SockPathName` with a `unix:<path>` target; the Mac App Store build cannot.
 No built-in authentication or TLS beyond socket access: keep direct sockets private
 and use Tailscale Serve remotely.
 
