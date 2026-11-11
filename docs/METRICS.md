@@ -33,10 +33,6 @@ Resolve components in their stored zone, or the host zone when floating; date-on
 values resolve at midnight. Classify the resulting instant by the host's calendar
 day. `today` excludes overdue items and can differ from Reminders.app's Today view.
 
-Known limitation: November 8 at midnight in Tokyo reports November 7 in Los Angeles.
-Current `dueDay` follows that reporting day even for date-only values, despite the
-schema's description; `allDayDueDate` retains November 8.
-
 ## Refresh
 
 Collect at startup, then wait `REMINDERS_METRICS_INTERVAL_SECONDS` (default 3600)

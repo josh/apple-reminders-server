@@ -1,7 +1,7 @@
 # GraphQL
 
 `POST /graphql`. The [schema](reminders.graphql) documents types, fields, inputs,
-and validation; introspection describes the running version. No subscriptions.
+and validation. No subscriptions.
 
 ```sh
 curl --unix-socket /path/to/server.sock http://localhost/graphql \
@@ -9,7 +9,6 @@ curl --unix-socket /path/to/server.sock http://localhost/graphql \
   --data '{"query":"{ lists(limit: 10) { totalCount items { id name } pageInfo { hasNextPage } } }"}'
 ```
 
-Send one object with `query`, optional `variables`, and optional `operationName`.
 Null `variables`/`operationName` mean absent. Invalid envelopes return 400, other
 methods 405. A read-only grant permits only the selected query operation; mutations,
 including UI navigation, require write access. Execution errors normally use HTTP
@@ -17,9 +16,9 @@ including UI navigation, require write access. Execution errors normally use HTT
 
 ## Reads and mutations
 
-Repeated reads share results/failures within a request; unrelated fields may still
-succeed. Root mutations run serially and refresh reads after attempted writes,
-including failures. Later fields see earlier writes; separate requests can interleave.
+Repeated reads share results/failures within a request. Mutations refresh reads
+after attempted writes, including failures, so later fields see earlier writes;
+separate requests can interleave.
 See [access and sync limits](SERVER.md#limits).
 
 Collections filter and sort before pagination. `limit` is 1–100 (default 50),
@@ -31,8 +30,7 @@ values reject null; remove values with `clearFields`. Reject invalid changes bef
 saving. Later mutation failures do not undo earlier successful mutations.
 
 An unknown flag returns null with an error and matches neither true nor false
-filters. A failed flag read fails the filtered collection. Unselected optional
-fields do not trigger their reads.
+filters. A failed flag read fails the filtered collection.
 
 ## Input aliases
 
