@@ -1,7 +1,7 @@
 import Carbon
 import Foundation
 
-// GraphQL reads flags, emblems, alert dates, and containers through Reminders automation.
+// Reads flags, emblems, alert dates, and containers through Reminders automation.
 // Raw values are the class names in Reminders' scripting dictionary.
 enum ScriptObjectKind: String, Sendable {
   case account, list, reminder
