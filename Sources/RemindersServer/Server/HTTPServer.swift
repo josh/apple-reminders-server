@@ -168,9 +168,10 @@ func serve(
         response = .error("Untrusted origin", status: .forbidden)
       } else if request.head.method == .OPTIONS {
         var preflight = ServiceResponse(status: .noContent, body: Data())
-        preflight.headers.add(name: "Allow", value: "GET, POST, OPTIONS")
+        let methods = route == .graphql ? "POST, OPTIONS" : "GET, POST, OPTIONS"
+        preflight.headers.add(name: "Allow", value: methods)
         if headers[header: .origin] != nil {
-          preflight.headers.add(name: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS")
+          preflight.headers.add(name: "Access-Control-Allow-Methods", value: methods)
           preflight.headers.add(
             name: "Access-Control-Allow-Headers",
             value: headers[header: .corsRequestHeaders]

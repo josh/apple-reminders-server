@@ -9,10 +9,17 @@ curl --unix-socket /path/to/server.sock http://localhost/graphql \
   --data '{"query":"{ lists(limit: 10) { totalCount items { id name } pageInfo { hasNextPage } } }"}'
 ```
 
-Null `variables`/`operationName` mean absent. Invalid envelopes return 400, other
-methods 405. A read-only grant permits only the selected query operation; mutations,
-including UI navigation, require write access. Execution errors normally use HTTP
-200 with `errors`; clients must inspect the body.
+The endpoint follows [GraphQL over HTTP](https://http-spec.graphql.org/September2026/).
+Responses use `application/graphql-response+json` when Accept allows it or is absent,
+else `application/json` on 2xx; Accept without either returns 406.
+
+Null `variables`/`operationName` mean absent. Request errors carry no `data`: a body
+that is not JSON or a document that does not parse returns 400; a malformed envelope,
+failed validation, an ambiguous operation, or variables that do not coerce return 422.
+Other methods return 405 with `Allow: POST`. A read-only grant permits only the
+selected query operation; mutations, including UI navigation, require write access
+(403). Execution errors use HTTP 200 with `data` and `errors`; clients must inspect
+the body.
 
 ## Reads and mutations
 
