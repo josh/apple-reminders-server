@@ -940,7 +940,7 @@ private final class ToolOutcome: @unchecked Sendable {
       ProtocolVersionValidator(),
     ]))
   let server = Server(
-    name: "apple-reminders-server", version: "0.0.0",
+    name: "apple-reminders-server", version: "0.1.0",
     capabilities: .init(tools: .init(listChanged: false)))
   await server.withMethodHandler(ListTools.self) { params in
     guard params.cursor == nil else { throw MCPError.invalidParams("Tool catalog has no cursor") }
