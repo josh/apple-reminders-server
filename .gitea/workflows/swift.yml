@@ -1,0 +1,32 @@
+name: Swift
+
+on: [push]
+
+jobs:
+  swift:
+    runs-on: macos-arm64
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Show toolchain
+        run: |
+          echo "$PATH"
+          sw_vers -productVersion
+          xcode-select -p
+          swift --version
+
+      - name: Lint Swift
+        run: swift format lint --strict --recursive Sources Package.swift
+
+      - name: Check Package.resolved
+        run: swift package --force-resolved-versions resolve
+
+      - name: Check for lockfile changes
+        run: git diff --exit-code -- Package.resolved
+
+      - name: Build
+        run: swift build
+
+      - name: Build release
+        run: swift build -c release
