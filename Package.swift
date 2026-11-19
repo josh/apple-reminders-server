@@ -9,7 +9,7 @@ let package = Package(
   platforms: [.macOS(.v14)],
   products: [.executable(name: "apple-reminders-server", targets: ["RemindersServer"])],
   dependencies: [
-    .package(url: "https://github.com/GraphQLSwift/GraphQL.git", exact: "4.3.0"),
+    .package(url: "https://github.com/GraphQLSwift/GraphQL.git", exact: "4.4.0"),
     .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.1"),
     .package(url: "https://github.com/apple/swift-nio.git", exact: "2.105.0"),
     .package(url: "https://github.com/apple/swift-log.git", exact: "1.17.2"),
